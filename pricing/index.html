@@ -3,56 +3,116 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Active Mirror pricing for early access, Pro momentum work, and builder workflows."
+    />
     <title>Pricing | Active Mirror</title>
-    <script type="module" crossorigin src="/assets/main-BBrlsasZ.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/main-CzmRceVq.css">
+    <script type="module" crossorigin src="/assets/main-hPXfKH5u.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/main-DRIaZ7zZ.css">
   </head>
-  <body>
-    <header class="nav container">
-      <div class="brand">Active Mirror</div>
-      <div class="nav-links">
-        <a href="/">Home</a>
-        <a href="/product/">Momentum Sprint</a>
-        <a href="/trust/">Trust Layer</a>
-        <a href="/pricing/" style="color: var(--accent-teal)">Pricing</a>
-        <a class="button small" style="padding: 0.5rem 1.25rem; font-size: 0.9rem;" href="#">Start a Sprint</a>
+  <body data-page="pricing">
+    <header class="site-nav" aria-label="Primary">
+      <a class="brand" href="/" aria-label="Active Mirror home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+            <path d="M12 3.4 19.5 7.7v8.6L12 20.6 4.5 16.3V7.7L12 3.4Z" />
+            <path d="M12 7.8 16 10v4l-4 2.2L8 14v-4l4-2.2Z" />
+          </svg>
+        </span>
+        <span>Active Mirror</span>
+      </a>
+      <nav class="nav-links" aria-label="Sections">
+        <a href="/mirror/">Mirror</a>
+        <a href="/product/">Product</a>
+        <a href="/trust/">Trust</a>
+        <a href="/pricing/" aria-current="page">Pricing</a>
+      </nav>
+      <div class="nav-actions">
+        <a class="text-link" href="/trust/">Trust layer</a>
+        <a class="button primary small" href="/mirror/">Start free</a>
       </div>
     </header>
 
-    <main class="container">
-      <section class="hero">
-        <h1>Start your Momentum Sprint.</h1>
-        <p>Turn scattered context into forward motion.</p>
+    <main class="page-main">
+      <section class="page-hero centered">
+        <div class="page-copy">
+          <h1>Start free. Upgrade when momentum becomes daily work.</h1>
+          <p>
+            Early access keeps the first mirror open while the hosted vault, memory, and media routes move toward production.
+          </p>
+        </div>
       </section>
 
-      <section class="grid-3">
-        <div class="glass">
+      <section class="pricing-grid" aria-label="Pricing plans">
+        <article class="pricing-panel">
+          <span>Explore</span>
           <h2>Free</h2>
-          <h1 style="margin: 1rem 0; color: var(--accent-teal)">$0</h1>
-          <p>Basic Momentum Map, scattered context digestion, and single artifact generation.</p>
-          <a class="button secondary" href="#" style="width: 100%">Start Free Sprint</a>
-        </div>
-        <div class="glass" style="border-color: var(--accent-teal);">
-          <div class="eyebrow" style="margin-top: -1rem; margin-bottom: 1.5rem">Recommended</div>
+          <strong>$0</strong>
+          <p>Try the browser mirror, generate local boards, and inspect receipts.</p>
+          <ul>
+            <li>Browser workspace demo</li>
+            <li>Local deterministic fallback</li>
+            <li>Basic boundary receipts</li>
+          </ul>
+          <a class="button secondary full" href="/mirror/">Start free</a>
+        </article>
+
+        <article class="pricing-panel featured">
+          <span>Founding access</span>
           <h2>Pro</h2>
-          <h1 style="margin: 1rem 0; color: var(--accent-teal)">$12<span style="font-size: 1rem; color: #888">/mo</span></h1>
-          <p>Full 7-day Momentum Sprints, Unlimited context ingestion, and Receipts for all actions.</p>
-          <a class="button" href="#" style="width: 100%">Start Pro Sprint</a>
+          <strong>$19/mo</strong>
+          <p>For users who want continuity, hosted model routes, and recurring momentum workflows.</p>
+          <ul>
+            <li>Saved mirrors and continuity</li>
+            <li>GPT reflection route</li>
+            <li>Claude critique route</li>
+            <li>Gemini media route</li>
+            <li>Exportable artifacts and receipts</li>
+          </ul>
+          <a class="button primary full" href="mailto:hello@activemirror.ai?subject=Active%20Mirror%20Pro%20access">Request Pro access</a>
+        </article>
+
+        <article class="pricing-panel">
+          <span>Builder</span>
+          <h2>Studio</h2>
+          <strong>$49/mo</strong>
+          <p>For builders using Active Mirror across launches, repos, research, and content systems.</p>
+          <ul>
+            <li>Multiple project mirrors</li>
+            <li>Artifact and media workflows</li>
+            <li>Custom boundaries</li>
+            <li>Priority onboarding</li>
+          </ul>
+          <a class="button secondary full" href="mailto:hello@activemirror.ai?subject=Active%20Mirror%20Studio%20access">Talk to us</a>
+        </article>
+      </section>
+
+      <section class="page-section split-section">
+        <div>
+          <h2>Pricing follows the architecture.</h2>
+          <p>
+            The browser mirror should stay broadly accessible. Paid plans cover hosted continuity,
+            model routes, media generation, and heavier work where compute costs are real.
+          </p>
         </div>
-        <div class="glass">
-          <h2>Builder</h2>
-          <h1 style="margin: 1rem 0; color: var(--accent-teal)">$29<span style="font-size: 1rem; color: #888">/mo</span></h1>
-          <p>Continuous momentum across massive codebases, AI agent handoffs, and custom boundaries.</p>
-          <a class="button secondary" href="#" style="width: 100%">Build Momentum</a>
+        <div class="feature-grid tight">
+          <article><strong>No surprise training</strong><span>Paid access does not mean silent use of your data.</span></article>
+          <article><strong>Visible routes</strong><span>Users should know when a frontier model is helping.</span></article>
+          <article><strong>Receipts included</strong><span>Trust is not an add-on tier.</span></article>
         </div>
       </section>
     </main>
 
-    <footer>
-      <div class="container">
-        <div class="brand" style="justify-content: center; margin-bottom: 1rem;">Active Mirror</div>
-        <p style="margin-bottom: 0; font-size: 0.9rem;">&copy; 2026 N1 Intelligence (OPC) Private Limited.</p>
-      </div>
+    <footer class="site-footer">
+      <span>Active Mirror</span>
+      <span>Start with the mirror. Pay for continuity.</span>
+      <nav aria-label="Footer">
+        <a href="/mirror/">Mirror</a>
+        <a href="/product/">Product</a>
+        <a href="/trust/">Trust</a>
+        <a href="/terms/">Terms</a>
+      </nav>
     </footer>
 
   </body>
