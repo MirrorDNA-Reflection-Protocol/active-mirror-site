@@ -723,6 +723,7 @@ let mirrorTurn = 1;
 let mirrorRequestId = 0;
 let currentContextPacket = null;
 let lastMirrorReceipt = null;
+let packetPreviewTimer = 0;
 
 function inferWorkspaceRoute(intent, selected) {
   if (selected && selected !== "auto") return selected;
@@ -814,7 +815,8 @@ function previewContextPacket({ forceLocal = false } = {}) {
   renderContextPacket(currentContextPacket);
   mirrorRun.textContent = "Packet ready";
   mirrorRun.classList.add("is-complete");
-  window.setTimeout(() => {
+  window.clearTimeout(packetPreviewTimer);
+  packetPreviewTimer = window.setTimeout(() => {
     mirrorRun.textContent = "Preview context packet";
     mirrorRun.classList.remove("is-complete");
   }, 1100);
@@ -931,6 +933,7 @@ async function generateWorkspaceMirror() {
 
   mirrorTurn += 1;
   const requestId = (mirrorRequestId += 1);
+  window.clearTimeout(packetPreviewTimer);
   mirrorRun.disabled = true;
   mirrorRun.textContent = currentContextPacket.local_only ? "Generating locally..." : "Generating at gateway...";
   mirrorRun.classList.remove("is-complete");
@@ -951,19 +954,24 @@ async function generateWorkspaceMirror() {
     return;
   }
 
+  let gatewayTimeout = 0;
   try {
+    const controller = new AbortController();
+    gatewayTimeout = window.setTimeout(() => controller.abort(), 18000);
     const response = await fetch(`${MIRROR_GATEWAY_URL}/v1/mirror/create`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
       body: JSON.stringify({
         intent,
-          boundary: mirrorBoundary?.value || "personal",
-          route: mirrorRoute?.value || "auto",
-          turn: mirrorTurn,
-          trust_mode: mirrorTrust?.value || "approved",
-          context_packet: currentContextPacket,
-        }),
-      });
+        boundary: mirrorBoundary?.value || "personal",
+        route: mirrorRoute?.value || "auto",
+        turn: mirrorTurn,
+        trust_mode: mirrorTrust?.value || "approved",
+        context_packet: currentContextPacket,
+      }),
+    });
+    window.clearTimeout(gatewayTimeout);
     const payload = await response.json().catch(() => null);
     if (!response.ok || !payload?.ok) {
       throw new Error(payload?.error || "gateway_unavailable");
@@ -974,6 +982,7 @@ async function generateWorkspaceMirror() {
     mirrorRun.textContent = payload.fallback ? "Fallback viewport" : "Viewport generated";
     mirrorRun.classList.add("is-complete");
   } catch (error) {
+    window.clearTimeout(gatewayTimeout);
     if (requestId !== mirrorRequestId) return;
     renderWorkspaceMirror(null, currentContextPacket);
     mirrorRun.textContent = "Local fallback generated";
