@@ -589,18 +589,11 @@ if (
 
   if (openWorkspace) {
     openWorkspace.addEventListener("click", () => {
-      openWorkspace.textContent = "Workspace generated";
-      openWorkspace.classList.add("is-complete");
       receiptDrawer.classList.add("is-open");
       steps.forEach((step, index) => {
         step.classList.toggle("is-done", index < 4);
         step.classList.toggle("is-active", index === 3);
       });
-
-      window.setTimeout(() => {
-        openWorkspace.textContent = "Open in workspace";
-        openWorkspace.classList.remove("is-complete");
-      }, 1800);
     });
   }
 
