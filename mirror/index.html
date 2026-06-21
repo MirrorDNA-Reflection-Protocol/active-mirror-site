@@ -7,9 +7,10 @@
       name="description"
       content="Open the Active Mirror browser workspace. Reflect on an intent, set boundaries, generate a viewport, and inspect the receipt."
     />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Mirror Workspace | Active Mirror</title>
-    <script type="module" crossorigin src="/assets/main-E3PzsP31.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/main-PUR0Sd2y.css">
+    <script type="module" crossorigin src="/assets/main-CSxYSHec.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/main-BgnX8-GQ.css">
   </head>
   <body data-page="mirror">
     <header class="site-nav" aria-label="Primary">
@@ -51,7 +52,7 @@
         <div class="workspace-live-card" aria-label="Live route policy">
           <span>Route policy</span>
           <strong>GPT for reflection. Claude for chat critique. Gemini for media.</strong>
-          <p>Providers are helpers behind gates. The product surface stays Active Mirror.</p>
+          <p>Providers are helpers behind gates. The packet preview shows what leaves the browser before a route is approved.</p>
         </div>
       </section>
 
@@ -83,10 +84,39 @@
                 <option value="media">Media and visuals: Gemini</option>
               </select>
             </label>
+            <label>
+              Trust mode
+              <select id="mirror-trust">
+                <option value="approved">Approved cloud help</option>
+                <option value="local">Local only</option>
+                <option value="public">Public-safe</option>
+                <option value="client">Client-confidential</option>
+              </select>
+            </label>
           </div>
 
-          <button class="button primary full" id="mirror-run" type="button">Generate viewport</button>
+          <button class="button primary full" id="mirror-run" type="button">Preview context packet</button>
         </form>
+
+        <section class="workspace-panel workspace-packet" aria-label="Context packet preview">
+          <div class="panel-head split">
+            <strong>Context packet</strong>
+            <span id="mirror-packet-state">Draft</span>
+          </div>
+          <dl class="packet-grid">
+            <div><dt>Task</dt><dd id="mirror-packet-task"></dd></div>
+            <div><dt>Scope</dt><dd id="mirror-packet-scope"></dd></div>
+            <div><dt>Context included</dt><dd id="mirror-packet-used"></dd></div>
+            <div><dt>Context excluded</dt><dd id="mirror-packet-excluded"></dd></div>
+            <div><dt>Route target</dt><dd id="mirror-packet-route"></dd></div>
+            <div><dt>Boundary</dt><dd id="mirror-packet-boundary"></dd></div>
+          </dl>
+          <div class="packet-actions" aria-label="Context packet actions">
+            <button class="button primary small" id="mirror-approve" type="button">Approve route</button>
+            <button class="button secondary small" id="mirror-force-local" type="button">Force local-only</button>
+            <button class="text-button" id="mirror-cancel" type="button">Cancel packet</button>
+          </div>
+        </section>
 
         <section class="workspace-panel workspace-output" aria-label="Generated mirror">
           <div class="panel-head split">
@@ -125,6 +155,21 @@
             <div><dt>Route</dt><dd id="mirror-receipt-route"></dd></div>
             <div><dt>Memory decision</dt><dd id="mirror-receipt-memory"></dd></div>
           </dl>
+        </section>
+
+        <section class="workspace-panel workspace-memory" aria-label="Memory decision">
+          <div class="panel-head split">
+            <strong>Memory decision</strong>
+            <span id="mirror-memory-state">Pending</span>
+          </div>
+          <p class="memory-copy">Nothing becomes continuity until you choose what this turn means.</p>
+          <div class="memory-actions" aria-label="Memory decision actions">
+            <button type="button" data-memory-decision="forget">Forget turn</button>
+            <button type="button" data-memory-decision="project">Save for this project</button>
+            <button type="button" data-memory-decision="preference">Save as preference</button>
+            <button type="button" data-memory-decision="never">Never use this</button>
+            <button type="button" data-memory-decision="export">Export receipt</button>
+          </div>
         </section>
       </section>
 
