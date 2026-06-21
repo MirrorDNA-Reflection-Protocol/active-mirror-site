@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://activemirror.ai/schemas/context-packet.schema.json",
+  "title": "Active Mirror Context Packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "context_packet_id",
+    "task",
+    "scope",
+    "model_target",
+    "memory_items_used",
+    "excluded_memory_items",
+    "tools_requested",
+    "risk_level",
+    "approval_required",
+    "token_estimate",
+    "local_only"
+  ],
+  "properties": {
+    "context_packet_id": {
+      "type": "string",
+      "pattern": "^ctx_[A-Za-z0-9_-]+$"
+    },
+    "task": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope": {
+      "type": "string",
+      "minLength": 1
+    },
+    "model_target": {
+      "type": "string",
+      "minLength": 1
+    },
+    "memory_items_used": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "excluded_memory_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "reason"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "tools_requested": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "risk_level": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"]
+    },
+    "approval_required": {
+      "type": "boolean"
+    },
+    "token_estimate": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "local_only": {
+      "type": "boolean"
+    }
+  }
+}

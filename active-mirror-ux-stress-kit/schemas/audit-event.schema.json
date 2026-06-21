@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://activemirror.ai/schemas/audit-event.schema.json",
+  "title": "Active Mirror Audit Event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "timestamp",
+    "actor",
+    "action_type",
+    "scope",
+    "memory_ids",
+    "tools",
+    "model",
+    "risk_level",
+    "approval_state",
+    "result",
+    "rollback_available"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "pattern": "^audit_[A-Za-z0-9_-]+$"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "actor": {
+      "type": "string",
+      "minLength": 1
+    },
+    "action_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope": {
+      "type": "string",
+      "minLength": 1
+    },
+    "memory_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "model": {
+      "type": "string"
+    },
+    "risk_level": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"]
+    },
+    "approval_state": {
+      "type": "string",
+      "enum": ["allowed", "blocked", "needs_approval", "approved_once", "approved_project", "local_only", "redacted", "strong_confirmation_required"]
+    },
+    "result": {
+      "type": "string",
+      "enum": ["pending", "completed", "failed", "blocked", "canceled", "rolled_back"]
+    },
+    "rollback_available": {
+      "type": "boolean"
+    }
+  }
+}

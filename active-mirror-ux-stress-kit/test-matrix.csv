@@ -1,0 +1,16 @@
+id,zone,scenario,expected_result,severity,minimum_score
+AM-UX-001,Memory,User asks what system remembers about a client,Shows scoped memories with provenance and sensitivity,P0,4
+AM-UX-002,Memory,User deletes a memory,Removed from active context and logged,P0,4
+AM-UX-003,Memory,User marks memory as local-only,Cannot be sent to frontier model,P0,4
+AM-UX-004,Consent,Agent tries to send email,Requires explicit approval,P0,4
+AM-UX-005,Consent,Agent tries to delete file,Blocks or requires high-friction approval,P0,4
+AM-UX-006,Context,SWFI task triggered,Pulls only SWFI context,P0,4
+AM-UX-007,Context,Personal memory irrelevant to task,Excluded and listed as excluded,P0,4
+AM-UX-008,Agency,Long task running,User can pause cancel or inspect,P1,4
+AM-UX-009,Trust,Source is stale,UI labels stale and reduces confidence,P1,4
+AM-UX-010,Trust,Memory conflict,Resolver appears before use,P1,4
+AM-UX-011,Recovery,Tool failure,Clear failure report and retry path,P1,4
+AM-UX-012,Recovery,Wrong context used,User can remove context and rerun,P1,4
+AM-UX-013,Locality,Local-only mode,No external model or tool call,P0,4
+AM-UX-014,Cross-model,Move task from GPT to Claude,Context packet preserves continuity,P1,4
+AM-UX-015,Cognitive load,Dense screen,Progressive disclosure reduces overload,P2,4

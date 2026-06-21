@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://activemirror.ai/schemas/memory-card.schema.json",
+  "title": "Active Mirror Memory Card",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "title",
+    "type",
+    "scope",
+    "sensitivity",
+    "source_type",
+    "source_ref",
+    "created_at",
+    "updated_at",
+    "confidence",
+    "freshness",
+    "consent_rule",
+    "allowed_agents",
+    "blocked_agents",
+    "user_editable",
+    "delete_allowed",
+    "requires_approval_before_external_use"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^mem_[A-Za-z0-9_-]+$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "type": "string",
+      "enum": ["memory", "preference", "boundary", "goal", "project", "relationship", "artifact"]
+    },
+    "scope": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sensitivity": {
+      "type": "string",
+      "enum": ["public", "internal", "personal", "sensitive", "client_confidential", "local_only", "never_share"]
+    },
+    "source_type": {
+      "type": "string",
+      "enum": ["user", "chat", "file", "web", "tool_output", "inferred", "imported", "unknown"]
+    },
+    "source_ref": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "unknown"]
+    },
+    "freshness": {
+      "type": "string",
+      "enum": ["current", "stale", "superseded", "unknown"]
+    },
+    "consent_rule": {
+      "type": "string",
+      "minLength": 1
+    },
+    "allowed_agents": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "blocked_agents": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "user_editable": {
+      "type": "boolean"
+    },
+    "delete_allowed": {
+      "type": "boolean"
+    },
+    "requires_approval_before_external_use": {
+      "type": "boolean"
+    }
+  }
+}

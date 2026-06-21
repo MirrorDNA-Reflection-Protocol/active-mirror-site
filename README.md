@@ -43,6 +43,11 @@ The static site runs as a local browser demo until the Worker is deployed with p
 
 Live gateway: `https://gateway.activemirror.ai/health`
 
+## UX Stress Kit
+
+The reusable release gate lives in `active-mirror-ux-stress-kit/`.
+It defines the doctrine, component contracts, JSON Schemas, QA prompts, stress-test matrix, and release-readiness template for inspectable, interruptible, reversible, consent-aware Active Mirror UX.
+
 ## Deployment
 
 The GitHub Actions workflow builds the Vite site and publishes `dist` to `gh-pages`.
