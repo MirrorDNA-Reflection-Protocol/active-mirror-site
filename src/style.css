@@ -1418,6 +1418,29 @@ h1 span {
   border-bottom: 1px solid var(--line);
 }
 
+.origin-note {
+  display: block;
+  padding: 28px 0;
+}
+
+.origin-note p {
+  max-width: 920px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.origin-note strong {
+  display: inline-block;
+  margin-right: 12px;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 860;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
 .section-copy,
 .try-intro,
 .section-heading {
@@ -2056,6 +2079,10 @@ h3 {
   color: #a8bad0;
   font-size: 17px;
   line-height: 1.58;
+}
+
+.airlock-copy > .button {
+  margin-top: 22px;
 }
 
 .airlock-stack {
@@ -3052,6 +3079,29 @@ body::before {
 
 .receipt-pack .receipt-strip {
   color: var(--paper-ink);
+}
+
+.receipt-section-heading {
+  display: grid;
+  gap: 6px;
+  padding: 2px 8px 12px;
+}
+
+.receipt-section-heading h2 {
+  max-width: none;
+  color: var(--paper-ink);
+  font-size: clamp(21px, 2.2vw, 30px);
+  line-height: 1.02;
+  font-weight: 850;
+}
+
+.receipt-section-heading p {
+  max-width: 640px;
+  margin: 0;
+  color: rgba(21, 19, 15, 0.72);
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 700;
 }
 
 .receipt-pack .receipt-strip span,
