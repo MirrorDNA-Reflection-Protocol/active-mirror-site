@@ -3826,7 +3826,8 @@ h3,
   grid-template-columns: minmax(320px, 0.8fr) minmax(0, 1.2fr);
   grid-template-areas:
     "input output"
-    "receipt output";
+    "packet memory"
+    "receipt receipt";
   gap: 18px;
   align-items: start;
   padding: 20px;
@@ -3847,8 +3848,16 @@ h3,
   grid-area: output;
 }
 
+.workspace-packet {
+  grid-area: packet;
+}
+
 .workspace-receipt {
   grid-area: receipt;
+}
+
+.workspace-memory {
+  grid-area: memory;
 }
 
 .workspace-panel {
@@ -3891,6 +3900,79 @@ h3,
   display: grid;
   gap: 12px;
   margin-bottom: 16px;
+}
+
+.packet-grid {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.packet-grid > div {
+  display: grid;
+  gap: 5px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.packet-grid dt,
+.workspace-memory .panel-head strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.packet-grid dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.42;
+}
+
+.packet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.packet-actions .text-button {
+  min-height: 40px;
+  padding: 0 6px;
+}
+
+.memory-copy {
+  margin: 12px 0 14px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.memory-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.memory-actions button {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #263449;
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 820;
+  text-align: left;
+  padding: 0 11px;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.memory-actions button:hover {
+  border-color: rgba(7, 93, 242, 0.34);
+  background: var(--blue-soft);
+  transform: translateY(-1px);
 }
 
 .workspace-board {
@@ -4154,8 +4236,10 @@ h3,
   .workspace-app {
     grid-template-areas:
       "input"
+      "packet"
       "output"
-      "receipt";
+      "receipt"
+      "memory";
   }
 
   .feature-grid,
@@ -4205,9 +4289,24 @@ h3,
   }
 
   .workspace-receipt dl > div,
+  .packet-grid > div,
   .receipt-table div {
     grid-template-columns: 1fr;
     gap: 6px;
+  }
+
+  .packet-actions,
+  .packet-actions .button,
+  .memory-actions {
+    width: 100%;
+  }
+
+  .packet-actions {
+    display: grid;
+  }
+
+  .memory-actions {
+    grid-template-columns: 1fr;
   }
 
   .process-list li {
@@ -4260,6 +4359,9 @@ body[data-page] .split-section p {
 body[data-page] .workspace-live-card strong,
 body[data-page] .workspace-column > div strong,
 body[data-page] .workspace-column.artifact p,
+body[data-page] .packet-grid dt,
+body[data-page] .workspace-memory .panel-head strong,
+body[data-page] .memory-actions button,
 body[data-page] .feature-grid article strong,
 body[data-page] .use-case-grid article strong,
 body[data-page] .process-list strong,
@@ -4273,6 +4375,8 @@ body[data-page] .legal-stack h2 {
 }
 
 body[data-page] .workspace-live-card p,
+body[data-page] .packet-grid dd,
+body[data-page] .memory-copy,
 body[data-page] .feature-grid span,
 body[data-page] .use-case-grid span,
 body[data-page] .process-list p,
@@ -4284,6 +4388,7 @@ body[data-page] .legal-stack p {
 
 body[data-page] .workspace-live-card,
 body[data-page] .workspace-panel,
+body[data-page] .memory-actions button,
 body[data-page] .pricing-panel,
 body[data-page] .feature-grid article,
 body[data-page] .use-case-grid article,
@@ -4300,6 +4405,9 @@ body[data-page] .workspace-input label,
 body[data-page] .workspace-input textarea,
 body[data-page] .workspace-input select,
 body[data-page] .workspace-receipt dt,
+body[data-page] .packet-grid dt,
+body[data-page] .workspace-memory .panel-head strong,
+body[data-page] .memory-actions button,
 body[data-page] .workspace-column > div strong,
 body[data-page] .workspace-column li,
 body[data-page] .pricing-panel h2,
@@ -4316,6 +4424,8 @@ body[data-page] .legal-stack h2 {
 body[data-page] .workspace-live-card p,
 body[data-page] .workspace-panel .panel-head span,
 body[data-page] .workspace-receipt dd,
+body[data-page] .packet-grid dd,
+body[data-page] .memory-copy,
 body[data-page] .workspace-column > div span,
 body[data-page] .workspace-column.artifact p,
 body[data-page] #mirror-artifact strong,

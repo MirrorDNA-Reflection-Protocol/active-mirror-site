@@ -617,6 +617,7 @@ if (
 const mirrorIntent = document.querySelector("#mirror-intent");
 const mirrorBoundary = document.querySelector("#mirror-boundary");
 const mirrorRoute = document.querySelector("#mirror-route");
+const mirrorTrust = document.querySelector("#mirror-trust");
 const mirrorRun = document.querySelector("#mirror-run");
 const mirrorCount = document.querySelector("#mirror-count");
 const mirrorRouteLabel = document.querySelector("#mirror-route-label");
@@ -633,6 +634,18 @@ const mirrorReceiptUsed = document.querySelector("#mirror-receipt-used");
 const mirrorReceiptExcluded = document.querySelector("#mirror-receipt-excluded");
 const mirrorReceiptRoute = document.querySelector("#mirror-receipt-route");
 const mirrorReceiptMemory = document.querySelector("#mirror-receipt-memory");
+const mirrorPacketState = document.querySelector("#mirror-packet-state");
+const mirrorPacketTask = document.querySelector("#mirror-packet-task");
+const mirrorPacketScope = document.querySelector("#mirror-packet-scope");
+const mirrorPacketUsed = document.querySelector("#mirror-packet-used");
+const mirrorPacketExcluded = document.querySelector("#mirror-packet-excluded");
+const mirrorPacketRoute = document.querySelector("#mirror-packet-route");
+const mirrorPacketBoundary = document.querySelector("#mirror-packet-boundary");
+const mirrorApprove = document.querySelector("#mirror-approve");
+const mirrorForceLocal = document.querySelector("#mirror-force-local");
+const mirrorCancel = document.querySelector("#mirror-cancel");
+const mirrorMemoryState = document.querySelector("#mirror-memory-state");
+const mirrorMemoryButtons = Array.from(document.querySelectorAll("[data-memory-decision]"));
 
 const workspaceRoutes = {
   reflection: {
@@ -664,8 +677,52 @@ const workspaceRoutes = {
   },
 };
 
+const trustModes = {
+  approved: {
+    label: "Approved cloud help",
+    scope: "personal/default",
+    localOnly: false,
+    approval: "Cloud route requires explicit approval.",
+    included: "Current turn intent, selected boundary, route preference, and trust mode.",
+    excluded: "Stored memory, client records, files, tabs, and personal history are not included in this demo packet.",
+  },
+  local: {
+    label: "Local only",
+    scope: "local/browser",
+    localOnly: true,
+    approval: "No gateway call. Browser fallback generates the viewport.",
+    included: "Current turn intent and selected boundary only.",
+    excluded: "All cloud routes, provider APIs, stored memory, files, tabs, and external tools.",
+  },
+  public: {
+    label: "Public-safe",
+    scope: "public/shareable",
+    localOnly: false,
+    approval: "Only public-safe context may leave the browser after approval.",
+    included: "Current turn intent after boundary review, public-safe product framing, and route preference.",
+    excluded: "Private identity details, client-confidential material, secrets, and unapproved memory.",
+  },
+  client: {
+    label: "Client-confidential",
+    scope: "client/confidential",
+    localOnly: false,
+    approval: "Client scope requires approval and receipt-visible exclusions.",
+    included: "Current turn intent, selected boundary, client-safe task label, and route preference.",
+    excluded: "Personal context, unrelated client context, raw files, credentials, and anything not approved for this client scope.",
+  },
+};
+
+const memoryDecisionCopy = {
+  forget: "Forgotten for continuity: this turn remains visible only in the current browser session.",
+  project: "Saved for this project: future turns may use this receipt inside the same project scope.",
+  preference: "Saved as preference: the boundary or working style can guide future mirrors.",
+  never: "Blocked from future use: this turn is marked never-use unless you reverse it later.",
+};
+
 let mirrorTurn = 1;
 let mirrorRequestId = 0;
+let currentContextPacket = null;
+let lastMirrorReceipt = null;
 
 function inferWorkspaceRoute(intent, selected) {
   if (selected && selected !== "auto") return selected;
@@ -682,16 +739,133 @@ function providerLabel(route) {
   return `${route.capability} / ${route.primary}${model}${fallback}`;
 }
 
+function currentTrustMode() {
+  return trustModes[mirrorTrust?.value] || trustModes.approved;
+}
+
+function boundaryLabel(value) {
+  const option = Array.from(mirrorBoundary?.options || []).find((item) => item.value === value);
+  return option?.textContent?.trim() || "Selected boundary";
+}
+
+function routeTargetLabel(routeKey) {
+  const route = workspaceRoutes[routeKey] || workspaceRoutes.reflection;
+  return route.label;
+}
+
+function estimateTokens(text) {
+  return Math.max(180, Math.ceil(String(text || "").length / 4) + 320);
+}
+
+function buildContextPacket({ forceLocal = false } = {}) {
+  const intent = mirrorIntent?.value.replace(/\s+/g, " ").trim() || "";
+  const selectedRoute = inferWorkspaceRoute(intent, mirrorRoute?.value || "auto");
+  const selectedBoundary = mirrorBoundary?.value || "personal";
+  const selectedTrust = forceLocal ? trustModes.local : currentTrustMode();
+  const boundary = boundaryCopy[selectedBoundary] || boundaryCopy.personal;
+  const riskLevel = selectedBoundary === "secrets" || selectedTrust === trustModes.client ? "high" : selectedTrust.localOnly ? "low" : "medium";
+
+  return {
+    context_packet_id: `ctx_${Date.now()}_${String(mirrorTurn).padStart(3, "0")}`,
+    task: shortIntent(intent || "No intent entered yet"),
+    scope: selectedTrust.scope,
+    model_target: selectedTrust.localOnly ? "local/browser" : routeTargetLabel(selectedRoute),
+    memory_items_used: ["intent_current_turn", `boundary_${selectedBoundary}`, `trust_${mirrorTrust?.value || "approved"}`],
+    excluded_memory_items: [
+      { id: "stored_memory", reason: "not admitted for this demo turn" },
+      { id: "private_files", reason: "not attached or approved" },
+      { id: "external_tools", reason: "not requested for this viewport" },
+    ],
+    tools_requested: selectedTrust.localOnly ? ["browser_fallback"] : ["active_mirror_gateway"],
+    risk_level: riskLevel,
+    approval_required: !selectedTrust.localOnly,
+    token_estimate: estimateTokens(intent),
+    local_only: selectedTrust.localOnly,
+    route_key: selectedRoute,
+    boundary_key: selectedBoundary,
+    boundary_label: boundaryLabel(selectedBoundary),
+    trust_label: selectedTrust.label,
+    included_text: selectedTrust.included,
+    excluded_text: `${boundary.excluded} ${selectedTrust.excluded}`,
+    approval_text: selectedTrust.approval,
+    approved: false,
+  };
+}
+
+function renderContextPacket(packet = currentContextPacket) {
+  if (!packet || !mirrorPacketState) return;
+
+  mirrorPacketState.textContent = packet.local_only ? "Local-only ready" : packet.approved ? "Approved" : "Needs approval";
+  mirrorPacketTask.textContent = packet.task;
+  mirrorPacketScope.textContent = `${packet.scope} / ${packet.trust_label}`;
+  mirrorPacketUsed.textContent = `${packet.included_text} Estimated ${packet.token_estimate} tokens.`;
+  mirrorPacketExcluded.textContent = packet.excluded_text;
+  mirrorPacketRoute.textContent = `${packet.model_target}. ${packet.approval_text}`;
+  mirrorPacketBoundary.textContent = packet.boundary_label;
+
+  if (mirrorApprove) {
+    mirrorApprove.disabled = false;
+    mirrorApprove.textContent = packet.local_only ? "Generate locally" : packet.approved ? "Approved" : "Approve route";
+  }
+}
+
+function previewContextPacket({ forceLocal = false } = {}) {
+  currentContextPacket = buildContextPacket({ forceLocal });
+  renderContextPacket(currentContextPacket);
+  mirrorRun.textContent = "Packet ready";
+  mirrorRun.classList.add("is-complete");
+  window.setTimeout(() => {
+    mirrorRun.textContent = "Preview context packet";
+    mirrorRun.classList.remove("is-complete");
+  }, 1100);
+  animateElements(Array.from(document.querySelectorAll(".workspace-packet .packet-grid > div, .packet-actions > *")), {
+    y: 8,
+    duration: 0.32,
+  });
+}
+
+function routeTruthText(remotePayload, routeKey, packet) {
+  if (packet?.local_only) {
+    return "Local-only mode: no gateway call was made. Browser deterministic fallback generated this viewport.";
+  }
+  if (remotePayload?.route) {
+    const label = providerLabel(remotePayload.route);
+    const fallback = remotePayload.fallback
+      ? " Provider fallback was used and is recorded in this receipt."
+      : " Gateway route completed without fallback.";
+    return `${label}.${fallback}`;
+  }
+  if (packet?.approval_required && !packet.approved) {
+    return "Packet preview only: no gateway call yet. Approve the scoped packet to route through the gateway.";
+  }
+  const route = workspaceRoutes[routeKey] || workspaceRoutes.reflection;
+  return `${route.route} Gateway unavailable, blocked by origin policy, or provider fallback unavailable; local browser fallback used.`;
+}
+
+function captureReceiptSnapshot(packet, routeText) {
+  lastMirrorReceipt = {
+    receipt_id: mirrorReceiptId?.textContent || "local-receipt",
+    intent: mirrorIntent?.value || "",
+    packet,
+    why: mirrorReceiptWhy?.textContent || "",
+    context_used: mirrorReceiptUsed?.textContent || "",
+    context_excluded: mirrorReceiptExcluded?.textContent || "",
+    route: routeText || mirrorReceiptRoute?.textContent || "",
+    memory_decision: mirrorReceiptMemory?.textContent || "",
+    exported_at: new Date().toISOString(),
+  };
+}
+
 function normalizedList(value, fallback, size) {
   const list = Array.isArray(value) ? value.map((item) => String(item || "").trim()).filter(Boolean) : [];
   return [...list, ...fallback].slice(0, size);
 }
 
-function renderWorkspaceMirror(remotePayload = null) {
+function renderWorkspaceMirror(remotePayload = null, packet = currentContextPacket) {
   if (!mirrorIntent || !mirrorGoals || !mirrorBlockers || !mirrorMoves) return;
 
   const intent = mirrorIntent.value.replace(/\s+/g, " ").trim();
-  const routeKey = inferWorkspaceRoute(intent, mirrorRoute?.value || "auto");
+  const routeKey = packet?.route_key || inferWorkspaceRoute(intent, mirrorRoute?.value || "auto");
   const route = workspaceRoutes[routeKey];
   const boundary = boundaryCopy[mirrorBoundary?.value] || boundaryCopy.personal;
   const mirror = remotePayload?.mirror && typeof remotePayload.mirror === "object" ? remotePayload.mirror : null;
@@ -703,7 +877,8 @@ function renderWorkspaceMirror(remotePayload = null) {
   const receipt = mirror?.receipt || {};
 
   mirrorCount.textContent = `${mirrorIntent.value.length} / 1000`;
-  mirrorRouteLabel.textContent = remotePayload?.route ? providerLabel(remotePayload.route) : route.label;
+  const routeTruth = routeTruthText(remotePayload, routeKey, packet);
+  mirrorRouteLabel.textContent = packet?.local_only ? "local / browser fallback" : remotePayload?.route ? providerLabel(remotePayload.route) : route.label;
   renderRitualList(mirrorGoals, goals);
   renderRitualList(mirrorBlockers, blockers);
   renderRitualList(mirrorMoves, moves);
@@ -713,10 +888,12 @@ function renderWorkspaceMirror(remotePayload = null) {
   mirrorArtifact.innerHTML = `<p>${escapeHtml(artifactTitle)}</p><strong>${escapeHtml(artifactSummary)}</strong>`;
   mirrorReceiptId.textContent = remotePayload?.receipt_id ? `edge-${remotePayload.receipt_id}` : `local-${routeKey}-${String(mirrorTurn).padStart(3, "0")}`;
   mirrorReceiptWhy.textContent = receipt.why || route.why;
-  mirrorReceiptUsed.textContent = receipt.context_used || `Intent: "${shortIntent(intent || "No intent yet")}" plus selected boundary and route.`;
-  mirrorReceiptExcluded.textContent = receipt.context_excluded || boundary.excluded;
-  mirrorReceiptRoute.textContent = receipt.route || route.route;
-  mirrorReceiptMemory.textContent = receipt.memory_decision || boundary.memory;
+  mirrorReceiptUsed.textContent = receipt.context_used || packet?.included_text || `Intent: "${shortIntent(intent || "No intent yet")}" plus selected boundary and route.`;
+  mirrorReceiptExcluded.textContent = receipt.context_excluded || packet?.excluded_text || boundary.excluded;
+  mirrorReceiptRoute.textContent = receipt.route ? `${receipt.route} ${routeTruth}` : routeTruth;
+  mirrorReceiptMemory.textContent = receipt.memory_decision || "Pending: nothing saved until you choose a memory decision.";
+  if (mirrorMemoryState) mirrorMemoryState.textContent = "Pending";
+  captureReceiptSnapshot(packet, mirrorReceiptRoute.textContent);
 
   try {
     localStorage.setItem(
@@ -725,6 +902,7 @@ function renderWorkspaceMirror(remotePayload = null) {
         intent: mirrorIntent.value,
         boundary: mirrorBoundary?.value,
         route: mirrorRoute?.value,
+        trust: mirrorTrust?.value,
         turn: mirrorTurn,
       })
     );
@@ -740,11 +918,38 @@ async function generateWorkspaceMirror() {
     return;
   }
 
+  if (!currentContextPacket) {
+    previewContextPacket();
+    return;
+  }
+
+  if (currentContextPacket.approval_required && !currentContextPacket.approved) {
+    renderContextPacket(currentContextPacket);
+    mirrorPacketState.textContent = "Approval required";
+    return;
+  }
+
   mirrorTurn += 1;
   const requestId = (mirrorRequestId += 1);
   mirrorRun.disabled = true;
-  mirrorRun.textContent = "Generating at gateway...";
+  mirrorRun.textContent = currentContextPacket.local_only ? "Generating locally..." : "Generating at gateway...";
   mirrorRun.classList.remove("is-complete");
+
+  if (currentContextPacket.local_only) {
+    renderWorkspaceMirror(null, currentContextPacket);
+    mirrorRun.disabled = false;
+    mirrorRun.textContent = "Local viewport generated";
+    mirrorRun.classList.add("is-complete");
+    animateElements(Array.from(document.querySelectorAll(".workspace-column, .workspace-receipt dl > div, .workspace-memory")), {
+      y: 10,
+      duration: 0.38,
+    });
+    window.setTimeout(() => {
+      mirrorRun.textContent = "Preview context packet";
+      mirrorRun.classList.remove("is-complete");
+    }, 1600);
+    return;
+  }
 
   try {
     const response = await fetch(`${MIRROR_GATEWAY_URL}/v1/mirror/create`, {
@@ -752,36 +957,79 @@ async function generateWorkspaceMirror() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         intent,
-        boundary: mirrorBoundary?.value || "personal",
-        route: mirrorRoute?.value || "auto",
-        turn: mirrorTurn,
-      }),
-    });
+          boundary: mirrorBoundary?.value || "personal",
+          route: mirrorRoute?.value || "auto",
+          turn: mirrorTurn,
+          trust_mode: mirrorTrust?.value || "approved",
+          context_packet: currentContextPacket,
+        }),
+      });
     const payload = await response.json().catch(() => null);
     if (!response.ok || !payload?.ok) {
       throw new Error(payload?.error || "gateway_unavailable");
     }
     if (requestId !== mirrorRequestId) return;
 
-    renderWorkspaceMirror(payload);
+    renderWorkspaceMirror(payload, currentContextPacket);
     mirrorRun.textContent = payload.fallback ? "Fallback viewport" : "Viewport generated";
     mirrorRun.classList.add("is-complete");
   } catch (error) {
     if (requestId !== mirrorRequestId) return;
-    renderWorkspaceMirror();
-    mirrorReceiptRoute.textContent = `${mirrorReceiptRoute.textContent} Gateway unavailable or blocked; local browser fallback used.`;
+    renderWorkspaceMirror(null, currentContextPacket);
     mirrorRun.textContent = "Local fallback generated";
     mirrorRun.classList.add("is-complete");
   } finally {
     mirrorRun.disabled = false;
-    animateElements(Array.from(document.querySelectorAll(".workspace-column, .workspace-receipt dl > div")), {
+    animateElements(Array.from(document.querySelectorAll(".workspace-column, .workspace-receipt dl > div, .workspace-memory")), {
       y: 10,
       duration: 0.38,
     });
     window.setTimeout(() => {
-      mirrorRun.textContent = "Generate viewport";
+      mirrorRun.textContent = "Preview context packet";
       mirrorRun.classList.remove("is-complete");
     }, 1600);
+  }
+}
+
+function setMemoryDecision(decision) {
+  if (!mirrorReceiptMemory || !mirrorMemoryState) return;
+  if (decision === "export") {
+    const payload = lastMirrorReceipt || {
+      receipt_id: mirrorReceiptId?.textContent || "local-receipt",
+      intent: mirrorIntent?.value || "",
+      packet: currentContextPacket,
+      exported_at: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${payload.receipt_id || "active-mirror-receipt"}.json`;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    mirrorMemoryState.textContent = "Exported";
+    return;
+  }
+
+  const copy = memoryDecisionCopy[decision] || "Pending: nothing saved until you choose a memory decision.";
+  mirrorReceiptMemory.textContent = copy;
+  mirrorMemoryState.textContent =
+    decision === "forget" ? "Forgotten" : decision === "never" ? "Blocked" : decision === "project" ? "Project memory" : "Preference";
+  captureReceiptSnapshot(currentContextPacket, mirrorReceiptRoute?.textContent || "");
+
+  try {
+    const prior = JSON.parse(localStorage.getItem("activeMirrorMemoryDecisions") || "[]");
+    prior.unshift({
+      decision,
+      receipt_id: mirrorReceiptId?.textContent || "local-receipt",
+      at: new Date().toISOString(),
+      intent: shortIntent(mirrorIntent?.value || ""),
+    });
+    localStorage.setItem("activeMirrorMemoryDecisions", JSON.stringify(prior.slice(0, 12)));
+  } catch {
+    // Memory decisions are visible in the receipt even if browser storage is blocked.
   }
 }
 
@@ -793,17 +1041,46 @@ if (mirrorIntent && mirrorBoundary && mirrorRoute && mirrorRun) {
     if (savedWorkspace?.route && (savedWorkspace.route === "auto" || workspaceRoutes[savedWorkspace.route])) {
       mirrorRoute.value = savedWorkspace.route;
     }
+    if (savedWorkspace?.trust && trustModes[savedWorkspace.trust] && mirrorTrust) mirrorTrust.value = savedWorkspace.trust;
     if (Number.isFinite(savedWorkspace?.turn)) mirrorTurn = savedWorkspace.turn;
   } catch {
     localStorage.removeItem("activeMirrorWorkspaceDemo");
   }
 
-  mirrorIntent.addEventListener("input", renderWorkspaceMirror);
-  mirrorBoundary.addEventListener("change", renderWorkspaceMirror);
-  mirrorRoute.addEventListener("change", renderWorkspaceMirror);
-  mirrorRun.addEventListener("click", generateWorkspaceMirror);
+  const refreshWorkspaceDraft = () => {
+    currentContextPacket = buildContextPacket();
+    renderContextPacket(currentContextPacket);
+    renderWorkspaceMirror(null, currentContextPacket);
+  };
 
-  renderWorkspaceMirror();
+  mirrorIntent.addEventListener("input", refreshWorkspaceDraft);
+  mirrorBoundary.addEventListener("change", refreshWorkspaceDraft);
+  mirrorRoute.addEventListener("change", refreshWorkspaceDraft);
+  mirrorTrust?.addEventListener("change", refreshWorkspaceDraft);
+  mirrorRun.addEventListener("click", () => previewContextPacket());
+  mirrorApprove?.addEventListener("click", () => {
+    if (!currentContextPacket) currentContextPacket = buildContextPacket();
+    currentContextPacket.approved = true;
+    renderContextPacket(currentContextPacket);
+    generateWorkspaceMirror();
+  });
+  mirrorForceLocal?.addEventListener("click", () => {
+    if (mirrorTrust) mirrorTrust.value = "local";
+    currentContextPacket = buildContextPacket({ forceLocal: true });
+    currentContextPacket.approved = true;
+    renderContextPacket(currentContextPacket);
+    generateWorkspaceMirror();
+  });
+  mirrorCancel?.addEventListener("click", () => {
+    currentContextPacket = buildContextPacket();
+    renderContextPacket(currentContextPacket);
+    mirrorPacketState.textContent = "Canceled";
+  });
+  mirrorMemoryButtons.forEach((button) => {
+    button.addEventListener("click", () => setMemoryDecision(button.dataset.memoryDecision));
+  });
+
+  refreshWorkspaceDraft();
 }
 
 const observer = new IntersectionObserver(
