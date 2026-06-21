@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "active-mirror-site-gateway",
+  "account_id": "c67a8591dff0a1b3681da50540530fc3",
   "main": "src/index.js",
   "compatibility_date": "2026-06-21",
   "observability": {
