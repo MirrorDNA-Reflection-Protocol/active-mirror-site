@@ -3,44 +3,101 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Trust Layer | Active Mirror</title>
+    <meta
+      name="description"
+      content="Active Mirror Trust by Design: local-first custody, explicit boundaries, model routing, receipt-backed memory, and inspectable recommendations."
+    />
+    <title>Trust by Design | Active Mirror</title>
   </head>
-  <body>
-    <header class="nav container">
-      <div class="brand">Active Mirror</div>
-      <div class="nav-links">
-        <a href="/">Home</a>
-        <a href="/product/">Momentum Sprint</a>
-        <a href="/trust/" style="color: var(--accent-teal)">Trust Layer</a>
+  <body data-page="trust">
+    <header class="site-nav" aria-label="Primary">
+      <a class="brand" href="/" aria-label="Active Mirror home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+            <path d="M12 3.4 19.5 7.7v8.6L12 20.6 4.5 16.3V7.7L12 3.4Z" />
+            <path d="M12 7.8 16 10v4l-4 2.2L8 14v-4l4-2.2Z" />
+          </svg>
+        </span>
+        <span>Active Mirror</span>
+      </a>
+      <nav class="nav-links" aria-label="Sections">
+        <a href="/mirror/">Mirror</a>
+        <a href="/product/">Product</a>
+        <a href="/trust/" aria-current="page">Trust</a>
         <a href="/pricing/">Pricing</a>
-        <a class="button small" style="padding: 0.5rem 1.25rem; font-size: 0.9rem;" href="#">Start a Sprint</a>
+      </nav>
+      <div class="nav-actions">
+        <a class="text-link" href="/privacy/">Privacy</a>
+        <a class="button primary small" href="/mirror/">Try mirror</a>
       </div>
     </header>
 
-    <main class="container">
-      <section class="hero">
-        <div class="eyebrow">The Trust Layer</div>
-        <h1>Boundaries make momentum possible.</h1>
-        <p>You can't give an AI your scattered context if you don't trust the boundaries. Active Mirror secures your digital soul.</p>
+    <main class="page-main">
+      <section class="page-hero">
+        <div class="page-copy">
+          <h1>Trust by Design is the product architecture.</h1>
+          <p>
+            Active Mirror is built around less collection, explicit boundaries, inspectable routes,
+            and receipts for memory. Trust is not a badge after the fact.
+          </p>
+          <div class="page-actions">
+            <a class="button primary" href="/mirror/">Test the boundary gate</a>
+            <a class="button secondary" href="/privacy/">Read privacy posture</a>
+          </div>
+        </div>
+        <figure class="page-media">
+          <img src="/images/edge-privacy.png" alt="Edge privacy architecture for Active Mirror" />
+        </figure>
       </section>
 
-      <section class="grid-2">
-        <div class="glass">
-          <h3 style="color: var(--text-primary)">Local-First Context</h3>
-          <p>Your scattered context stays yours. We don't ingest your life into a corporate cloud. We secure it locally before generating artifacts.</p>
+      <section class="page-section">
+        <div class="trust-ledger">
+          <article><span>01</span><strong>Local-first custody</strong><p>Context starts in the browser and vault model. Cloud routes are earned, not assumed.</p></article>
+          <article><span>02</span><strong>Boundary gate</strong><p>Each turn carries a boundary: personal, client, secrets, or drafts.</p></article>
+          <article><span>03</span><strong>Model routing</strong><p>GPT reflects, Claude critiques, Gemini handles media. Providers are replaceable helpers.</p></article>
+          <article><span>04</span><strong>Receipt-backed memory</strong><p>Nothing becomes continuity without an inspectable memory decision.</p></article>
         </div>
-        <div class="glass">
-          <h3 style="color: var(--text-primary)">Explicit Boundaries</h3>
-          <p>"What should I never do or share?" We ask this on day one. Your boundaries are codified into the engine, ensuring safe, autonomous generation.</p>
+      </section>
+
+      <section class="page-section split-section">
+        <div>
+          <h2>The receipt is the interface for trust.</h2>
+          <p>
+            Every serious output should answer five questions before the user is asked to trust it.
+          </p>
+        </div>
+        <div class="receipt-table">
+          <div><strong>Why</strong><span>The reasoning behind the suggestion.</span></div>
+          <div><strong>Context used</strong><span>The input and signals that shaped the output.</span></div>
+          <div><strong>Context excluded</strong><span>What the boundary intentionally blocked.</span></div>
+          <div><strong>Route</strong><span>Local, GPT, Claude, Gemini, or fallback path.</span></div>
+          <div><strong>Memory decision</strong><span>What was saved, ignored, or queued for approval.</span></div>
+        </div>
+      </section>
+
+      <section class="page-section">
+        <div class="section-heading compact">
+          <h2>Security posture for the browser runtime</h2>
+          <p>The target architecture stays conservative: secrets never reach the frontend, providers sit behind a gateway, and local state has explicit gates.</p>
+        </div>
+        <div class="feature-grid">
+          <article><strong>No frontend keys</strong><span>API keys belong behind Workers or server-side gateways, never in browser JavaScript.</span></article>
+          <article><strong>No silent memory</strong><span>Memory promotion is a user-visible decision with receipt context.</span></article>
+          <article><strong>Provider isolation</strong><span>External models receive scoped tasks, not the whole vault by default.</span></article>
+          <article><strong>Failure remains useful</strong><span>If a model route fails, the browser can still generate a deterministic local board.</span></article>
         </div>
       </section>
     </main>
 
-    <footer>
-      <div class="container">
-        <div class="brand" style="justify-content: center; margin-bottom: 1rem;">Active Mirror</div>
-        <p style="margin-bottom: 0; font-size: 0.9rem;">&copy; 2026 N1 Intelligence (OPC) Private Limited.</p>
-      </div>
+    <footer class="site-footer">
+      <span>Active Mirror</span>
+      <span>Trust by Design.</span>
+      <nav aria-label="Footer">
+        <a href="/mirror/">Mirror</a>
+        <a href="/product/">Product</a>
+        <a href="/pricing/">Pricing</a>
+        <a href="/terms/">Terms</a>
+      </nav>
     </footer>
 
     <script type="module" src="/src/main.js"></script>

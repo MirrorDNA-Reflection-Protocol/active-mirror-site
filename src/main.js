@@ -600,6 +600,139 @@ if (
   renderScenario("launch");
 }
 
+const mirrorIntent = document.querySelector("#mirror-intent");
+const mirrorBoundary = document.querySelector("#mirror-boundary");
+const mirrorRoute = document.querySelector("#mirror-route");
+const mirrorRun = document.querySelector("#mirror-run");
+const mirrorCount = document.querySelector("#mirror-count");
+const mirrorRouteLabel = document.querySelector("#mirror-route-label");
+const mirrorGoals = document.querySelector("#mirror-goals");
+const mirrorBlockers = document.querySelector("#mirror-blockers");
+const mirrorMoves = document.querySelector("#mirror-moves");
+const mirrorArtifact = document.querySelector("#mirror-artifact");
+const mirrorGoalCount = document.querySelector("#mirror-goal-count");
+const mirrorBlockerCount = document.querySelector("#mirror-blocker-count");
+const mirrorMoveCount = document.querySelector("#mirror-move-count");
+const mirrorReceiptId = document.querySelector("#mirror-receipt-id");
+const mirrorReceiptWhy = document.querySelector("#mirror-receipt-why");
+const mirrorReceiptUsed = document.querySelector("#mirror-receipt-used");
+const mirrorReceiptExcluded = document.querySelector("#mirror-receipt-excluded");
+const mirrorReceiptRoute = document.querySelector("#mirror-receipt-route");
+const mirrorReceiptMemory = document.querySelector("#mirror-receipt-memory");
+
+const workspaceRoutes = {
+  reflection: {
+    label: "reflection / GPT",
+    route: "GPT is the reflective reasoning route for judgment, prioritization, and structured next moves.",
+    goals: ["Name the real objective", "Separate signal from noise", "Create one momentum path"],
+    blockers: ["Too much context at once", "Unclear priority order", "No accepted memory decision"],
+    moves: ["Extract the strongest intent", "Pick one proof artifact", "Write the next-action board", "Approve or reject memory"],
+    artifact: ["Reflection board", "Objective, blockers, next moves, and receipt."],
+    why: "The turn asks for judgment and momentum, so the reflection route is the strongest fit.",
+  },
+  chat: {
+    label: "chat critique / Claude",
+    route: "Claude is the chat, critique, rewrite, and receipt-review route for sharpening language and structure.",
+    goals: ["Clarify the message", "Tighten the structure", "Expose weak assumptions"],
+    blockers: ["Copy may overclaim", "Tone can drift", "The useful objection is hidden"],
+    moves: ["Rewrite the core claim", "List objections", "Cut unsupported language", "Produce a cleaner artifact"],
+    artifact: ["Critique memo", "Sharper copy, objections, and suggested rewrite."],
+    why: "The turn needs language critique and structure more than raw prediction.",
+  },
+  media: {
+    label: "media / Gemini",
+    route: "Gemini is the media and multimodal route for images, video, screenshots, and visual asset planning.",
+    goals: ["Define the visual output", "Protect private context", "Create a media brief"],
+    blockers: ["Visual direction is vague", "Source material may be sensitive", "Media route needs tight constraints"],
+    moves: ["Choose format and aspect ratio", "Write the visual brief", "Exclude private details", "Generate or queue the asset"],
+    artifact: ["Media brief", "Scene, format, constraints, and receipt."],
+    why: "The turn asks for visual or multimodal work, so the media route is the correct helper lane.",
+  },
+};
+
+let mirrorTurn = 1;
+
+function inferWorkspaceRoute(intent, selected) {
+  if (selected && selected !== "auto") return selected;
+  const value = intent.toLowerCase();
+  if (/\b(image|video|visual|poster|screenshot|render|media|asset|thumbnail)\b/.test(value)) return "media";
+  if (/\b(chat|copy|rewrite|critique|polish|tone|message|wording)\b/.test(value)) return "chat";
+  return "reflection";
+}
+
+function renderWorkspaceMirror() {
+  if (!mirrorIntent || !mirrorGoals || !mirrorBlockers || !mirrorMoves) return;
+
+  const intent = mirrorIntent.value.replace(/\s+/g, " ").trim();
+  const routeKey = inferWorkspaceRoute(intent, mirrorRoute?.value || "auto");
+  const route = workspaceRoutes[routeKey];
+  const boundary = boundaryCopy[mirrorBoundary?.value] || boundaryCopy.personal;
+
+  mirrorCount.textContent = `${mirrorIntent.value.length} / 1000`;
+  mirrorRouteLabel.textContent = route.label;
+  renderRitualList(mirrorGoals, route.goals);
+  renderRitualList(mirrorBlockers, route.blockers);
+  renderRitualList(mirrorMoves, route.moves);
+  mirrorGoalCount.textContent = String(route.goals.length);
+  mirrorBlockerCount.textContent = String(route.blockers.length);
+  mirrorMoveCount.textContent = String(route.moves.length);
+  mirrorArtifact.innerHTML = `<p>${route.artifact[0]}</p><strong>${route.artifact[1]}</strong>`;
+  mirrorReceiptId.textContent = `local-${routeKey}-${String(mirrorTurn).padStart(3, "0")}`;
+  mirrorReceiptWhy.textContent = route.why;
+  mirrorReceiptUsed.textContent = `Intent: "${shortIntent(intent || "No intent yet")}" plus selected boundary and route.`;
+  mirrorReceiptExcluded.textContent = boundary.excluded;
+  mirrorReceiptRoute.textContent = route.route;
+  mirrorReceiptMemory.textContent = boundary.memory;
+
+  try {
+    localStorage.setItem(
+      "activeMirrorWorkspaceDemo",
+      JSON.stringify({
+        intent: mirrorIntent.value,
+        boundary: mirrorBoundary?.value,
+        route: mirrorRoute?.value,
+        turn: mirrorTurn,
+      })
+    );
+  } catch {
+    // The workspace demo remains usable without local persistence.
+  }
+}
+
+if (mirrorIntent && mirrorBoundary && mirrorRoute && mirrorRun) {
+  try {
+    const savedWorkspace = JSON.parse(localStorage.getItem("activeMirrorWorkspaceDemo") || "null");
+    if (savedWorkspace?.intent) mirrorIntent.value = savedWorkspace.intent;
+    if (savedWorkspace?.boundary && boundaryCopy[savedWorkspace.boundary]) mirrorBoundary.value = savedWorkspace.boundary;
+    if (savedWorkspace?.route && (savedWorkspace.route === "auto" || workspaceRoutes[savedWorkspace.route])) {
+      mirrorRoute.value = savedWorkspace.route;
+    }
+    if (Number.isFinite(savedWorkspace?.turn)) mirrorTurn = savedWorkspace.turn;
+  } catch {
+    localStorage.removeItem("activeMirrorWorkspaceDemo");
+  }
+
+  mirrorIntent.addEventListener("input", renderWorkspaceMirror);
+  mirrorBoundary.addEventListener("change", renderWorkspaceMirror);
+  mirrorRoute.addEventListener("change", renderWorkspaceMirror);
+  mirrorRun.addEventListener("click", () => {
+    mirrorTurn += 1;
+    renderWorkspaceMirror();
+    mirrorRun.textContent = "Viewport generated";
+    mirrorRun.classList.add("is-complete");
+    animateElements(Array.from(document.querySelectorAll(".workspace-column, .workspace-receipt dl > div")), {
+      y: 10,
+      duration: 0.38,
+    });
+    window.setTimeout(() => {
+      mirrorRun.textContent = "Generate viewport";
+      mirrorRun.classList.remove("is-complete");
+    }, 1400);
+  });
+
+  renderWorkspaceMirror();
+}
+
 const observer = new IntersectionObserver(
   (entries) => {
     entries.forEach((entry) => {

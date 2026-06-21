@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "worker:dev": "npx wrangler dev --config worker/wrangler.jsonc",
+    "worker:deploy": "npx wrangler deploy --config worker/wrangler.jsonc",
+    "worker:types": "npx wrangler types --config worker/wrangler.jsonc"
   },
   "devDependencies": {
     "vite": "^8.0.12"

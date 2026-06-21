@@ -3,49 +3,154 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mirror Runtime | Active Mirror</title>
+    <meta
+      name="description"
+      content="Open the Active Mirror browser workspace. Reflect on an intent, set boundaries, generate a viewport, and inspect the receipt."
+    />
+    <title>Mirror Workspace | Active Mirror</title>
   </head>
-  <body>
-    <header class="nav container">
-      <a class="brand" href="/">Active Mirror</a>
-      <div class="nav-links">
-        <a href="/">Home</a>
-        <a href="/mirror/" style="color: var(--accent-teal)">Mirror</a>
-        <a href="/product/">Momentum Sprint</a>
-        <a href="/trust/">Trust Layer</a>
+  <body data-page="mirror">
+    <header class="site-nav" aria-label="Primary">
+      <a class="brand" href="/" aria-label="Active Mirror home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+            <path d="M12 3.4 19.5 7.7v8.6L12 20.6 4.5 16.3V7.7L12 3.4Z" />
+            <path d="M12 7.8 16 10v4l-4 2.2L8 14v-4l4-2.2Z" />
+          </svg>
+        </span>
+        <span>Active Mirror</span>
+      </a>
+      <nav class="nav-links" aria-label="Sections">
+        <a href="/mirror/" aria-current="page">Mirror</a>
+        <a href="/product/">Product</a>
+        <a href="/trust/">Trust</a>
         <a href="/pricing/">Pricing</a>
+      </nav>
+      <div class="nav-actions">
+        <a class="text-link" href="/privacy/">Privacy</a>
+        <a class="button primary small" href="#workspace">Start</a>
       </div>
     </header>
 
-    <main class="container">
-      <section class="hero">
-        <div class="eyebrow">Browser runtime</div>
-        <h1>Your mirror opens as a private workspace, not a blank chatbot.</h1>
-        <p>The runtime keeps context local first, reflects before routing, and turns each approved turn into a visible viewport with receipts.</p>
+    <main class="page-main" id="workspace">
+      <section class="page-hero workspace-hero">
+        <div class="page-copy">
+          <h1>Your mirror opens as a workspace, not a blank chatbot.</h1>
+          <p>
+            Enter an intent, choose a boundary, and Active Mirror generates the next useful viewport:
+            goals, blockers, moves, artifact, route, and receipt.
+          </p>
+          <div class="page-actions">
+            <a class="button primary" href="#mirror-intent">Create a mirror</a>
+            <a class="button secondary" href="/trust/">Review trust layer</a>
+          </div>
+        </div>
+
+        <div class="workspace-live-card" aria-label="Live route policy">
+          <span>Route policy</span>
+          <strong>GPT for reflection. Claude for chat critique. Gemini for media.</strong>
+          <p>Providers are helpers behind gates. The product surface stays Active Mirror.</p>
+        </div>
       </section>
 
-      <section class="grid-2">
-        <div class="glass">
-          <h2 style="color: var(--accent-teal)">How a turn works</h2>
-          <ul style="list-style: none; padding: 0;">
-            <li style="margin-bottom: 0.75rem; color: var(--text-secondary);">1. Capture the prompt and local context.</li>
-            <li style="margin-bottom: 0.75rem; color: var(--text-secondary);">2. Reflect and prune sensitive details before routing.</li>
-            <li style="margin-bottom: 0.75rem; color: var(--text-secondary);">3. Generate a viewport, artifact, or next action.</li>
-            <li style="margin-bottom: 0.75rem; color: var(--text-secondary);">4. Save only approved memory with a receipt.</li>
-          </ul>
+      <section class="workspace-app" aria-label="Active Mirror workspace demo">
+        <form class="workspace-panel workspace-input" aria-label="Mirror input">
+          <div class="panel-head split">
+            <strong>Turn input</strong>
+            <span id="mirror-count">0 / 1000</span>
+          </div>
+          <label for="mirror-intent">What are you trying to move forward?</label>
+          <textarea id="mirror-intent" rows="6" maxlength="1000">I need to launch Active Mirror without losing the real product story: reflection, receipts, private memory, and generated workspaces.</textarea>
+
+          <div class="workspace-controls">
+            <label>
+              Boundary
+              <select id="mirror-boundary">
+                <option value="personal">Do not store personal history without approval</option>
+                <option value="client">Do not expose client or partner details</option>
+                <option value="secrets">Do not route secrets to cloud models</option>
+                <option value="drafts">Do not promote rough drafts to memory</option>
+              </select>
+            </label>
+            <label>
+              Route
+              <select id="mirror-route">
+                <option value="auto">Auto route by intent</option>
+                <option value="reflection">Reflective reasoning: GPT</option>
+                <option value="chat">Chat critique: Claude</option>
+                <option value="media">Media and visuals: Gemini</option>
+              </select>
+            </label>
+          </div>
+
+          <button class="button primary full" id="mirror-run" type="button">Generate viewport</button>
+        </form>
+
+        <section class="workspace-panel workspace-output" aria-label="Generated mirror">
+          <div class="panel-head split">
+            <strong>Generated viewport</strong>
+            <span id="mirror-route-label">reflection / GPT</span>
+          </div>
+          <div class="workspace-board">
+            <article class="workspace-column goals">
+              <div><strong>Goals</strong><span id="mirror-goal-count">3</span></div>
+              <ul id="mirror-goals"></ul>
+            </article>
+            <article class="workspace-column blockers">
+              <div><strong>Blockers</strong><span id="mirror-blocker-count">3</span></div>
+              <ul id="mirror-blockers"></ul>
+            </article>
+            <article class="workspace-column moves">
+              <div><strong>Next moves</strong><span id="mirror-move-count">4</span></div>
+              <ul id="mirror-moves"></ul>
+            </article>
+            <article class="workspace-column artifact">
+              <div><strong>Artifact</strong><span>1</span></div>
+              <section id="mirror-artifact"></section>
+            </article>
+          </div>
+        </section>
+
+        <section class="workspace-panel workspace-receipt" aria-label="Receipt">
+          <div class="panel-head split">
+            <strong>Receipt</strong>
+            <span id="mirror-receipt-id">local-receipt</span>
+          </div>
+          <dl>
+            <div><dt>Why</dt><dd id="mirror-receipt-why"></dd></div>
+            <div><dt>Context used</dt><dd id="mirror-receipt-used"></dd></div>
+            <div><dt>Context excluded</dt><dd id="mirror-receipt-excluded"></dd></div>
+            <div><dt>Route</dt><dd id="mirror-receipt-route"></dd></div>
+            <div><dt>Memory decision</dt><dd id="mirror-receipt-memory"></dd></div>
+          </dl>
+        </section>
+      </section>
+
+      <section class="page-section split-section">
+        <div>
+          <h2>The browser runtime has three jobs.</h2>
+          <p>
+            It turns messy intent into structure, keeps sensitive material behind boundaries,
+            and makes every useful recommendation inspectable.
+          </p>
         </div>
-        <div class="glass">
-          <h2 style="color: var(--accent-teal)">Model route</h2>
-          <p>The current public runtime is model-agnostic. Local deterministic reflection runs first. A small local helper can classify, redact, and triage. Gemini or other frontier models are optional workers behind consent gates.</p>
+        <div class="feature-grid tight">
+          <article><strong>Viewport</strong><span>The next useful UI appears turn by turn.</span></article>
+          <article><strong>Vault</strong><span>Continuity lives in user-owned memory.</span></article>
+          <article><strong>Receipts</strong><span>Reasoning, context, and memory decisions stay visible.</span></article>
         </div>
       </section>
     </main>
 
-    <footer>
-      <div class="container">
-        <div class="brand" style="justify-content: center; margin-bottom: 1rem;">Active Mirror</div>
-        <p style="margin-bottom: 0; font-size: 0.9rem;">&copy; 2026 N1 Intelligence (OPC) Private Limited.</p>
-      </div>
+    <footer class="site-footer">
+      <span>Active Mirror</span>
+      <span>Reflection over prediction, with receipts.</span>
+      <nav aria-label="Footer">
+        <a href="/product/">Product</a>
+        <a href="/trust/">Trust</a>
+        <a href="/pricing/">Pricing</a>
+        <a href="/privacy/">Privacy</a>
+      </nav>
     </footer>
 
     <script type="module" src="/src/main.js"></script>

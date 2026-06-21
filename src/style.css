@@ -3573,3 +3573,753 @@ h3,
     gap: 5px;
   }
 }
+
+.page-main {
+  width: min(var(--max), calc(100vw - 48px));
+  margin: 0 auto;
+  padding: 96px 0 64px;
+}
+
+.page-main > section {
+  width: 100%;
+}
+
+.page-hero {
+  min-height: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(420px, 0.78fr);
+  gap: 48px;
+  align-items: center;
+  padding: 52px 0 56px;
+}
+
+.page-hero.centered {
+  grid-template-columns: minmax(0, 900px);
+  justify-content: center;
+  text-align: center;
+}
+
+.page-copy {
+  min-width: 0;
+}
+
+.page-copy h1 {
+  max-width: 940px;
+  font-size: clamp(46px, 6vw, 82px);
+  line-height: 0.98;
+  font-weight: 860;
+  text-wrap: balance;
+}
+
+.page-copy p {
+  max-width: 720px;
+  margin-top: 24px;
+  color: #263449;
+  font-size: clamp(18px, 1.9vw, 24px);
+  line-height: 1.5;
+}
+
+.page-hero.centered .page-copy p {
+  margin-inline: auto;
+}
+
+.page-actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 34px;
+}
+
+.page-hero.centered .page-actions {
+  justify-content: center;
+}
+
+.page-media,
+.workspace-live-card {
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.page-media {
+  min-height: 360px;
+}
+
+.page-media img {
+  width: 100%;
+  height: 100%;
+  min-height: 360px;
+  object-fit: cover;
+}
+
+.workspace-live-card {
+  display: grid;
+  gap: 13px;
+  padding: 28px;
+  background:
+    radial-gradient(circle at 84% 16%, rgba(7, 93, 242, 0.16), transparent 28%),
+    radial-gradient(circle at 12% 10%, rgba(7, 137, 82, 0.16), transparent 26%),
+    #ffffff;
+}
+
+.workspace-live-card span,
+.pricing-panel > span,
+.trust-ledger article span {
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 860;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.workspace-live-card strong {
+  max-width: 460px;
+  font-size: clamp(28px, 3vw, 42px);
+  line-height: 1.05;
+  font-weight: 850;
+}
+
+.workspace-live-card p {
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.page-section {
+  padding: 70px 0;
+}
+
+.section-heading.compact {
+  max-width: 760px;
+  margin: 0 0 28px;
+  text-align: left;
+}
+
+.section-heading.compact h2,
+.page-section h2 {
+  color: var(--ink);
+  font-size: clamp(34px, 4vw, 56px);
+  line-height: 1.02;
+  font-weight: 850;
+  text-wrap: balance;
+}
+
+.section-heading.compact p,
+.page-section > div > p,
+.split-section p {
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.55;
+}
+
+.split-section {
+  display: grid;
+  grid-template-columns: minmax(0, 0.72fr) minmax(360px, 1fr);
+  gap: 38px;
+  align-items: start;
+}
+
+.feature-grid,
+.use-case-grid,
+.pricing-grid,
+.trust-ledger {
+  display: grid;
+  gap: 16px;
+}
+
+.feature-grid,
+.use-case-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.feature-grid.tight {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.feature-grid article,
+.use-case-grid article,
+.pricing-panel,
+.receipt-table div,
+.legal-stack article,
+.process-list li,
+.workspace-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(246, 249, 253, 0.88)),
+    #ffffff;
+  box-shadow: var(--shadow-soft);
+}
+
+.feature-grid article,
+.use-case-grid article {
+  min-height: 154px;
+  display: grid;
+  align-content: space-between;
+  gap: 22px;
+  padding: 22px;
+}
+
+.feature-grid strong,
+.use-case-grid strong {
+  font-size: 19px;
+  line-height: 1.2;
+}
+
+.feature-grid span,
+.use-case-grid span {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.process-list {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.process-list li {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 8px 16px;
+  padding: 18px;
+}
+
+.process-list li span {
+  grid-row: span 2;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--blue);
+  background: var(--blue-soft);
+  font-size: 12px;
+  font-weight: 860;
+}
+
+.process-list strong {
+  font-size: 18px;
+}
+
+.process-list p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.42;
+}
+
+.workspace-app {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.8fr) minmax(0, 1.2fr);
+  grid-template-areas:
+    "input output"
+    "receipt output";
+  gap: 18px;
+  align-items: start;
+  padding: 20px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 14% 12%, rgba(7, 137, 82, 0.12), transparent 28%),
+    radial-gradient(circle at 88% 6%, rgba(7, 93, 242, 0.12), transparent 30%),
+    rgba(255, 255, 255, 0.84);
+  box-shadow: var(--shadow);
+}
+
+.workspace-input {
+  grid-area: input;
+}
+
+.workspace-output {
+  grid-area: output;
+}
+
+.workspace-receipt {
+  grid-area: receipt;
+}
+
+.workspace-panel {
+  padding: 18px;
+}
+
+.workspace-input label {
+  display: grid;
+  gap: 9px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 820;
+}
+
+.workspace-input textarea,
+.workspace-input select {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--ink);
+  background: #ffffff;
+  outline: none;
+}
+
+.workspace-input textarea {
+  min-height: 160px;
+  margin: 14px 0;
+  padding: 14px;
+  resize: vertical;
+  font-size: 15px;
+  line-height: 1.48;
+}
+
+.workspace-input select {
+  min-height: 46px;
+  padding: 0 12px;
+}
+
+.workspace-controls {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.workspace-board {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.workspace-column {
+  min-height: 230px;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.workspace-column.goals {
+  border-color: rgba(7, 93, 242, 0.24);
+}
+
+.workspace-column.blockers {
+  border-color: rgba(191, 61, 53, 0.24);
+}
+
+.workspace-column.moves {
+  border-color: rgba(7, 137, 82, 0.24);
+}
+
+.workspace-column.artifact {
+  border-color: rgba(179, 107, 20, 0.26);
+  background: rgba(255, 245, 223, 0.5);
+}
+
+.workspace-column > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.workspace-column > div strong,
+.workspace-column.artifact p {
+  font-size: 17px;
+  font-weight: 850;
+}
+
+.workspace-column > div span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 820;
+}
+
+.workspace-column ul {
+  display: grid;
+  gap: 9px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.workspace-column li {
+  position: relative;
+  padding-left: 16px;
+  color: #263449;
+  font-size: 14px;
+  line-height: 1.36;
+  font-weight: 720;
+}
+
+.workspace-column li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--blue);
+}
+
+.workspace-column.blockers li::before {
+  background: var(--red);
+}
+
+.workspace-column.moves li::before {
+  background: var(--green);
+}
+
+#mirror-artifact {
+  display: grid;
+  gap: 10px;
+}
+
+#mirror-artifact strong {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.workspace-receipt dl,
+.receipt-table,
+.legal-stack {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.workspace-receipt dl > div,
+.receipt-table div {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 16px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.workspace-receipt dt,
+.receipt-table strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.workspace-receipt dd,
+.receipt-table span {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.42;
+}
+
+.pricing-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  padding: 10px 0 70px;
+}
+
+.pricing-panel {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  padding: 26px;
+}
+
+.pricing-panel.featured {
+  border-color: rgba(7, 93, 242, 0.44);
+  box-shadow: 0 24px 70px rgba(7, 93, 242, 0.13);
+}
+
+.pricing-panel h2 {
+  font-size: 28px;
+}
+
+.pricing-panel > strong {
+  color: var(--blue);
+  font-size: 42px;
+  line-height: 1;
+  font-weight: 860;
+}
+
+.pricing-panel p,
+.pricing-panel li,
+.legal-stack p {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.48;
+}
+
+.pricing-panel ul {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  margin: 0 0 8px;
+  list-style: none;
+}
+
+.pricing-panel li {
+  position: relative;
+  padding-left: 18px;
+}
+
+.pricing-panel li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.trust-ledger {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.trust-ledger article {
+  min-height: 250px;
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: var(--shadow-soft);
+}
+
+.trust-ledger article strong {
+  font-size: 22px;
+  line-height: 1.14;
+}
+
+.trust-ledger article p {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.48;
+}
+
+.receipt-table div {
+  padding: 16px;
+}
+
+.legal-page .page-hero {
+  padding-bottom: 26px;
+}
+
+.legal-stack {
+  max-width: 920px;
+  margin: 0 auto 70px;
+}
+
+.legal-stack article {
+  padding: 24px;
+}
+
+.legal-stack h2 {
+  margin-bottom: 10px;
+  font-size: 24px;
+}
+
+.legal-stack a {
+  color: var(--blue);
+  font-weight: 780;
+}
+
+[aria-current="page"] {
+  color: var(--blue) !important;
+}
+
+@media (max-width: 1100px) {
+  .page-hero,
+  .split-section,
+  .workspace-app {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-app {
+    grid-template-areas:
+      "input"
+      "output"
+      "receipt";
+  }
+
+  .feature-grid,
+  .feature-grid.tight,
+  .use-case-grid,
+  .trust-ledger,
+  .pricing-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .page-main {
+    width: min(var(--max), calc(100vw - 28px));
+    padding-top: 46px;
+  }
+
+  .page-hero {
+    gap: 24px;
+    padding: 30px 0 40px;
+  }
+
+  .page-copy h1 {
+    font-size: clamp(36px, 11vw, 54px);
+  }
+
+  .page-copy p {
+    font-size: 16px;
+  }
+
+  .page-actions,
+  .page-actions .button {
+    width: 100%;
+  }
+
+  .workspace-app {
+    padding: 12px;
+  }
+
+  .workspace-board,
+  .feature-grid,
+  .feature-grid.tight,
+  .use-case-grid,
+  .trust-ledger,
+  .pricing-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-receipt dl > div,
+  .receipt-table div {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .process-list li {
+    grid-template-columns: 1fr;
+  }
+
+  .process-list li span {
+    grid-row: auto;
+  }
+
+  .site-footer {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 12px;
+    padding: 24px 0 28px;
+  }
+
+  .site-footer span {
+    max-width: 100%;
+    line-height: 1.35;
+  }
+
+  .site-footer nav {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+  }
+}
+
+body[data-page] .reveal {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+}
+
+body[data-page] .page-copy h1,
+body[data-page] .page-section h2,
+body[data-page] .section-heading.compact h2 {
+  color: #f5f8fd;
+}
+
+body[data-page] .page-copy p,
+body[data-page] .section-heading.compact p,
+body[data-page] .page-section > div > p,
+body[data-page] .split-section p {
+  color: #aeb9c8;
+}
+
+body[data-page] .workspace-live-card strong,
+body[data-page] .workspace-column > div strong,
+body[data-page] .workspace-column.artifact p,
+body[data-page] .feature-grid article strong,
+body[data-page] .use-case-grid article strong,
+body[data-page] .process-list strong,
+body[data-page] .pricing-panel h2,
+body[data-page] .pricing-panel p,
+body[data-page] .pricing-panel li,
+body[data-page] .trust-ledger article strong,
+body[data-page] .receipt-table strong,
+body[data-page] .legal-stack h2 {
+  color: #07111f;
+}
+
+body[data-page] .workspace-live-card p,
+body[data-page] .feature-grid span,
+body[data-page] .use-case-grid span,
+body[data-page] .process-list p,
+body[data-page] .trust-ledger article p,
+body[data-page] .receipt-table span,
+body[data-page] .legal-stack p {
+  color: #5f6c80;
+}
+
+body[data-page] .workspace-live-card,
+body[data-page] .workspace-panel,
+body[data-page] .pricing-panel,
+body[data-page] .feature-grid article,
+body[data-page] .use-case-grid article,
+body[data-page] .process-list li,
+body[data-page] .trust-ledger article,
+body[data-page] .receipt-table div,
+body[data-page] .legal-stack article {
+  opacity: 1 !important;
+}
+
+body[data-page] .workspace-live-card strong,
+body[data-page] .workspace-panel .panel-head strong,
+body[data-page] .workspace-input label,
+body[data-page] .workspace-input textarea,
+body[data-page] .workspace-input select,
+body[data-page] .workspace-receipt dt,
+body[data-page] .workspace-column > div strong,
+body[data-page] .workspace-column li,
+body[data-page] .pricing-panel h2,
+body[data-page] .feature-grid article strong,
+body[data-page] .use-case-grid article strong,
+body[data-page] .process-list strong,
+body[data-page] .trust-ledger article strong,
+body[data-page] .receipt-table strong,
+body[data-page] .legal-stack h2 {
+  color: #07111f !important;
+  opacity: 1 !important;
+}
+
+body[data-page] .workspace-live-card p,
+body[data-page] .workspace-panel .panel-head span,
+body[data-page] .workspace-receipt dd,
+body[data-page] .workspace-column > div span,
+body[data-page] .workspace-column.artifact p,
+body[data-page] #mirror-artifact strong,
+body[data-page] .pricing-panel p,
+body[data-page] .pricing-panel li,
+body[data-page] .feature-grid article span,
+body[data-page] .use-case-grid article span,
+body[data-page] .process-list p,
+body[data-page] .trust-ledger article p,
+body[data-page] .receipt-table span,
+body[data-page] .legal-stack p {
+  color: #5f6c80 !important;
+  opacity: 1 !important;
+}

@@ -3,43 +3,76 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Active Mirror privacy posture: less collection, local-first context, explicit consent, and receipt-backed memory."
+    />
     <title>Privacy | Active Mirror</title>
   </head>
-  <body>
-    <header class="nav container">
-      <a class="brand" href="/">Active Mirror</a>
-      <div class="nav-links">
-        <a href="/">Home</a>
+  <body data-page="privacy">
+    <header class="site-nav" aria-label="Primary">
+      <a class="brand" href="/" aria-label="Active Mirror home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+            <path d="M12 3.4 19.5 7.7v8.6L12 20.6 4.5 16.3V7.7L12 3.4Z" />
+            <path d="M12 7.8 16 10v4l-4 2.2L8 14v-4l4-2.2Z" />
+          </svg>
+        </span>
+        <span>Active Mirror</span>
+      </a>
+      <nav class="nav-links" aria-label="Sections">
         <a href="/mirror/">Mirror</a>
-        <a href="/trust/">Trust Layer</a>
-        <a href="/privacy/" style="color: var(--accent-teal)">Privacy</a>
+        <a href="/product/">Product</a>
+        <a href="/trust/">Trust</a>
+        <a href="/pricing/">Pricing</a>
+      </nav>
+      <div class="nav-actions">
+        <a class="text-link" href="/terms/">Terms</a>
+        <a class="button primary small" href="/mirror/">Try mirror</a>
       </div>
     </header>
 
-    <main class="container">
-      <section class="hero">
-        <div class="eyebrow">Privacy</div>
-        <h1>Trust by design starts with less collection.</h1>
-        <p>The public site is designed as a static front door. Active Mirror's product direction is local-first custody, explicit consent, and receipt-backed memory promotion.</p>
+    <main class="page-main legal-page">
+      <section class="page-hero centered">
+        <div class="page-copy">
+          <h1>Privacy starts with less collection.</h1>
+          <p>Last updated June 21, 2026. This page describes the public-site and early-product privacy posture.</p>
+        </div>
       </section>
 
-      <section class="grid-2">
-        <div class="glass">
-          <h2 style="color: var(--accent-teal)">Public site</h2>
-          <p>This static site does not need personal details to explain the product. Any future analytics, forms, or API capture should be disclosed before launch.</p>
-        </div>
-        <div class="glass">
-          <h2 style="color: var(--accent-teal)">Runtime principle</h2>
-          <p>Private context should stay in the user-owned vault unless the user explicitly approves a route, export, or memory promotion.</p>
-        </div>
+      <section class="legal-stack">
+        <article>
+          <h2>Public site</h2>
+          <p>The public site is designed as a static front door. It does not need personal details to explain the product or run the browser demo.</p>
+        </article>
+        <article>
+          <h2>Browser mirror</h2>
+          <p>The current browser demo can generate a local board without sending your input to a model provider. Hosted model routes should be disclosed before use.</p>
+        </article>
+        <article>
+          <h2>Model routes</h2>
+          <p>When hosted routes are enabled, provider calls should happen through a server-side gateway. API keys must not be exposed in frontend code.</p>
+        </article>
+        <article>
+          <h2>Memory</h2>
+          <p>Private context should not become durable memory unless the user approves the memory decision. Receipts should show what was saved, ignored, or excluded.</p>
+        </article>
+        <article>
+          <h2>Contact</h2>
+          <p>Questions about privacy can be sent to <a href="mailto:hello@activemirror.ai">hello@activemirror.ai</a>.</p>
+        </article>
       </section>
     </main>
 
-    <footer>
-      <div class="container">
-        <div class="brand" style="justify-content: center; margin-bottom: 1rem;">Active Mirror</div>
-        <p style="margin-bottom: 0; font-size: 0.9rem;">&copy; 2026 N1 Intelligence (OPC) Private Limited.</p>
-      </div>
+    <footer class="site-footer">
+      <span>Active Mirror</span>
+      <span>Less collection. More control.</span>
+      <nav aria-label="Footer">
+        <a href="/mirror/">Mirror</a>
+        <a href="/trust/">Trust</a>
+        <a href="/pricing/">Pricing</a>
+        <a href="/terms/">Terms</a>
+      </nav>
     </footer>
 
     <script type="module" src="/src/main.js"></script>
