@@ -8,6 +8,8 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:4173",
 ]);
 
+const WORKER_VERSION = "2026-06-21-fallback-v2";
+
 const BOUNDARIES = {
   personal: {
     excluded: "Personal history, sensitive emotion, and private identity context stay out unless approved.",
@@ -90,6 +92,7 @@ export default {
         {
           ok: true,
           service: "active-mirror-site-gateway",
+          version: WORKER_VERSION,
           routes: publicRoutes(env),
         },
         200,
@@ -128,7 +131,7 @@ export default {
         );
       }
 
-      const route = selectRoute(input.intent);
+      const route = selectRoute(input.intent, input.route);
       const prompt = buildPrompt(input, boundary, route);
       const result = await runRoute(route, prompt, env);
       const mirror = normalizeMirror(result.mirror, input, boundary, route, result);
@@ -188,8 +191,14 @@ function sanitizeInput(body) {
   return {
     intent,
     boundary: BOUNDARIES[boundary] ? boundary : "personal",
+    route: normalizeRoute(body?.route),
     turn: Number.isFinite(body?.turn) ? Math.max(1, Math.min(9999, Math.trunc(body.turn))) : 1,
   };
+}
+
+function normalizeRoute(value) {
+  const route = String(value || "auto").toLowerCase();
+  return ["reflection", "chat", "media"].includes(route) ? route : "auto";
 }
 
 function containsSecret(value) {
@@ -202,26 +211,24 @@ function containsSecret(value) {
   ].some((pattern) => pattern.test(value));
 }
 
-function selectRoute(intent) {
+function selectRoute(intent, selected = "auto") {
+  if (selected === "media") return mediaRoute();
+  if (selected === "chat") return chatRoute();
+  if (selected === "reflection") return reflectionRoute();
+
   const value = intent.toLowerCase();
   if (/\b(image|visual|video|poster|screenshot|render|asset|thumbnail|media)\b/.test(value)) {
-    return {
-      capability: "media",
-      primary: "gemini",
-      modelEnv: "GEMINI_MEDIA_MODEL",
-      defaultModel: "gemini-3.5-flash",
-    };
+    return mediaRoute();
   }
 
   if (/\b(chat|rewrite|tone|copy|critique|review|polish)\b/.test(value)) {
-    return {
-      capability: "chat",
-      primary: "anthropic",
-      modelEnv: "ANTHROPIC_CHAT_MODEL",
-      defaultModel: "claude-sonnet-4-6",
-    };
+    return chatRoute();
   }
 
+  return reflectionRoute();
+}
+
+function reflectionRoute() {
   return {
     capability: "reflection",
     primary: "openai",
@@ -230,10 +237,29 @@ function selectRoute(intent) {
   };
 }
 
+function chatRoute() {
+  return {
+    capability: "chat",
+    primary: "anthropic",
+    modelEnv: "ANTHROPIC_CHAT_MODEL",
+    defaultModel: "claude-sonnet-4-6",
+  };
+}
+
+function mediaRoute() {
+  return {
+    capability: "media",
+    primary: "gemini",
+    modelEnv: "GEMINI_MEDIA_MODEL",
+    defaultModel: "gemini-3.5-flash",
+  };
+}
+
 function buildPrompt(input, boundary, route) {
   return [
     "You are Active Mirror. Reflect before predicting.",
     "Return only compact JSON matching the requested structure.",
+    "Use plain English ASCII text only.",
     "No therapy claims. No personal-data collection. No hallucinated facts.",
     "Create a first-use action board from the user's intent.",
     `Capability route: ${route.capability} via ${route.primary}.`,
@@ -245,27 +271,27 @@ function buildPrompt(input, boundary, route) {
   ].join("\n");
 }
 
-async function runRoute(route, prompt, env) {
-  if (route.primary === "openai" && env.OPENAI_API_KEY) {
-    return callOpenAI(prompt, route, env);
-  }
-  if (route.primary === "anthropic" && env.ANTHROPIC_API_KEY) {
-    return callAnthropic(prompt, route, env);
-  }
-  if (route.primary === "gemini" && (env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY)) {
-    return callGemini(prompt, route, env);
+async function runRoute(route, prompt, env, attempted = []) {
+  const provider = route.primary;
+  const nextAttempted = [...attempted, provider];
+
+  try {
+    if (provider === "openai" && env.OPENAI_API_KEY) {
+      return await callOpenAI(prompt, route, env);
+    }
+    if (provider === "anthropic" && env.ANTHROPIC_API_KEY) {
+      return await callAnthropic(prompt, route, env);
+    }
+    if (provider === "gemini" && (env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY)) {
+      return await callGemini(prompt, route, env);
+    }
+  } catch (error) {
+    return fallbackResult(route, prompt, env, nextAttempted, `${provider}_provider_error`);
   }
 
-  const fallbackRoute =
-    route.primary !== "openai" && env.OPENAI_API_KEY
-      ? { ...route, primary: "openai", modelEnv: "OPENAI_REFLECTION_MODEL", defaultModel: "gpt-5.5" }
-      : route.primary !== "anthropic" && env.ANTHROPIC_API_KEY
-        ? { ...route, primary: "anthropic", modelEnv: "ANTHROPIC_CHAT_MODEL", defaultModel: "claude-sonnet-4-6" }
-        : null;
-
+  const fallbackRoute = chooseFallbackRoute(route, env, nextAttempted);
   if (fallbackRoute) {
-    const result = await runRoute(fallbackRoute, prompt, env);
-    return { ...result, fallbackReason: `${route.primary}_missing_secret` };
+    return fallbackResult(route, prompt, env, nextAttempted, `${provider}_missing_secret`);
   }
 
   return {
@@ -274,6 +300,42 @@ async function runRoute(route, prompt, env) {
     model: "local-deterministic",
     mirror: null,
   };
+}
+
+async function fallbackResult(route, prompt, env, attempted, reason) {
+  const fallbackRoute = chooseFallbackRoute(route, env, attempted);
+  if (!fallbackRoute) {
+    return {
+      fallback: true,
+      fallbackReason: reason,
+      model: "local-deterministic",
+      mirror: null,
+    };
+  }
+
+  try {
+    const result = await runRoute(fallbackRoute, prompt, env, attempted);
+    return { ...result, fallback: true, fallbackReason: reason };
+  } catch {
+    return {
+      fallback: true,
+      fallbackReason: reason,
+      model: "local-deterministic",
+      mirror: null,
+    };
+  }
+}
+
+function chooseFallbackRoute(route, env, attempted) {
+  if (!attempted.includes("openai") && route.primary !== "openai" && env.OPENAI_API_KEY) {
+    return { ...route, primary: "openai", modelEnv: "OPENAI_REFLECTION_MODEL", defaultModel: "gpt-5.5" };
+  }
+
+  if (!attempted.includes("anthropic") && route.primary !== "anthropic" && env.ANTHROPIC_API_KEY) {
+    return { ...route, primary: "anthropic", modelEnv: "ANTHROPIC_CHAT_MODEL", defaultModel: "claude-sonnet-4-6" };
+  }
+
+  return null;
 }
 
 async function callOpenAI(prompt, route, env) {
@@ -302,7 +364,7 @@ async function callOpenAI(prompt, route, env) {
   });
 
   const data = await readProviderResponse(response, "openai");
-  return { fallback: false, model, mirror: parseMirror(extractOpenAIText(data)) };
+  return { fallback: false, model, mirror: parseProviderMirror(extractOpenAIText(data), "openai") };
 }
 
 async function callAnthropic(prompt, route, env) {
@@ -324,17 +386,22 @@ async function callAnthropic(prompt, route, env) {
 
   const data = await readProviderResponse(response, "anthropic");
   const text = data.content?.find((item) => item.type === "text")?.text || "";
-  return { fallback: false, model, mirror: parseMirror(text) };
+  return { fallback: false, model, mirror: parseProviderMirror(text, "anthropic") };
 }
 
 async function callGemini(prompt, route, env) {
   const model = env[route.modelEnv] || route.defaultModel;
   const key = env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY;
+  const referer = env.GEMINI_ALLOWED_REFERER || "https://activemirror.ai/";
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Referer: referer,
+        Origin: new URL(referer).origin,
+      },
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: { response_mime_type: "application/json" },
@@ -344,7 +411,7 @@ async function callGemini(prompt, route, env) {
 
   const data = await readProviderResponse(response, "gemini");
   const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("") || "";
-  return { fallback: false, model, mirror: parseMirror(text) };
+  return { fallback: false, model, mirror: parseProviderMirror(text, "gemini") };
 }
 
 async function readProviderResponse(response, provider) {
@@ -372,6 +439,28 @@ function parseMirror(text) {
   return JSON.parse(jsonText);
 }
 
+function parseProviderMirror(text, provider) {
+  const mirror = parseMirror(text);
+  if (!isMirrorShape(mirror)) {
+    throw new Error(`${provider}_invalid_mirror`);
+  }
+  return mirror;
+}
+
+function isMirrorShape(value) {
+  return (
+    value &&
+    typeof value === "object" &&
+    Array.isArray(value.goals) &&
+    Array.isArray(value.blockers) &&
+    Array.isArray(value.moves) &&
+    value.artifact &&
+    typeof value.artifact === "object" &&
+    value.receipt &&
+    typeof value.receipt === "object"
+  );
+}
+
 function normalizeMirror(candidate, input, boundary, route, result) {
   const fallback = deterministicMirror(input, boundary, route, result);
   if (!candidate || typeof candidate !== "object") return fallback;
@@ -388,7 +477,9 @@ function normalizeMirror(candidate, input, boundary, route, result) {
       why: cleanText(candidate.receipt?.why, fallback.receipt.why, 220),
       context_used: cleanText(candidate.receipt?.context_used, fallback.receipt.context_used, 220),
       context_excluded: cleanText(candidate.receipt?.context_excluded, fallback.receipt.context_excluded, 220),
-      route: cleanText(candidate.receipt?.route, fallback.receipt.route, 220),
+      route: result.fallback
+        ? cleanText(`Fallback route used ${result.model} because ${result.fallbackReason}. Original route: ${route.capability} via ${route.primary}.`, fallback.receipt.route, 220)
+        : cleanText(candidate.receipt?.route, fallback.receipt.route, 220),
       memory_decision: cleanText(candidate.receipt?.memory_decision, fallback.receipt.memory_decision, 220),
     },
   };
@@ -400,8 +491,26 @@ function normalizeList(value, fallback, size) {
 }
 
 function cleanText(value, fallback, maxLength) {
-  const text = String(value || "").replace(/\s+/g, " ").trim();
-  return (text || fallback).slice(0, maxLength);
+  const text = repairTextArtifacts(
+    String(value || "")
+    .replace(/[^\x09\x0a\x0d\x20-\x7e]/g, "")
+    .replace(/\s+/g, " ")
+    .trim(),
+  );
+  const candidate = text || fallback;
+  if (candidate.length <= maxLength) return candidate;
+  const sliced = candidate.slice(0, Math.max(0, maxLength - 3));
+  const wordSafe = sliced.replace(/\s+\S*$/, "").trim();
+  return `${wordSafe || sliced.trim()}...`;
+}
+
+function repairTextArtifacts(value) {
+  return value
+    .replace(/\b([A-Za-z]{2,})\d+([A-Za-z]{1,})\b/g, "$1$2")
+    .replace(/\b([A-Za-z]{2,})\d+\b/g, "$1")
+    .replace(/,\s*\d+\s*,?\s*$/g, "")
+    .replace(/\s+(?:or|and|to|of|with|for|what|why)\s*$/i, "")
+    .trim();
 }
 
 function deterministicMirror(input, boundary, route, result) {

@@ -28,6 +28,8 @@ Active Mirror should expose product capabilities, not raw provider choices.
 - Images, video, and multimodal media work: Gemini.
 - Browser frontend: no provider secrets.
 - Cloud routes: server-side gateway only, with explicit boundary and receipt output.
+- Provider failures fail soft: the gateway falls back to the next available safe route or deterministic local structure and records the fallback in the receipt.
+- The `/mirror/` workspace calls `https://gateway.activemirror.ai/v1/mirror/create` and keeps a browser-local fallback if the gateway is unavailable.
 
 Current Worker defaults:
 
@@ -38,6 +40,8 @@ Current Worker defaults:
 - Video generation: `veo-3.1-fast-generate-preview`
 
 The static site runs as a local browser demo until the Worker is deployed with provider secrets. Provider keys must be configured as Worker secrets, never committed or exposed in browser JavaScript.
+
+Live gateway: `https://gateway.activemirror.ai/health`
 
 ## Deployment
 

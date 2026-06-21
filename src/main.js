@@ -2,6 +2,7 @@ import "./style.css";
 import { gsap } from "gsap";
 
 const canAnimate = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const MIRROR_GATEWAY_URL = "https://gateway.activemirror.ai";
 
 const heroModes = {
   launching: {
@@ -296,6 +297,19 @@ function shortIntent(text) {
   return `${clean.slice(0, 83)}...`;
 }
 
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => {
+    const entities = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "\"": "&quot;",
+      "'": "&#39;",
+    };
+    return entities[character];
+  });
+}
+
 function currentRitualMode(text) {
   const value = text.toLowerCase();
   if (value.includes("career") || value.includes("job") || value.includes("offer") || value.includes("portfolio")) return "career";
@@ -305,7 +319,7 @@ function currentRitualMode(text) {
 }
 
 function renderRitualList(target, items) {
-  target.innerHTML = items.map((item) => `<li>${item}</li>`).join("");
+  target.innerHTML = items.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
 }
 
 function animateRitualBoard() {
@@ -651,6 +665,7 @@ const workspaceRoutes = {
 };
 
 let mirrorTurn = 1;
+let mirrorRequestId = 0;
 
 function inferWorkspaceRoute(intent, selected) {
   if (selected && selected !== "auto") return selected;
@@ -660,29 +675,48 @@ function inferWorkspaceRoute(intent, selected) {
   return "reflection";
 }
 
-function renderWorkspaceMirror() {
+function providerLabel(route) {
+  if (!route) return "";
+  const model = route.model ? ` / ${route.model}` : "";
+  const fallback = route.fallback ? " / fallback" : "";
+  return `${route.capability} / ${route.primary}${model}${fallback}`;
+}
+
+function normalizedList(value, fallback, size) {
+  const list = Array.isArray(value) ? value.map((item) => String(item || "").trim()).filter(Boolean) : [];
+  return [...list, ...fallback].slice(0, size);
+}
+
+function renderWorkspaceMirror(remotePayload = null) {
   if (!mirrorIntent || !mirrorGoals || !mirrorBlockers || !mirrorMoves) return;
 
   const intent = mirrorIntent.value.replace(/\s+/g, " ").trim();
   const routeKey = inferWorkspaceRoute(intent, mirrorRoute?.value || "auto");
   const route = workspaceRoutes[routeKey];
   const boundary = boundaryCopy[mirrorBoundary?.value] || boundaryCopy.personal;
+  const mirror = remotePayload?.mirror && typeof remotePayload.mirror === "object" ? remotePayload.mirror : null;
+  const goals = normalizedList(mirror?.goals, route.goals, 3);
+  const blockers = normalizedList(mirror?.blockers, route.blockers, 3);
+  const moves = normalizedList(mirror?.moves, route.moves, 4);
+  const artifactTitle = String(mirror?.artifact?.title || route.artifact[0]);
+  const artifactSummary = String(mirror?.artifact?.summary || route.artifact[1]);
+  const receipt = mirror?.receipt || {};
 
   mirrorCount.textContent = `${mirrorIntent.value.length} / 1000`;
-  mirrorRouteLabel.textContent = route.label;
-  renderRitualList(mirrorGoals, route.goals);
-  renderRitualList(mirrorBlockers, route.blockers);
-  renderRitualList(mirrorMoves, route.moves);
-  mirrorGoalCount.textContent = String(route.goals.length);
-  mirrorBlockerCount.textContent = String(route.blockers.length);
-  mirrorMoveCount.textContent = String(route.moves.length);
-  mirrorArtifact.innerHTML = `<p>${route.artifact[0]}</p><strong>${route.artifact[1]}</strong>`;
-  mirrorReceiptId.textContent = `local-${routeKey}-${String(mirrorTurn).padStart(3, "0")}`;
-  mirrorReceiptWhy.textContent = route.why;
-  mirrorReceiptUsed.textContent = `Intent: "${shortIntent(intent || "No intent yet")}" plus selected boundary and route.`;
-  mirrorReceiptExcluded.textContent = boundary.excluded;
-  mirrorReceiptRoute.textContent = route.route;
-  mirrorReceiptMemory.textContent = boundary.memory;
+  mirrorRouteLabel.textContent = remotePayload?.route ? providerLabel(remotePayload.route) : route.label;
+  renderRitualList(mirrorGoals, goals);
+  renderRitualList(mirrorBlockers, blockers);
+  renderRitualList(mirrorMoves, moves);
+  mirrorGoalCount.textContent = String(goals.length);
+  mirrorBlockerCount.textContent = String(blockers.length);
+  mirrorMoveCount.textContent = String(moves.length);
+  mirrorArtifact.innerHTML = `<p>${escapeHtml(artifactTitle)}</p><strong>${escapeHtml(artifactSummary)}</strong>`;
+  mirrorReceiptId.textContent = remotePayload?.receipt_id ? `edge-${remotePayload.receipt_id}` : `local-${routeKey}-${String(mirrorTurn).padStart(3, "0")}`;
+  mirrorReceiptWhy.textContent = receipt.why || route.why;
+  mirrorReceiptUsed.textContent = receipt.context_used || `Intent: "${shortIntent(intent || "No intent yet")}" plus selected boundary and route.`;
+  mirrorReceiptExcluded.textContent = receipt.context_excluded || boundary.excluded;
+  mirrorReceiptRoute.textContent = receipt.route || route.route;
+  mirrorReceiptMemory.textContent = receipt.memory_decision || boundary.memory;
 
   try {
     localStorage.setItem(
@@ -696,6 +730,58 @@ function renderWorkspaceMirror() {
     );
   } catch {
     // The workspace demo remains usable without local persistence.
+  }
+}
+
+async function generateWorkspaceMirror() {
+  const intent = mirrorIntent.value.replace(/\s+/g, " ").trim();
+  if (intent.length < 12) {
+    mirrorReceiptWhy.textContent = "Add a little more intent before routing to the mirror.";
+    return;
+  }
+
+  mirrorTurn += 1;
+  const requestId = (mirrorRequestId += 1);
+  mirrorRun.disabled = true;
+  mirrorRun.textContent = "Generating at gateway...";
+  mirrorRun.classList.remove("is-complete");
+
+  try {
+    const response = await fetch(`${MIRROR_GATEWAY_URL}/v1/mirror/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        intent,
+        boundary: mirrorBoundary?.value || "personal",
+        route: mirrorRoute?.value || "auto",
+        turn: mirrorTurn,
+      }),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || "gateway_unavailable");
+    }
+    if (requestId !== mirrorRequestId) return;
+
+    renderWorkspaceMirror(payload);
+    mirrorRun.textContent = payload.fallback ? "Fallback viewport" : "Viewport generated";
+    mirrorRun.classList.add("is-complete");
+  } catch (error) {
+    if (requestId !== mirrorRequestId) return;
+    renderWorkspaceMirror();
+    mirrorReceiptRoute.textContent = `${mirrorReceiptRoute.textContent} Gateway unavailable or blocked; local browser fallback used.`;
+    mirrorRun.textContent = "Local fallback generated";
+    mirrorRun.classList.add("is-complete");
+  } finally {
+    mirrorRun.disabled = false;
+    animateElements(Array.from(document.querySelectorAll(".workspace-column, .workspace-receipt dl > div")), {
+      y: 10,
+      duration: 0.38,
+    });
+    window.setTimeout(() => {
+      mirrorRun.textContent = "Generate viewport";
+      mirrorRun.classList.remove("is-complete");
+    }, 1600);
   }
 }
 
@@ -715,20 +801,7 @@ if (mirrorIntent && mirrorBoundary && mirrorRoute && mirrorRun) {
   mirrorIntent.addEventListener("input", renderWorkspaceMirror);
   mirrorBoundary.addEventListener("change", renderWorkspaceMirror);
   mirrorRoute.addEventListener("change", renderWorkspaceMirror);
-  mirrorRun.addEventListener("click", () => {
-    mirrorTurn += 1;
-    renderWorkspaceMirror();
-    mirrorRun.textContent = "Viewport generated";
-    mirrorRun.classList.add("is-complete");
-    animateElements(Array.from(document.querySelectorAll(".workspace-column, .workspace-receipt dl > div")), {
-      y: 10,
-      duration: 0.38,
-    });
-    window.setTimeout(() => {
-      mirrorRun.textContent = "Generate viewport";
-      mirrorRun.classList.remove("is-complete");
-    }, 1400);
-  });
+  mirrorRun.addEventListener("click", generateWorkspaceMirror);
 
   renderWorkspaceMirror();
 }

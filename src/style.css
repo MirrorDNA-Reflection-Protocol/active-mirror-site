@@ -237,6 +237,13 @@ main > section,
   background: #034fd7;
 }
 
+.button:disabled,
+.button[aria-disabled="true"] {
+  cursor: wait;
+  opacity: 0.78;
+  transform: none;
+}
+
 .button.primary.is-complete {
   background: var(--green);
   border-color: var(--green);
