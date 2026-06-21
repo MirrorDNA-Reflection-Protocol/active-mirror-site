@@ -169,6 +169,34 @@
             <button type="button" data-memory-decision="export">Export receipt</button>
           </div>
         </section>
+
+        <section class="workspace-panel workspace-audit" aria-label="Mirror Audit">
+          <div class="panel-head split">
+            <strong>Mirror Audit</strong>
+            <span id="mirror-audit-state">Draft audit</span>
+          </div>
+          <p class="audit-copy">
+            Inspect what this turn thinks it knows, what is uncertain, what stayed out, and what could become canonical.
+          </p>
+          <div class="audit-grid">
+            <article class="audit-bucket known">
+              <div><strong>Known this turn</strong><span id="mirror-audit-known-count">0</span></div>
+              <ul id="mirror-audit-known"></ul>
+            </article>
+            <article class="audit-bucket uncertain">
+              <div><strong>Uncertain</strong><span id="mirror-audit-uncertain-count">0</span></div>
+              <ul id="mirror-audit-uncertain"></ul>
+            </article>
+            <article class="audit-bucket excluded">
+              <div><strong>Kept out</strong><span id="mirror-audit-excluded-count">0</span></div>
+              <ul id="mirror-audit-excluded"></ul>
+            </article>
+            <article class="audit-bucket canonical">
+              <div><strong>Canonical candidates</strong><span id="mirror-audit-canonical-count">0</span></div>
+              <ul id="mirror-audit-canonical"></ul>
+            </article>
+          </div>
+        </section>
       </section>
 
       <section class="page-section split-section">

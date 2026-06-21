@@ -646,6 +646,16 @@ const mirrorForceLocal = document.querySelector("#mirror-force-local");
 const mirrorCancel = document.querySelector("#mirror-cancel");
 const mirrorMemoryState = document.querySelector("#mirror-memory-state");
 const mirrorMemoryButtons = Array.from(document.querySelectorAll("[data-memory-decision]"));
+const mirrorAudit = document.querySelector(".workspace-audit");
+const mirrorAuditState = document.querySelector("#mirror-audit-state");
+const mirrorAuditKnown = document.querySelector("#mirror-audit-known");
+const mirrorAuditUncertain = document.querySelector("#mirror-audit-uncertain");
+const mirrorAuditExcluded = document.querySelector("#mirror-audit-excluded");
+const mirrorAuditCanonical = document.querySelector("#mirror-audit-canonical");
+const mirrorAuditKnownCount = document.querySelector("#mirror-audit-known-count");
+const mirrorAuditUncertainCount = document.querySelector("#mirror-audit-uncertain-count");
+const mirrorAuditExcludedCount = document.querySelector("#mirror-audit-excluded-count");
+const mirrorAuditCanonicalCount = document.querySelector("#mirror-audit-canonical-count");
 
 const workspaceRoutes = {
   reflection: {
@@ -724,6 +734,21 @@ let mirrorRequestId = 0;
 let currentContextPacket = null;
 let lastMirrorReceipt = null;
 let packetPreviewTimer = 0;
+let auditDecisionCount = 0;
+const auditDecisionMap = new Map();
+
+function loadAuditDecisions() {
+  try {
+    const prior = JSON.parse(localStorage.getItem("activeMirrorAuditDecisions") || "[]");
+    if (!Array.isArray(prior)) return;
+    prior.forEach((decision) => {
+      if (!decision?.text || !decision?.action || auditDecisionMap.has(decision.text)) return;
+      auditDecisionMap.set(decision.text, decision.action);
+    });
+  } catch {
+    // Audit decisions still work for the current session when storage is unavailable.
+  }
+}
 
 function inferWorkspaceRoute(intent, selected) {
   if (selected && selected !== "auto") return selected;
@@ -808,6 +833,10 @@ function renderContextPacket(packet = currentContextPacket) {
     mirrorApprove.disabled = false;
     mirrorApprove.textContent = packet.local_only ? "Generate locally" : packet.approved ? "Approved" : "Approve route";
   }
+  if (mirrorRun && !mirrorRun.disabled) {
+    mirrorRun.textContent = packet.local_only ? "Generate local mirror" : packet.approved ? "Generate viewport" : "Preview context packet";
+    mirrorRun.classList.toggle("is-complete", Boolean(packet.local_only || packet.approved));
+  }
 }
 
 function previewContextPacket({ forceLocal = false } = {}) {
@@ -858,6 +887,101 @@ function captureReceiptSnapshot(packet, routeText) {
   };
 }
 
+function getListText(target) {
+  return Array.from(target?.querySelectorAll("li") || [])
+    .map((item) => item.textContent.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+}
+
+function getArtifactText() {
+  const title = mirrorArtifact?.querySelector("p")?.textContent?.trim();
+  const summary = mirrorArtifact?.querySelector("strong")?.textContent?.trim();
+  return [title, summary].filter(Boolean).join(": ");
+}
+
+function uniqueList(items) {
+  return Array.from(new Set(items.map((item) => String(item || "").trim()).filter(Boolean)));
+}
+
+function auditActionLabel(action) {
+  return {
+    verify: "Verify",
+    forget: "Forget",
+    unknown: "Mark unknown",
+    keep_out: "Keep out",
+    review: "Review",
+    promote: "Promote",
+    skip: "Skip",
+  }[action] || "Mark";
+}
+
+function renderAuditList(target, countTarget, items, actions) {
+  if (!target || !countTarget) return;
+  const list = uniqueList(items).slice(0, 5);
+  countTarget.textContent = String(list.length);
+  target.innerHTML = list
+    .map((item, index) => {
+      const decision = auditDecisionMap.get(item);
+      const actionButtons = actions
+        .map(
+          (action) =>
+            `<button type="button" data-audit-action="${action}" data-audit-index="${index}">${auditActionLabel(action)}</button>`
+        )
+        .join("");
+      const decisionBadge = decision ? `<small class="audit-decision-badge">${auditActionLabel(decision)} recorded</small>` : "";
+      return `<li${decision ? ` data-audit-decision="${escapeHtml(decision)}"` : ""}><span>${escapeHtml(item)}</span>${decisionBadge}<div class="audit-item-actions">${actionButtons}</div></li>`;
+    })
+    .join("");
+}
+
+function renderMirrorAudit(packet = currentContextPacket) {
+  if (!mirrorAudit || !mirrorAuditState) return;
+
+  const activePacket = packet || buildContextPacket();
+  const goals = getListText(mirrorGoals);
+  const moves = getListText(mirrorMoves);
+  const artifact = getArtifactText();
+  const trust = activePacket.trust_label || currentTrustMode().label;
+  const routeTarget = activePacket.model_target || routeTargetLabel(activePacket.route_key || "reflection");
+  const receiptState = mirrorReceiptId?.textContent?.startsWith("edge-")
+    ? "Edge receipt"
+    : activePacket.local_only || activePacket.approved
+      ? "Local receipt"
+      : "Draft audit";
+
+  const known = [
+    `Intent: ${activePacket.task}`,
+    `Boundary: ${activePacket.boundary_label}`,
+    `Trust mode: ${trust}`,
+    `Route target: ${routeTarget}`,
+  ];
+
+  const uncertain = [
+    "No durable vault entries are loaded in this browser demo.",
+    "No files, tabs, emails, or prior chats were admitted for this turn.",
+    "Generated output is not canonical until a receipt is promoted.",
+    activePacket.approval_required && !activePacket.approved ? "Gateway route has not been approved yet." : "",
+  ];
+
+  const excluded = [
+    ...(activePacket.excluded_memory_items || []).map((item) => `${item.id}: ${item.reason}`),
+    activePacket.excluded_text,
+  ];
+
+  const canonical = [
+    goals[0] ? `Goal candidate: ${goals[0]}` : "",
+    moves[0] ? `Next-move candidate: ${moves[0]}` : "",
+    artifact ? `Artifact candidate: ${artifact}` : "",
+    `Boundary preference: ${activePacket.boundary_label}`,
+  ];
+
+  mirrorAuditState.textContent = mirrorMemoryState?.textContent && mirrorMemoryState.textContent !== "Pending" ? "Memory reviewed" : receiptState;
+  renderAuditList(mirrorAuditKnown, mirrorAuditKnownCount, known, ["verify", "forget"]);
+  renderAuditList(mirrorAuditUncertain, mirrorAuditUncertainCount, uncertain, ["unknown", "verify"]);
+  renderAuditList(mirrorAuditExcluded, mirrorAuditExcludedCount, excluded, ["keep_out", "review"]);
+  renderAuditList(mirrorAuditCanonical, mirrorAuditCanonicalCount, canonical, ["promote", "skip"]);
+}
+
 function normalizedList(value, fallback, size) {
   const list = Array.isArray(value) ? value.map((item) => String(item || "").trim()).filter(Boolean) : [];
   return [...list, ...fallback].slice(0, size);
@@ -896,6 +1020,7 @@ function renderWorkspaceMirror(remotePayload = null, packet = currentContextPack
   mirrorReceiptMemory.textContent = receipt.memory_decision || "Pending: nothing saved until you choose a memory decision.";
   if (mirrorMemoryState) mirrorMemoryState.textContent = "Pending";
   captureReceiptSnapshot(packet, mirrorReceiptRoute.textContent);
+  renderMirrorAudit(packet);
 
   try {
     localStorage.setItem(
@@ -948,7 +1073,7 @@ async function generateWorkspaceMirror() {
       duration: 0.38,
     });
     window.setTimeout(() => {
-      mirrorRun.textContent = "Preview context packet";
+      mirrorRun.textContent = "Generate local mirror";
       mirrorRun.classList.remove("is-complete");
     }, 1600);
     return;
@@ -1019,6 +1144,7 @@ function setMemoryDecision(decision) {
     anchor.remove();
     URL.revokeObjectURL(url);
     mirrorMemoryState.textContent = "Exported";
+    renderMirrorAudit(currentContextPacket);
     return;
   }
 
@@ -1027,6 +1153,7 @@ function setMemoryDecision(decision) {
   mirrorMemoryState.textContent =
     decision === "forget" ? "Forgotten" : decision === "never" ? "Blocked" : decision === "project" ? "Project memory" : "Preference";
   captureReceiptSnapshot(currentContextPacket, mirrorReceiptRoute?.textContent || "");
+  renderMirrorAudit(currentContextPacket);
 
   try {
     const prior = JSON.parse(localStorage.getItem("activeMirrorMemoryDecisions") || "[]");
@@ -1066,7 +1193,16 @@ if (mirrorIntent && mirrorBoundary && mirrorRoute && mirrorRun) {
   mirrorBoundary.addEventListener("change", refreshWorkspaceDraft);
   mirrorRoute.addEventListener("change", refreshWorkspaceDraft);
   mirrorTrust?.addEventListener("change", refreshWorkspaceDraft);
-  mirrorRun.addEventListener("click", () => previewContextPacket());
+  mirrorRun.addEventListener("click", () => {
+    const packet = buildContextPacket();
+    if (packet.local_only) {
+      currentContextPacket = packet;
+      renderContextPacket(currentContextPacket);
+      generateWorkspaceMirror();
+      return;
+    }
+    previewContextPacket();
+  });
   mirrorApprove?.addEventListener("click", () => {
     if (!currentContextPacket) currentContextPacket = buildContextPacket();
     currentContextPacket.approved = true;
@@ -1087,6 +1223,39 @@ if (mirrorIntent && mirrorBoundary && mirrorRoute && mirrorRun) {
   });
   mirrorMemoryButtons.forEach((button) => {
     button.addEventListener("click", () => setMemoryDecision(button.dataset.memoryDecision));
+  });
+  loadAuditDecisions();
+  mirrorAudit?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-audit-action]");
+    if (!button) return;
+    const action = button.dataset.auditAction;
+    const item = button.closest("li");
+    const itemText = item?.querySelector("span")?.textContent || "";
+    auditDecisionCount += 1;
+    if (itemText) auditDecisionMap.set(itemText, action);
+    item?.setAttribute("data-audit-decision", action);
+    if (!item?.querySelector(".audit-decision-badge")) {
+      const badge = document.createElement("small");
+      badge.className = "audit-decision-badge";
+      badge.textContent = `${auditActionLabel(action)} recorded`;
+      item?.querySelector("span")?.after(badge);
+    } else {
+      item.querySelector(".audit-decision-badge").textContent = `${auditActionLabel(action)} recorded`;
+    }
+    button.textContent = action === "promote" ? "Promoted" : action === "keep_out" ? "Kept out" : "Marked";
+    mirrorAuditState.textContent = `Audit edits ${auditDecisionCount}`;
+    try {
+      const prior = JSON.parse(localStorage.getItem("activeMirrorAuditDecisions") || "[]");
+      prior.unshift({
+        action,
+        text: itemText,
+        receipt_id: mirrorReceiptId?.textContent || "local-receipt",
+        at: new Date().toISOString(),
+      });
+      localStorage.setItem("activeMirrorAuditDecisions", JSON.stringify(prior.slice(0, 20)));
+    } catch {
+      // Audit decisions remain visible in-session even when storage is unavailable.
+    }
   });
 
   refreshWorkspaceDraft();

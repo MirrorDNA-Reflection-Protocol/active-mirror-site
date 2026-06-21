@@ -3827,7 +3827,8 @@ h3,
   grid-template-areas:
     "input output"
     "packet memory"
-    "receipt receipt";
+    "receipt receipt"
+    "audit audit";
   gap: 18px;
   align-items: start;
   padding: 20px;
@@ -3858,6 +3859,10 @@ h3,
 
 .workspace-memory {
   grid-area: memory;
+}
+
+.workspace-audit {
+  grid-area: audit;
 }
 
 .workspace-panel {
@@ -3973,6 +3978,131 @@ h3,
   border-color: rgba(7, 93, 242, 0.34);
   background: var(--blue-soft);
   transform: translateY(-1px);
+}
+
+.audit-copy {
+  max-width: 920px;
+  margin: 12px 0 16px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.audit-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.audit-bucket {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.audit-bucket.known {
+  border-color: rgba(7, 93, 242, 0.24);
+}
+
+.audit-bucket.uncertain {
+  border-color: rgba(179, 107, 20, 0.28);
+}
+
+.audit-bucket.excluded {
+  border-color: rgba(191, 61, 53, 0.24);
+}
+
+.audit-bucket.canonical {
+  border-color: rgba(7, 137, 82, 0.24);
+}
+
+.audit-bucket > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.audit-bucket > div strong {
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 850;
+}
+
+.audit-bucket > div span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 840;
+}
+
+.audit-bucket ul {
+  display: grid;
+  gap: 9px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.audit-bucket li {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(220, 228, 239, 0.82);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.audit-bucket li > span {
+  color: #263449;
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 720;
+}
+
+.audit-bucket li[data-audit-decision] {
+  border-color: rgba(7, 137, 82, 0.34);
+  background: var(--green-soft);
+}
+
+.audit-decision-badge {
+  width: fit-content;
+  border-radius: 999px;
+  color: var(--green);
+  background: #ffffff;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 860;
+  padding: 5px 7px;
+}
+
+.audit-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.audit-item-actions button {
+  min-height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--blue);
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 840;
+  padding: 0 9px;
+}
+
+.audit-item-actions button:hover {
+  border-color: rgba(7, 93, 242, 0.42);
+  background: var(--blue-soft);
 }
 
 .workspace-board {
@@ -4239,7 +4369,8 @@ h3,
       "packet"
       "output"
       "receipt"
-      "memory";
+      "memory"
+      "audit";
   }
 
   .feature-grid,
@@ -4280,6 +4411,7 @@ h3,
   }
 
   .workspace-board,
+  .audit-grid,
   .feature-grid,
   .feature-grid.tight,
   .use-case-grid,
@@ -4307,6 +4439,15 @@ h3,
 
   .memory-actions {
     grid-template-columns: 1fr;
+  }
+
+  .audit-bucket {
+    padding: 12px;
+  }
+
+  .workspace-column {
+    min-height: 0;
+    padding: 12px;
   }
 
   .process-list li {
@@ -4362,6 +4503,9 @@ body[data-page] .workspace-column.artifact p,
 body[data-page] .packet-grid dt,
 body[data-page] .workspace-memory .panel-head strong,
 body[data-page] .memory-actions button,
+body[data-page] .workspace-audit .panel-head strong,
+body[data-page] .audit-bucket > div strong,
+body[data-page] .audit-item-actions button,
 body[data-page] .feature-grid article strong,
 body[data-page] .use-case-grid article strong,
 body[data-page] .process-list strong,
@@ -4377,6 +4521,8 @@ body[data-page] .legal-stack h2 {
 body[data-page] .workspace-live-card p,
 body[data-page] .packet-grid dd,
 body[data-page] .memory-copy,
+body[data-page] .audit-copy,
+body[data-page] .audit-decision-badge,
 body[data-page] .feature-grid span,
 body[data-page] .use-case-grid span,
 body[data-page] .process-list p,
@@ -4389,6 +4535,8 @@ body[data-page] .legal-stack p {
 body[data-page] .workspace-live-card,
 body[data-page] .workspace-panel,
 body[data-page] .memory-actions button,
+body[data-page] .audit-bucket,
+body[data-page] .audit-bucket li,
 body[data-page] .pricing-panel,
 body[data-page] .feature-grid article,
 body[data-page] .use-case-grid article,
@@ -4408,6 +4556,9 @@ body[data-page] .workspace-receipt dt,
 body[data-page] .packet-grid dt,
 body[data-page] .workspace-memory .panel-head strong,
 body[data-page] .memory-actions button,
+body[data-page] .workspace-audit .panel-head strong,
+body[data-page] .audit-bucket > div strong,
+body[data-page] .audit-item-actions button,
 body[data-page] .workspace-column > div strong,
 body[data-page] .workspace-column li,
 body[data-page] .pricing-panel h2,
@@ -4426,6 +4577,10 @@ body[data-page] .workspace-panel .panel-head span,
 body[data-page] .workspace-receipt dd,
 body[data-page] .packet-grid dd,
 body[data-page] .memory-copy,
+body[data-page] .audit-copy,
+body[data-page] .audit-bucket > div span,
+body[data-page] .audit-bucket li > span,
+body[data-page] .audit-decision-badge,
 body[data-page] .workspace-column > div span,
 body[data-page] .workspace-column.artifact p,
 body[data-page] #mirror-artifact strong,
