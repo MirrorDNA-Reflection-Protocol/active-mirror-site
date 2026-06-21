@@ -278,9 +278,8 @@ function animateElements(targets, vars = {}) {
   if (!canAnimate || !targets || (Array.isArray(targets) && targets.length === 0)) return;
   gsap.fromTo(
     targets,
-    { autoAlpha: 0, y: 14, scale: 0.985 },
+    { y: 14, scale: 0.985 },
     {
-      autoAlpha: 1,
       y: 0,
       scale: 1,
       duration: 0.46,
@@ -646,6 +645,9 @@ const mirrorForceLocal = document.querySelector("#mirror-force-local");
 const mirrorCancel = document.querySelector("#mirror-cancel");
 const mirrorMemoryState = document.querySelector("#mirror-memory-state");
 const mirrorMemoryButtons = Array.from(document.querySelectorAll("[data-memory-decision]"));
+const mirrorVaultState = document.querySelector("#mirror-vault-state");
+const mirrorVaultSummary = document.querySelector("#mirror-vault-summary");
+const mirrorVaultHead = document.querySelector("#mirror-vault-head");
 const mirrorAudit = document.querySelector(".workspace-audit");
 const mirrorAuditState = document.querySelector("#mirror-audit-state");
 const mirrorAuditKnown = document.querySelector("#mirror-audit-known");
@@ -735,6 +737,8 @@ let currentContextPacket = null;
 let lastMirrorReceipt = null;
 let packetPreviewTimer = 0;
 let auditDecisionCount = 0;
+let vaultEntryCount = 0;
+let vaultChainHead = "genesis";
 const auditDecisionMap = new Map();
 
 function loadAuditDecisions() {
@@ -748,6 +752,118 @@ function loadAuditDecisions() {
   } catch {
     // Audit decisions still work for the current session when storage is unavailable.
   }
+}
+
+function setVaultStatus(state, summary = "", head = vaultChainHead) {
+  if (!mirrorVaultState || !mirrorVaultSummary || !mirrorVaultHead) return;
+  mirrorVaultState.textContent = state;
+  if (summary) mirrorVaultSummary.textContent = summary;
+  mirrorVaultHead.textContent = `head: ${head === "genesis" ? "genesis" : head.slice(0, 12)}`;
+}
+
+async function sha256Text(value) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function getVaultFileHandle() {
+  if (!navigator.storage?.getDirectory) throw new Error("opfs_unavailable");
+  const root = await navigator.storage.getDirectory();
+  const dir = await root.getDirectoryHandle("active-mirror-vault", { create: true });
+  return dir.getFileHandle("ledger.jsonl", { create: true });
+}
+
+async function readOpfsVault() {
+  const fileHandle = await getVaultFileHandle();
+  const file = await fileHandle.getFile();
+  const text = await file.text();
+  const entries = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+  return { mode: "OPFS", entries };
+}
+
+async function writeOpfsVault(entries) {
+  const fileHandle = await getVaultFileHandle();
+  const writable = await fileHandle.createWritable();
+  const text = entries.map((entry) => JSON.stringify(entry)).join("\n");
+  await writable.write(text ? `${text}\n` : "");
+  await writable.close();
+}
+
+function readFallbackVault() {
+  const entries = JSON.parse(localStorage.getItem("activeMirrorVaultLedger") || "[]");
+  return { mode: "localStorage", entries: Array.isArray(entries) ? entries : [] };
+}
+
+function writeFallbackVault(entries) {
+  localStorage.setItem("activeMirrorVaultLedger", JSON.stringify(entries.slice(-100)));
+}
+
+async function readBrowserVault() {
+  try {
+    return await readOpfsVault();
+  } catch {
+    return readFallbackVault();
+  }
+}
+
+async function writeBrowserVault(mode, entries) {
+  if (mode === "OPFS") {
+    try {
+      await writeOpfsVault(entries);
+      return "OPFS";
+    } catch {
+      writeFallbackVault(entries);
+      return "localStorage";
+    }
+  }
+  writeFallbackVault(entries);
+  return "localStorage";
+}
+
+async function initializeBrowserVault() {
+  if (!mirrorVaultState) return;
+  setVaultStatus("Checking", "Requesting browser-owned storage for receipts.");
+  const persisted = navigator.storage?.persist ? await navigator.storage.persist().catch(() => false) : false;
+  const { mode, entries } = await readBrowserVault();
+  const latest = entries.at(-1);
+  vaultEntryCount = entries.length;
+  vaultChainHead = latest?.hash || "genesis";
+  setVaultStatus(
+    mode === "OPFS" ? "Vault ready" : "Vault fallback",
+    `${vaultEntryCount} ledger ${vaultEntryCount === 1 ? "entry" : "entries"} in ${mode}${persisted ? "; persistent storage granted" : ""}.`,
+  );
+}
+
+async function persistVaultEntry(type, payload = {}) {
+  if (!mirrorVaultState) return null;
+  setVaultStatus("Vault writing", "Appending a receipt-linked ledger entry.");
+  const { mode, entries } = await readBrowserVault();
+  const previous = entries.at(-1)?.hash || "genesis";
+  const entryBody = {
+    schema: "active-mirror-vault-ledger-v1",
+    type,
+    at: new Date().toISOString(),
+    receipt_id: mirrorReceiptId?.textContent || "local-receipt",
+    prev_hash: previous,
+    payload,
+  };
+  const hash = await sha256Text(JSON.stringify(entryBody));
+  const entry = { ...entryBody, hash };
+  entries.push(entry);
+  const storedMode = await writeBrowserVault(mode, entries);
+  vaultEntryCount = entries.length;
+  vaultChainHead = hash;
+  setVaultStatus(
+    "Vault saved",
+    `${vaultEntryCount} ledger ${vaultEntryCount === 1 ? "entry" : "entries"} in ${storedMode}. Latest: ${type.replace(/_/g, " ")}.`,
+    hash,
+  );
+  return entry;
 }
 
 function inferWorkspaceRoute(intent, selected) {
@@ -1068,7 +1184,7 @@ async function generateWorkspaceMirror() {
     mirrorRun.disabled = false;
     mirrorRun.textContent = "Local viewport generated";
     mirrorRun.classList.add("is-complete");
-    animateElements(Array.from(document.querySelectorAll(".workspace-column, .workspace-receipt dl > div, .workspace-memory")), {
+    animateElements(Array.from(document.querySelectorAll(".workspace-column, .workspace-receipt, .workspace-memory")), {
       y: 10,
       duration: 0.38,
     });
@@ -1114,7 +1230,7 @@ async function generateWorkspaceMirror() {
     mirrorRun.classList.add("is-complete");
   } finally {
     mirrorRun.disabled = false;
-    animateElements(Array.from(document.querySelectorAll(".workspace-column, .workspace-receipt dl > div, .workspace-memory")), {
+    animateElements(Array.from(document.querySelectorAll(".workspace-column, .workspace-receipt, .workspace-memory")), {
       y: 10,
       duration: 0.38,
     });
@@ -1167,6 +1283,14 @@ function setMemoryDecision(decision) {
   } catch {
     // Memory decisions are visible in the receipt even if browser storage is blocked.
   }
+
+  persistVaultEntry("memory_decision", {
+    decision,
+    boundary: currentContextPacket?.boundary_label || boundaryLabel(mirrorBoundary?.value || "personal"),
+    route: mirrorRouteLabel?.textContent || routeTargetLabel(currentContextPacket?.route_key || "reflection"),
+    intent: decision === "forget" ? null : shortIntent(mirrorIntent?.value || ""),
+    receipt: decision === "forget" ? null : lastMirrorReceipt,
+  }).catch(() => setVaultStatus("Vault blocked", "Browser storage rejected this memory decision."));
 }
 
 if (mirrorIntent && mirrorBoundary && mirrorRoute && mirrorRun) {
@@ -1225,12 +1349,14 @@ if (mirrorIntent && mirrorBoundary && mirrorRoute && mirrorRun) {
     button.addEventListener("click", () => setMemoryDecision(button.dataset.memoryDecision));
   });
   loadAuditDecisions();
+  initializeBrowserVault().catch(() => setVaultStatus("Vault fallback", "Browser vault will use local session storage only."));
   mirrorAudit?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-audit-action]");
     if (!button) return;
     const action = button.dataset.auditAction;
     const item = button.closest("li");
     const itemText = item?.querySelector("span")?.textContent || "";
+    const bucket = item?.closest(".audit-bucket")?.querySelector("strong")?.textContent || "Audit";
     auditDecisionCount += 1;
     if (itemText) auditDecisionMap.set(itemText, action);
     item?.setAttribute("data-audit-decision", action);
@@ -1256,6 +1382,13 @@ if (mirrorIntent && mirrorBoundary && mirrorRoute && mirrorRun) {
     } catch {
       // Audit decisions remain visible in-session even when storage is unavailable.
     }
+    persistVaultEntry("audit_decision", {
+      action,
+      bucket,
+      text: itemText,
+      boundary: currentContextPacket?.boundary_label || boundaryLabel(mirrorBoundary?.value || "personal"),
+      route: mirrorRouteLabel?.textContent || routeTargetLabel(currentContextPacket?.route_key || "reflection"),
+    }).catch(() => setVaultStatus("Vault blocked", "Browser storage rejected this audit decision."));
   });
 
   refreshWorkspaceDraft();

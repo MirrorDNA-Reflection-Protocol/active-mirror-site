@@ -3954,6 +3954,57 @@ h3,
   line-height: 1.45;
 }
 
+.vault-strip {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 12px;
+  border: 1px solid rgba(7, 137, 82, 0.22);
+  border-radius: 8px;
+  background: rgba(232, 248, 238, 0.68);
+}
+
+.vault-strip > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.vault-strip strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.vault-strip span {
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.vault-strip p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.38;
+}
+
+.vault-strip code {
+  width: fit-content;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: #263449;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 820;
+  line-height: 1;
+  padding: 6px 8px;
+}
+
 .memory-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4503,6 +4554,8 @@ body[data-page] .workspace-column.artifact p,
 body[data-page] .packet-grid dt,
 body[data-page] .workspace-memory .panel-head strong,
 body[data-page] .memory-actions button,
+body[data-page] .vault-strip strong,
+body[data-page] .vault-strip code,
 body[data-page] .workspace-audit .panel-head strong,
 body[data-page] .audit-bucket > div strong,
 body[data-page] .audit-item-actions button,
@@ -4521,6 +4574,7 @@ body[data-page] .legal-stack h2 {
 body[data-page] .workspace-live-card p,
 body[data-page] .packet-grid dd,
 body[data-page] .memory-copy,
+body[data-page] .vault-strip p,
 body[data-page] .audit-copy,
 body[data-page] .audit-decision-badge,
 body[data-page] .feature-grid span,
@@ -4535,6 +4589,8 @@ body[data-page] .legal-stack p {
 body[data-page] .workspace-live-card,
 body[data-page] .workspace-panel,
 body[data-page] .memory-actions button,
+body[data-page] .vault-strip,
+body[data-page] .vault-strip code,
 body[data-page] .audit-bucket,
 body[data-page] .audit-bucket li,
 body[data-page] .pricing-panel,
@@ -4556,6 +4612,8 @@ body[data-page] .workspace-receipt dt,
 body[data-page] .packet-grid dt,
 body[data-page] .workspace-memory .panel-head strong,
 body[data-page] .memory-actions button,
+body[data-page] .vault-strip strong,
+body[data-page] .vault-strip code,
 body[data-page] .workspace-audit .panel-head strong,
 body[data-page] .audit-bucket > div strong,
 body[data-page] .audit-item-actions button,
@@ -4577,6 +4635,8 @@ body[data-page] .workspace-panel .panel-head span,
 body[data-page] .workspace-receipt dd,
 body[data-page] .packet-grid dd,
 body[data-page] .memory-copy,
+body[data-page] .vault-strip p,
+body[data-page] .vault-strip span,
 body[data-page] .audit-copy,
 body[data-page] .audit-bucket > div span,
 body[data-page] .audit-bucket li > span,

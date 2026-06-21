@@ -8,7 +8,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:4173",
 ]);
 
-const WORKER_VERSION = "2026-06-21-fallback-v2";
+const WORKER_VERSION = "2026-06-21-routed-v1";
 
 const BOUNDARIES = {
   personal: {

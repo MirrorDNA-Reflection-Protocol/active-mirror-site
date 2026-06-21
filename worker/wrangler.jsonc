@@ -4,6 +4,13 @@
   "account_id": "c67a8591dff0a1b3681da50540530fc3",
   "main": "src/index.js",
   "compatibility_date": "2026-06-21",
+  "workers_dev": false,
+  "routes": [
+    {
+      "pattern": "gateway.activemirror.ai",
+      "custom_domain": true
+    }
+  ],
   "observability": {
     "enabled": true
   },
