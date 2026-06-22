@@ -1,16 +1,17 @@
 # Worker Gateway Deployment
 
-Date: 2026-06-21
+Date: 2026-06-22
 
 The Active Mirror model gateway lives in `worker/`.
 
 ## Current State
 
 - Worker config includes the Cloudflare account ID.
-- `npx wrangler deploy --config worker/wrangler.jsonc --dry-run` passes.
-- Live deploy is blocked until Cloudflare auth has Workers write permission.
-- Local Cloudflare tokens found on 2026-06-21 verified successfully, but both returned `Authentication error` for Worker service endpoints.
-- `wrangler login` must complete in the browser, or a new API token must be provided with Workers permissions.
+- `gateway.activemirror.ai` is live and reports `active-mirror-site-gateway`.
+- Use `env -u CLOUDFLARE_API_TOKEN npm run worker:deploy` when local OAuth is valid but an old shell token returns Cloudflare authentication errors.
+- Reflection route is GPT-first, with a fast GPT fallback recorded in the receipt.
+- Chat critique route is Anthropic-first, but the current testing key is usage-limited and falls back to GPT.
+- Media route is Gemini-first.
 
 ## Required Cloudflare Permission
 
@@ -41,8 +42,10 @@ Configure provider keys as Worker secrets, not browser variables:
 
 ```sh
 npx wrangler secret put OPENAI_API_KEY --config worker/wrangler.jsonc
-npx wrangler secret put ANTHROPIC_API_KEY --config worker/wrangler.jsonc
+npx wrangler secret put ANTHROPIC_API_KEY_ACTIVE_MIRROR --config worker/wrangler.jsonc
 npx wrangler secret put GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER --config worker/wrangler.jsonc
 ```
 
-Provider keys already exist locally in Keychain/MirrorDNA stores, but they must be pushed to Cloudflare after Workers-write auth is available.
+`ANTHROPIC_API_KEY_ACTIVE_MIRROR` is preferred for this Worker so testing and production Anthropic keys can rotate without touching personal Claude Desktop or Claude Code credentials. The Worker still accepts `ANTHROPIC_API_KEY` and `CLAUDE_API_KEY` as fallback aliases.
+
+Provider keys may exist locally in Keychain/MirrorDNA stores, but they must be pushed to Cloudflare as Worker secrets. Do not commit provider keys or expose them in browser JavaScript.

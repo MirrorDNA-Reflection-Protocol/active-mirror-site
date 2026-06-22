@@ -22,7 +22,8 @@
         <span>Active Mirror</span>
       </a>
       <nav class="nav-links" aria-label="Sections">
-        <a href="/mirror/" aria-current="page">Mirror</a>
+        <a href="/">Home</a>
+        <a href="/mirror/" aria-current="page">Workspace</a>
         <a href="/product/">Product</a>
         <a href="/trust/">Trust</a>
         <a href="/pricing/">Pricing</a>
@@ -36,13 +37,13 @@
     <main class="page-main" id="workspace">
       <section class="page-hero workspace-hero">
         <div class="page-copy">
-          <h1>Your mirror opens as a workspace, not a blank chatbot.</h1>
+          <h1>Reflect with the full workspace.</h1>
           <p>
             Bring a decision, workflow, or messy note. Active Mirror structures the issue,
-            creates the next useful workspace, shows the receipt, and lets you decide what becomes future context.
+            shows the receipt, and lets you decide what becomes future context.
           </p>
           <div class="page-actions">
-            <a class="button primary" href="#mirror-intent">Create a mirror</a>
+            <a class="button primary" href="#mirror-intent">Start reflecting</a>
             <a class="button secondary" href="/trust/">Review trust layer</a>
           </div>
         </div>
@@ -57,7 +58,7 @@
       <section class="workspace-app" aria-label="Active Mirror workspace">
         <form class="workspace-panel workspace-input" aria-label="Mirror input">
           <div class="panel-head split">
-            <strong>Turn input</strong>
+            <strong>Reflection input</strong>
             <span id="mirror-count">0 / 1000</span>
           </div>
           <label for="mirror-intent">What are you trying to move forward?</label>
@@ -118,7 +119,7 @@
 
         <section class="workspace-panel workspace-output" aria-label="Generated mirror">
           <div class="panel-head split">
-            <strong>Generated workspace</strong>
+            <strong>Reflection workspace</strong>
             <span id="mirror-route-label">decisions / GPT</span>
           </div>
           <div class="workspace-board">
@@ -157,7 +158,7 @@
 
         <section class="workspace-panel workspace-summary" aria-label="Create summary">
           <div class="panel-head split">
-            <strong>Create summary</strong>
+            <strong>Make summary</strong>
             <span id="mirror-summary-state">Ready</span>
           </div>
           <p class="memory-copy">Turn this session into a useful note you can keep, export, or revise.</p>
@@ -172,11 +173,11 @@
                 <option value="reflection">Reflection note</option>
               </select>
             </label>
-            <button class="button primary small" id="mirror-create-summary" type="button">Create summary</button>
+            <button class="button primary small" id="mirror-create-summary" type="button">Make summary</button>
           </div>
           <article class="summary-output" id="mirror-summary-output">
             <strong>No summary yet</strong>
-            <p>Create a summary after the workspace has a receipt.</p>
+            <p>Make a summary after the workspace has a receipt.</p>
           </article>
           <div class="summary-actions" aria-label="Summary export actions">
             <button type="button" id="mirror-export-markdown">Export Markdown</button>
@@ -191,7 +192,7 @@
           </div>
           <p class="memory-copy">Review each suggestion before it becomes future context. Nothing is selected for you.</p>
           <div class="memory-candidates" id="mirror-memory-candidates" aria-live="polite">
-            <p>No saved-context suggestions yet. Create a summary to review them.</p>
+            <p>No saved-context suggestions yet. Make a summary to review them.</p>
           </div>
           <div class="vault-strip" aria-label="Browser vault status">
             <div>
@@ -217,7 +218,7 @@
           </div>
           <p class="memory-copy">Questions appear only when the answer would change the decision, risk, or future context.</p>
           <div class="followup-list" id="mirror-followups">
-            <p>Create a summary to see the questions worth answering.</p>
+            <p>Make a summary to see the questions worth answering.</p>
           </div>
         </section>
 

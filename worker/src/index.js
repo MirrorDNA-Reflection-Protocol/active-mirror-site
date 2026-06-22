@@ -6,9 +6,12 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:5173",
   "http://localhost:4173",
   "http://127.0.0.1:4173",
+  "http://localhost:8976",
+  "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-06-21-routed-v1";
+const WORKER_VERSION = "2026-06-22-provider-routing-v3";
+const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 
 const BOUNDARIES = {
   personal: {
@@ -71,6 +74,38 @@ const MIRROR_SCHEMA = {
         context_excluded: { type: "string", minLength: 12, maxLength: 220 },
         route: { type: "string", minLength: 12, maxLength: 220 },
         memory_decision: { type: "string", minLength: 12, maxLength: 220 },
+      },
+    },
+  },
+};
+
+const PROVIDER_MIRROR_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["goals", "blockers", "moves", "artifact", "receipt"],
+  properties: {
+    goals: { type: "array", items: { type: "string" } },
+    blockers: { type: "array", items: { type: "string" } },
+    moves: { type: "array", items: { type: "string" } },
+    artifact: {
+      type: "object",
+      additionalProperties: false,
+      required: ["title", "summary"],
+      properties: {
+        title: { type: "string" },
+        summary: { type: "string" },
+      },
+    },
+    receipt: {
+      type: "object",
+      additionalProperties: false,
+      required: ["why", "context_used", "context_excluded", "route", "memory_decision"],
+      properties: {
+        why: { type: "string" },
+        context_used: { type: "string" },
+        context_excluded: { type: "string" },
+        route: { type: "string" },
+        memory_decision: { type: "string" },
       },
     },
   },
@@ -279,14 +314,14 @@ async function runRoute(route, prompt, env, attempted = []) {
     if (provider === "openai" && env.OPENAI_API_KEY) {
       return await callOpenAI(prompt, route, env);
     }
-    if (provider === "anthropic" && env.ANTHROPIC_API_KEY) {
+    if (provider === "anthropic" && anthropicApiKey(env)) {
       return await callAnthropic(prompt, route, env);
     }
     if (provider === "gemini" && (env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY)) {
       return await callGemini(prompt, route, env);
     }
   } catch (error) {
-    return fallbackResult(route, prompt, env, nextAttempted, `${provider}_provider_error`);
+    return fallbackResult(route, prompt, env, nextAttempted, providerFailureReason(provider, error));
   }
 
   const fallbackRoute = chooseFallbackRoute(route, env, nextAttempted);
@@ -331,7 +366,7 @@ function chooseFallbackRoute(route, env, attempted) {
     return { ...route, primary: "openai", modelEnv: "OPENAI_REFLECTION_MODEL", defaultModel: "gpt-5.5" };
   }
 
-  if (!attempted.includes("anthropic") && route.primary !== "anthropic" && env.ANTHROPIC_API_KEY) {
+  if (!attempted.includes("anthropic") && route.primary !== "anthropic" && anthropicApiKey(env)) {
     return { ...route, primary: "anthropic", modelEnv: "ANTHROPIC_CHAT_MODEL", defaultModel: "claude-sonnet-4-6" };
   }
 
@@ -340,7 +375,25 @@ function chooseFallbackRoute(route, env, attempted) {
 
 async function callOpenAI(prompt, route, env) {
   const model = env[route.modelEnv] || route.defaultModel;
-  const response = await fetch("https://api.openai.com/v1/responses", {
+  const fastModel = env.OPENAI_FAST_MODEL || "gpt-5.4-mini";
+
+  try {
+    return await callOpenAIModel(prompt, model, env);
+  } catch (error) {
+    if (model !== fastModel && shouldUseOpenAIFastFallback(error)) {
+      const result = await callOpenAIModel(prompt, fastModel, env);
+      return {
+        ...result,
+        fallback: true,
+        fallbackReason: `${providerFailureReason("openai", error)}_fast_model`,
+      };
+    }
+    throw error;
+  }
+}
+
+async function callOpenAIModel(prompt, model, env) {
+  const response = await fetchWithTimeout("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${env.OPENAI_API_KEY}`,
@@ -350,7 +403,7 @@ async function callOpenAI(prompt, route, env) {
       model,
       input: prompt,
       store: false,
-      reasoning: { effort: "medium" },
+      reasoning: { effort: "low" },
       text: {
         format: {
           type: "json_schema",
@@ -359,54 +412,88 @@ async function callOpenAI(prompt, route, env) {
           schema: MIRROR_SCHEMA,
         },
       },
-      max_output_tokens: 1800,
+      max_output_tokens: 1000,
     }),
-  });
+  }, "openai", env);
 
   const data = await readProviderResponse(response, "openai");
   return { fallback: false, model, mirror: parseProviderMirror(extractOpenAIText(data), "openai") };
 }
 
+function shouldUseOpenAIFastFallback(error) {
+  const message = String(error?.message || "");
+  return message.startsWith("openai_timeout") || message.startsWith("openai_provider_429") || message.startsWith("openai_provider_503");
+}
+
 async function callAnthropic(prompt, route, env) {
   const model = env[route.modelEnv] || route.defaultModel;
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const key = anthropicApiKey(env);
+  const response = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
-      "x-api-key": env.ANTHROPIC_API_KEY,
+      "x-api-key": key,
       "anthropic-version": "2023-06-01",
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
       model,
-      max_tokens: 1800,
-      system: "Return only valid JSON matching the Active Mirror first-use board structure.",
+      max_tokens: 1000,
+      system: "Use the create_mirror tool exactly once. No preamble.",
       messages: [{ role: "user", content: prompt }],
+      tools: [
+        {
+          name: "create_mirror",
+          description: "Create the compact Active Mirror first-use board.",
+          input_schema: PROVIDER_MIRROR_SCHEMA,
+        },
+      ],
+      tool_choice: {
+        type: "tool",
+        name: "create_mirror",
+      },
     }),
-  });
+  }, "anthropic", env);
 
   const data = await readProviderResponse(response, "anthropic");
+  const toolUse = data.content?.find((item) => item.type === "tool_use" && item.name === "create_mirror");
+  if (toolUse?.input) {
+    return { fallback: false, model, mirror: parseProviderMirror(JSON.stringify(toolUse.input), "anthropic") };
+  }
   const text = data.content?.find((item) => item.type === "text")?.text || "";
   return { fallback: false, model, mirror: parseProviderMirror(text, "anthropic") };
+}
+
+function anthropicApiKey(env) {
+  return env.ANTHROPIC_API_KEY_ACTIVE_MIRROR || env.ANTHROPIC_API_KEY || env.CLAUDE_API_KEY || "";
 }
 
 async function callGemini(prompt, route, env) {
   const model = env[route.modelEnv] || route.defaultModel;
   const key = env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY;
   const referer = env.GEMINI_ALLOWED_REFERER || "https://activemirror.ai/";
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`,
+  const response = await fetchWithTimeout(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "x-goog-api-key": key,
         Referer: referer,
         Origin: new URL(referer).origin,
       },
       body: JSON.stringify({
+        systemInstruction: {
+          parts: [{ text: "Return a compact Active Mirror first-use board as valid JSON only." }],
+        },
         contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { response_mime_type: "application/json" },
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseJsonSchema: PROVIDER_MIRROR_SCHEMA,
+        },
       }),
     },
+    "gemini",
+    env,
   );
 
   const data = await readProviderResponse(response, "gemini");
@@ -417,9 +504,47 @@ async function callGemini(prompt, route, env) {
 async function readProviderResponse(response, provider) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(`${provider}_provider_${response.status}`);
+    const code = cleanProviderCode(data?.error?.code || data?.error?.type || data?.type || data?.error || "");
+    const message = cleanProviderCode(data?.error?.message || data?.message || "");
+    throw new Error([`${provider}_provider_${response.status}`, code, message].filter(Boolean).join("_"));
   }
   return data;
+}
+
+async function fetchWithTimeout(url, init, provider, env) {
+  const controller = new AbortController();
+  const timeoutMs = providerTimeoutMs(env);
+  const timeout = setTimeout(() => controller.abort(`${provider}_timeout_${timeoutMs}ms`), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error(`${provider}_timeout`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function providerTimeoutMs(env) {
+  const configured = Number(env.PROVIDER_TIMEOUT_MS || DEFAULT_PROVIDER_TIMEOUT_MS);
+  if (!Number.isFinite(configured)) return DEFAULT_PROVIDER_TIMEOUT_MS;
+  return Math.max(5000, Math.min(25000, Math.trunc(configured)));
+}
+
+function providerFailureReason(provider, error) {
+  const message = String(error?.message || "");
+  if (message.startsWith(`${provider}_`)) return message.slice(0, 120);
+  return `${provider}_provider_error`;
+}
+
+function cleanProviderCode(value) {
+  return String(value || "")
+    .replace(/[^a-zA-Z0-9_-]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "")
+    .slice(0, 48);
 }
 
 function extractOpenAIText(data) {
@@ -576,6 +701,7 @@ function publicRoutes(env) {
     reflection: {
       primary: "openai",
       model: env.OPENAI_REFLECTION_MODEL || "gpt-5.5",
+      fast_model: env.OPENAI_FAST_MODEL || "gpt-5.4-mini",
       purpose: "reflective reasoning and first-use mirror generation",
     },
     chat: {

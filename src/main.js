@@ -184,6 +184,25 @@ const receiptRoute = document.querySelector("#receipt-route");
 const receiptMemory = document.querySelector("#receipt-memory");
 const receiptLines = Array.from(document.querySelectorAll(".receipt-line"));
 const openGeneratedMirror = document.querySelector("#open-generated-mirror");
+const homeModelMode = document.querySelector("#home-model-mode");
+const homeWorkControls = Array.from(document.querySelectorAll(".home-work-lane, .arch-node"));
+const homeSurfaceTitle = document.querySelector("#home-surface-title");
+const homeSurfaceType = document.querySelector("#home-surface-type");
+const homeSurfaceOutput = document.querySelector("#home-surface-output");
+const homeSurfaceTabs = Array.from(document.querySelectorAll("[data-surface-tab]"));
+const homeContextCopy = document.querySelector("#home-context-copy");
+const homeRouteTitle = document.querySelector("#home-route-title");
+const homeRouteCopy = document.querySelector("#home-route-copy");
+const homeOutputTitle = document.querySelector("#home-output-title");
+const homeOutputCopy = document.querySelector("#home-output-copy");
+const homeStateMode = document.querySelector("#home-state-mode");
+const homeStateRoute = document.querySelector("#home-state-route");
+const homeStateBoundary = document.querySelector("#home-state-boundary");
+const homeStateReceipt = document.querySelector("#home-state-receipt");
+
+let currentHomeLane = "decision";
+let homeRemotePayload = null;
+let homeRequestId = 0;
 
 const mobileModeNodes = {
   launching: ["Research", "Launch proof", "Prototype", "Receipt"],
@@ -384,6 +403,299 @@ function renderRitualList(target, items) {
   target.innerHTML = items.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
 }
 
+function inferHomeSurface(text) {
+  const value = text.toLowerCase();
+  if (/\b(file|files|folder|upload|table|spreadsheet|excel|csv|rows|data|compare|comparison|tracker)\b/.test(value)) return "table";
+  if (/\b(image|video|visual|media|poster|screenshot|deck|slide|asset)\b/.test(value)) return "media";
+  if (/\b(web|website|browser|online|research|source|competitor|link|url)\b/.test(value)) return "browser";
+  if (/\b(doc|document|word|pdf|memo|brief|summary|write|draft|note)\b/.test(value)) return "document";
+  return "plan";
+}
+
+function inferHomeLane(text, surfaceKey = inferHomeSurface(text)) {
+  const value = text.toLowerCase();
+  if (/\b(memory|remember|saved|continuity|receipt|tomorrow)\b/.test(value)) return "memory";
+  if (surfaceKey === "table") return "files";
+  if (surfaceKey === "media") return "images";
+  if (surfaceKey === "browser") return "research";
+  return "decision";
+}
+
+function homeLaneCopy(laneKey = currentHomeLane) {
+  const lanes = {
+    decision: {
+      mode: "Decision",
+      route: "Browser first",
+      boundary: "Private",
+      receipt: "Ready",
+      output: "Plan",
+      outputCopy: "A useful next step, not a long answer.",
+    },
+    files: {
+      mode: "Files",
+      route: "Local first",
+      boundary: "Scoped",
+      receipt: "Tracked",
+      output: "File plan",
+      outputCopy: "Inputs stay local until you approve sharing.",
+    },
+    images: {
+      mode: "Visual",
+      route: "Media after approval",
+      boundary: "Public-safe",
+      receipt: "Tracked",
+      output: "Visual brief",
+      outputCopy: "Approved context becomes a usable creative brief.",
+    },
+    research: {
+      mode: "Research",
+      route: "Web after approval",
+      boundary: "Redacted",
+      receipt: "Sources",
+      output: "Source plan",
+      outputCopy: "Evidence is separated from private context.",
+    },
+    memory: {
+      mode: "Memory",
+      route: "Browser ledger",
+      boundary: "Explicit",
+      receipt: "Pending",
+      output: "Continuity note",
+      outputCopy: "Nothing is saved until you accept the receipt.",
+    },
+  };
+  return lanes[laneKey] || lanes.decision;
+}
+
+function homeHelpMode() {
+  const value = homeModelMode?.value || "local";
+  return ["local", "reflection", "chat", "media"].includes(value) ? value : "local";
+}
+
+function homeRouteFromMode(laneKey = currentHomeLane) {
+  const mode = homeHelpMode();
+  if (mode !== "local") return mode;
+  if (laneKey === "images") return "media";
+  return "reflection";
+}
+
+function homeHelpLabel(mode = homeHelpMode()) {
+  return {
+    local: "Browser only",
+    reflection: "GPT reflection",
+    chat: "Claude critique",
+    media: "Gemini media",
+  }[mode] || "Browser only";
+}
+
+function homeProviderLabel(route) {
+  if (!route) return homeHelpLabel();
+  const model = route.model ? ` / ${route.model}` : "";
+  const fallback = route.fallback ? " / backup" : "";
+  return `${route.capability} / ${route.primary}${model}${fallback}`;
+}
+
+function setActiveHomeLane(laneKey = currentHomeLane) {
+  currentHomeLane = laneKey;
+  homeWorkControls.forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.workLane === currentHomeLane);
+  });
+  if (canAnimate) {
+    const activeControls = homeWorkControls.filter((button) => button.dataset.workLane === currentHomeLane);
+    gsap.fromTo(activeControls, { scale: 0.992 }, { scale: 1, duration: 0.28, ease: "power2.out" });
+  }
+}
+
+function setOpenWorkspaceHref() {
+  if (!openGeneratedMirror || !ritualIntent || !ritualBoundary) return;
+  const mode = homeHelpMode();
+  openGeneratedMirror.href = mirrorStartPath({
+    intent: ritualIntent.value || ritualInitialIntent,
+    boundary: ritualBoundary.value || "personal",
+    route: mode === "local" ? homeRouteFromMode(currentHomeLane) : mode,
+    trust: mode === "local" ? "local" : "approved",
+  });
+}
+
+function setHomeSurfaceTab(surfaceKey) {
+  homeSurfaceTabs.forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.surfaceTab === surfaceKey);
+  });
+}
+
+function renderHomeSurface(surfaceKey = inferHomeSurface(ritualIntent?.value || ritualInitialIntent), laneOverride = null) {
+  if (!homeSurfaceOutput || !ritualIntent) return;
+
+  const intent = ritualIntent.value || ritualInitialIntent;
+  const laneKey = laneOverride || inferHomeLane(intent, surfaceKey);
+  if (laneKey !== currentHomeLane || !homeWorkControls.some((button) => button.classList.contains("is-active"))) {
+    setActiveHomeLane(laneKey);
+  }
+  const lane = homeLaneCopy(currentHomeLane);
+  const mode = ritualModes[currentRitualMode(intent)];
+  const mirror = homeRemotePayload?.mirror && typeof homeRemotePayload.mirror === "object" ? homeRemotePayload.mirror : null;
+  const goals = normalizedList(mirror?.goals, mode.goals, 3);
+  const blockers = normalizedList(mirror?.blockers, mode.blockers, 3);
+  const moves = normalizedList(mirror?.moves, mode.moves, 4);
+  const artifactTitle = String(mirror?.artifact?.title || mode.artifact[0]);
+  const artifactSummary = String(mirror?.artifact?.summary || mode.artifact[1]);
+  const receipt = mirror?.receipt || {};
+  const short = shortIntent(intent);
+  const helpMode = homeHelpMode();
+  const routeLabel = homeRemotePayload?.route ? homeProviderLabel(homeRemotePayload.route) : helpMode === "local" ? lane.route : homeHelpLabel(helpMode);
+  const receiptState = homeRemotePayload ? (homeRemotePayload.fallback ? "Backup" : "Model") : helpMode === "local" ? lane.receipt : "Approval";
+  const surfaceLabels = {
+    plan: ["Plan", "Next move"],
+    document: currentHomeLane === "memory" ? ["Continuity note", "Memory"] : ["Note", "Draft"],
+    table: ["File plan", "Local context"],
+    browser: ["Web check", "Research"],
+    media: ["Visual brief", "Creative"],
+  };
+  const [title, type] = surfaceLabels[surfaceKey] || surfaceLabels.plan;
+
+  if (homeSurfaceTitle) homeSurfaceTitle.textContent = title;
+  if (homeSurfaceType) homeSurfaceType.textContent = type;
+  if (homeContextCopy) homeContextCopy.textContent = short;
+  if (homeRouteTitle) homeRouteTitle.textContent = routeLabel;
+  if (homeRouteCopy) {
+    homeRouteCopy.textContent = homeRemotePayload
+      ? "The receipt records the model path, fallback, and memory decision."
+      : helpMode !== "local"
+        ? "Only the current turn and selected boundary are shared after approval."
+        : currentHomeLane === "research"
+          ? "The page prepares the question before anything leaves your browser."
+          : currentHomeLane === "images"
+            ? "Media help receives only the public-safe brief you approve."
+            : "Private reflection runs first. External help waits for your approval.";
+  }
+  if (homeOutputTitle) homeOutputTitle.textContent = lane.output;
+  if (homeOutputCopy) homeOutputCopy.textContent = surfaceKey === "plan" ? moves[0] : lane.outputCopy;
+  if (homeStateMode) homeStateMode.textContent = lane.mode;
+  if (homeStateRoute) homeStateRoute.textContent = routeLabel;
+  if (homeStateBoundary) homeStateBoundary.textContent = lane.boundary;
+  if (homeStateReceipt) homeStateReceipt.textContent = receiptState;
+  setOpenWorkspaceHref();
+
+  const templates = {
+    plan: `
+      <article class="surface-plan">
+        <strong>${escapeHtml(artifactTitle)}</strong>
+        <p>${escapeHtml(receipt.why || mode.why)}</p>
+        <ol>
+          ${moves.slice(0, 3).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+        </ol>
+      </article>
+    `,
+    document: `
+      <article class="surface-document">
+        <h3>Decision note</h3>
+        <p><strong>What I heard:</strong> ${escapeHtml(receipt.context_used || short)}</p>
+        <p><strong>Watch for:</strong> ${escapeHtml(blockers[0])}</p>
+        <p><strong>Next:</strong> ${escapeHtml(moves[0])}</p>
+      </article>
+    `,
+    table: `
+      <article class="surface-files">
+        <label class="surface-upload">
+          <span>Choose local files</span>
+          <input data-local-picker type="file" multiple />
+        </label>
+        <p data-file-state>Nothing is uploaded. Selection stays in this browser.</p>
+        <table class="surface-table">
+          <thead><tr><th>Input</th><th>Use</th><th>Decision</th></tr></thead>
+          <tbody>
+            ${["Document", "Screenshot", "Notes"].map((item, index) => `
+              <tr>
+                <td>${item}</td>
+                <td>${escapeHtml(goals[index] || goals[0])}</td>
+                <td>${index === 0 ? "Use locally" : index === 1 ? "Ask before sharing" : "Summarize only"}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </article>
+    `,
+    browser: `
+      <article class="surface-browser">
+        <div><span></span><span></span><span></span><strong>Web check prepared</strong></div>
+        <p>Search only after approval. Start with: ${escapeHtml(short)}</p>
+        <ul>
+          <li>What claim needs evidence?</li>
+          <li>Which source would change the decision?</li>
+          <li>What should stay out of the request?</li>
+        </ul>
+      </article>
+    `,
+    media: `
+      <article class="surface-media">
+        <strong>${escapeHtml(surfaceKey === "media" ? artifactTitle : "Visual brief")}</strong>
+        <p>${escapeHtml(surfaceKey === "media" ? artifactSummary : "Create a clear asset from the approved public-safe idea only.")}</p>
+        <label class="surface-upload">
+          <span>Add local visual reference</span>
+          <input data-local-picker type="file" accept="image/*,video/*" multiple />
+        </label>
+        <p data-file-state>No media selected. References stay local until approved.</p>
+        <div>
+          <span>Output</span><b>Image, slide, or short clip</b>
+          <span>Boundary</span><b>${escapeHtml(boundaryCopy[ritualBoundary?.value || "personal"].excluded)}</b>
+        </div>
+      </article>
+    `,
+  };
+
+  homeSurfaceOutput.innerHTML = templates[surfaceKey] || templates.plan;
+  const localPicker = homeSurfaceOutput.querySelector("[data-local-picker]");
+  const fileState = homeSurfaceOutput.querySelector("[data-file-state]");
+  localPicker?.addEventListener("change", () => {
+    const count = localPicker.files?.length || 0;
+    if (fileState) {
+      fileState.textContent = count
+        ? `${count} local ${count === 1 ? "item" : "items"} selected. Still browser-only until you approve a route.`
+        : "Nothing selected. Nothing leaves this browser.";
+    }
+  });
+  setHomeSurfaceTab(surfaceKey);
+}
+
+function applyHomeRemoteReceipt(payload) {
+  const mirror = payload?.mirror || {};
+  const receipt = mirror.receipt || {};
+  if (ritualReceiptTime && payload?.receipt_id) ritualReceiptTime.textContent = `model-${payload.receipt_id}`;
+  if (receiptWhy) receiptWhy.textContent = receipt.why || "Model help produced a receipt-backed working surface.";
+  if (receiptUsed) receiptUsed.textContent = receipt.context_used || "Current turn intent, selected boundary, and approved model route.";
+  if (receiptExcluded) receiptExcluded.textContent = receipt.context_excluded || boundaryCopy[ritualBoundary?.value || "personal"].excluded;
+  if (receiptRoute) receiptRoute.textContent = receipt.route || homeProviderLabel(payload?.route);
+  if (receiptMemory) receiptMemory.textContent = receipt.memory_decision || "Nothing is saved until you accept the receipt.";
+}
+
+async function runHomeGateway(routeKey) {
+  const intent = ritualIntent?.value.replace(/\s+/g, " ").trim() || "";
+  if (intent.length < 12) throw new Error("intent_too_short");
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 26000);
+  try {
+    const response = await fetch(`${MIRROR_GATEWAY_URL}/v1/mirror/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        intent,
+        boundary: ritualBoundary?.value || "personal",
+        route: routeKey,
+        turn: ritualTurn,
+        trust_mode: "approved",
+      }),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || "gateway_unavailable");
+    }
+    return payload;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
 function animateRitualBoard() {
   animateElements(Array.from(document.querySelectorAll(".ritual-column")));
   animateElements(Array.from(document.querySelectorAll(".receipt-line")), { x: 0, delay: 0.08 });
@@ -420,6 +732,7 @@ function renderRitual() {
       trust: "local",
     });
   }
+  renderHomeSurface();
 
   try {
     localStorage.setItem(
@@ -435,17 +748,28 @@ function renderRitual() {
   }
 }
 
-function markRitualGenerated() {
+async function markRitualGenerated(surfaceOverride = null, laneOverride = null) {
+  const surfaceKey = surfaceOverride || inferHomeSurface(ritualIntent?.value || ritualInitialIntent);
+  const laneKey = laneOverride || inferHomeLane(ritualIntent?.value || ritualInitialIntent, surfaceKey);
+  const selectedHelp = homeHelpMode();
+  const routeKey = homeRouteFromMode(laneKey);
+  const requestId = (homeRequestId += 1);
+  homeRemotePayload = null;
   withViewTransition(() => {
     ritualTurn += 1;
+    setActiveHomeLane(laneKey);
     renderRitual();
-    if (ritualStatus) ritualStatus.textContent = "Reflected in browser";
-    ritualCreate.textContent = "Mirror generated";
+    if (ritualStatus) ritualStatus.textContent = selectedHelp === "local" ? "Reflected in browser" : `Using ${homeHelpLabel(selectedHelp)}`;
+    ritualCreate.textContent = selectedHelp === "local" ? "Reflected" : "Working...";
+    ritualCreate.disabled = selectedHelp !== "local";
     ritualCreate.classList.add("is-complete");
     receiptLines[0]?.classList.add("is-open");
   });
   animateRitualBoard();
+  renderHomeSurface(surfaceKey, laneKey);
   if (canAnimate) {
+    const architecture = document.querySelector(".mirror-architecture");
+    architecture?.classList.add("is-routing");
     gsap.fromTo(
       ".genui-stage",
       { scale: 0.992, filter: "saturate(0.94)" },
@@ -456,12 +780,37 @@ function markRitualGenerated() {
       { autoAlpha: 0.2, scale: 0.82 },
       { autoAlpha: 1, scale: 1.08, duration: 0.82, stagger: 0.08, ease: "power3.out" }
     );
+    window.setTimeout(() => architecture?.classList.remove("is-routing"), 1400);
+  }
+
+  if (selectedHelp !== "local") {
+    try {
+      const payload = await runHomeGateway(routeKey);
+      if (requestId !== homeRequestId) return;
+      homeRemotePayload = payload;
+      applyHomeRemoteReceipt(payload);
+      renderHomeSurface(surfaceKey, laneKey);
+      if (ritualStatus) ritualStatus.textContent = payload.fallback ? "Backup receipt ready" : "Model receipt ready";
+      ritualCreate.textContent = payload.fallback ? "Backup ready" : "Receipt ready";
+    } catch {
+      if (requestId !== homeRequestId) return;
+      homeRemotePayload = null;
+      if (ritualStatus) ritualStatus.textContent = "Browser fallback ready";
+      if (receiptRoute) receiptRoute.textContent = "Model help was unavailable, so the browser kept this turn local.";
+      if (homeStateReceipt) homeStateReceipt.textContent = "Browser";
+      ritualCreate.textContent = "Browser ready";
+    } finally {
+      if (requestId === homeRequestId) {
+        ritualCreate.disabled = false;
+      }
+    }
   }
 
   window.setTimeout(() => {
+    if (requestId !== homeRequestId) return;
     ritualCreate.textContent = "Reflect again";
     ritualCreate.classList.remove("is-complete");
-  }, 1700);
+  }, selectedHelp === "local" ? 1700 : 2200);
 }
 
 function renderHeroMode(modeKey) {
@@ -617,16 +966,49 @@ if (ritualIntent && ritualBoundary && ritualCreate) {
   }
 
   ritualIntent.addEventListener("input", () => {
+    homeRemotePayload = null;
     renderRitual();
   });
 
   ritualBoundary.addEventListener("change", () => {
+    homeRemotePayload = null;
     withViewTransition(renderRitual);
     animateRitualBoard();
   });
 
+  homeModelMode?.addEventListener("change", () => {
+    homeRemotePayload = null;
+    renderRitual();
+    renderHomeSurface(inferHomeSurface(ritualIntent.value), currentHomeLane);
+  });
+
   ritualCreate.addEventListener("click", () => {
     markRitualGenerated();
+  });
+
+  homeWorkControls.forEach((button) => {
+    button.addEventListener("click", () => {
+      homeRemotePayload = null;
+      const currentText = ritualIntent.value.trim();
+      const untouched = currentText === ritualInitialIntent.trim();
+      if (!currentText || untouched) {
+        ritualIntent.value = button.dataset.intent || ritualInitialIntent;
+      }
+      if (button.dataset.boundary && boundaryCopy[button.dataset.boundary]) {
+        ritualBoundary.value = button.dataset.boundary;
+      }
+      const surfaceKey = button.dataset.surface || inferHomeSurface(ritualIntent.value);
+      const laneKey = button.dataset.workLane || inferHomeLane(ritualIntent.value, surfaceKey);
+      setActiveHomeLane(laneKey);
+      renderRitual();
+      renderHomeSurface(surfaceKey, laneKey);
+    });
+  });
+
+  homeSurfaceTabs.forEach((button) => {
+    button.addEventListener("click", () => {
+      renderHomeSurface(button.dataset.surfaceTab, currentHomeLane);
+    });
   });
   ritualRefresh?.addEventListener("click", markRitualGenerated);
   ritualExpand?.addEventListener("click", async () => {
@@ -648,9 +1030,11 @@ if (ritualIntent && ritualBoundary && ritualCreate) {
 
   ritualReset?.addEventListener("click", () => {
     withViewTransition(() => {
+      homeRemotePayload = null;
       ritualTurn = 1;
       ritualIntent.value = ritualInitialIntent;
       ritualBoundary.value = "personal";
+      if (homeModelMode) homeModelMode.value = "local";
       if (ritualStatus) ritualStatus.textContent = "Ready";
       receiptLines.forEach((line, index) => line.classList.toggle("is-open", index === 0));
       renderRitual();
@@ -1754,7 +2138,7 @@ async function generateWorkspaceMirror() {
   let gatewayTimeout = 0;
   try {
     const controller = new AbortController();
-    gatewayTimeout = window.setTimeout(() => controller.abort(), 18000);
+    gatewayTimeout = window.setTimeout(() => controller.abort(), 26000);
     const response = await fetch(`${MIRROR_GATEWAY_URL}/v1/mirror/create`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
