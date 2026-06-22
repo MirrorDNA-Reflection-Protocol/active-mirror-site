@@ -35,10 +35,10 @@
     <main class="page-main">
       <section class="page-hero">
         <div class="page-copy">
-          <h1>Trust by Design is the product architecture.</h1>
+          <h1>Trust by Design starts with approved memory.</h1>
           <p>
-            Active Mirror is built around less collection, explicit boundaries, inspectable routes,
-            and receipts for memory. Trust is not a badge after the fact.
+            Active Mirror should not quietly learn from everything you say. It shows the context,
+            route, and memory decision before anything becomes future context.
           </p>
           <div class="page-actions">
             <a class="button primary" href="/mirror/">Test the boundary gate</a>
@@ -52,10 +52,10 @@
 
       <section class="page-section">
         <div class="trust-ledger">
-          <article><span>01</span><strong>Local-first custody</strong><p>Context starts in the browser and vault model. Cloud routes are earned, not assumed.</p></article>
-          <article><span>02</span><strong>Boundary gate</strong><p>Each turn carries a boundary: personal, client, secrets, or drafts.</p></article>
-          <article><span>03</span><strong>Model routing</strong><p>GPT reflects, Claude critiques, Gemini handles media. Providers are replaceable helpers.</p></article>
-          <article><span>04</span><strong>Receipt-backed memory</strong><p>Nothing becomes continuity without an inspectable memory decision.</p></article>
+          <article><span>01</span><strong>Boundary gate</strong><p>Each turn carries a boundary: personal, client, secrets, drafts, public-safe, or local-only.</p></article>
+          <article><span>02</span><strong>Context packet</strong><p>The user can inspect what will be included, excluded, and routed before approval.</p></article>
+          <article><span>03</span><strong>Receipt-backed output</strong><p>Serious recommendations expose why, what was used, what was blocked, and which route ran.</p></article>
+          <article><span>04</span><strong>Approved memory</strong><p>Nothing becomes continuity without a visible save, edit, temporary save, forget, or block decision.</p></article>
         </div>
       </section>
 
@@ -63,7 +63,8 @@
         <div>
           <h2>The receipt is the interface for trust.</h2>
           <p>
-            Every serious output should answer five questions before the user is asked to trust it.
+            Active Mirror does not ask you to believe a confident answer. It shows
+            the path behind the answer and the memory decision attached to it.
           </p>
         </div>
         <div class="receipt-table">
@@ -77,14 +78,16 @@
 
       <section class="page-section">
         <div class="section-heading compact">
-          <h2>Security posture for the browser runtime</h2>
-          <p>The target architecture stays conservative: secrets never reach the frontend, providers sit behind a gateway, and local state has explicit gates.</p>
+          <h2>v0.1 trust gates</h2>
+          <p>The browser workspace stays conservative: no frontend provider secrets, no silent memory, no unsupported claims promoted as fact.</p>
         </div>
         <div class="feature-grid">
           <article><strong>No frontend keys</strong><span>API keys belong behind Workers or server-side gateways, never in browser JavaScript.</span></article>
           <article><strong>No silent memory</strong><span>Memory promotion is a user-visible decision with receipt context.</span></article>
-          <article><strong>Provider isolation</strong><span>External models receive scoped tasks, not the whole vault by default.</span></article>
-          <article><strong>Failure remains useful</strong><span>If a model route fails, the browser can still generate a deterministic local board.</span></article>
+          <article><strong>Provider isolation</strong><span>External models receive scoped tasks behind gates, not the whole vault by default.</span></article>
+          <article><strong>Local fallback</strong><span>If a model route fails, the browser still generates a deterministic local viewport and records the fallback.</span></article>
+          <article><strong>Unsupported stays uncertain</strong><span>Claims without support must stay marked as uncertain, partial, inferred, or excluded.</span></article>
+          <article><strong>No public client claims</strong><span>Institutional or client proof waits for explicit sign-off before appearing on the public site.</span></article>
         </div>
       </section>
     </main>

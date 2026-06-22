@@ -48,6 +48,11 @@ Live gateway: `https://gateway.activemirror.ai/health`
 The reusable release gate lives in `active-mirror-ux-stress-kit/`.
 It defines the doctrine, component contracts, JSON Schemas, QA prompts, stress-test matrix, and release-readiness template for inspectable, interruptible, reversible, consent-aware Active Mirror UX.
 
+## Product Lock
+
+The v0.1 product lock lives in `docs/ACTIVE_MIRROR_V0_1_LOCK.md`.
+Use it before changing the public product story or browser workspace loop.
+
 ## Deployment
 
 The GitHub Actions workflow builds the Vite site and publishes `dist` to `gh-pages`.
