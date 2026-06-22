@@ -28,7 +28,13 @@
       </nav>
       <div class="nav-actions">
         <a class="text-link" href="/privacy/">Privacy</a>
-        <a class="button primary small" href="/mirror/">Try mirror</a>
+        <a
+          class="button primary small"
+          href="/mirror/?start=1&amp;trust=local"
+          data-mirror-start
+          data-mirror-intent="I want to test Active Mirror with a private boundary."
+          data-mirror-boundary="personal"
+        >Try mirror</a>
       </div>
     </header>
 
@@ -41,7 +47,13 @@
             model path, and memory decision before anything becomes future context.
           </p>
           <div class="page-actions">
-            <a class="button primary" href="/mirror/">Test the boundary gate</a>
+            <a
+              class="button primary"
+              href="/mirror/?start=1&amp;trust=local"
+              data-mirror-start
+              data-mirror-intent="I want to test a boundary gate before sharing anything with a model."
+              data-mirror-boundary="secrets"
+            >Test the boundary gate</a>
             <a class="button secondary" href="/privacy/">Read privacy posture</a>
           </div>
         </div>

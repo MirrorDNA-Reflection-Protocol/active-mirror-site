@@ -27,8 +27,13 @@
         <a href="/pricing/">Pricing</a>
       </nav>
       <div class="nav-actions">
-        <a class="text-link" href="/trust/">Trust layer</a>
-        <a class="button primary small" href="/mirror/">Try mirror</a>
+        <a class="text-link" href="/trust/">How trust works</a>
+        <a
+          class="button primary small"
+          href="/mirror/?start=1&amp;trust=local"
+          data-mirror-start
+          data-mirror-intent="I want to try Active Mirror with one important decision."
+        >Try mirror</a>
       </div>
     </header>
 
@@ -41,7 +46,12 @@
             inspect the receipt, and save only the context you approve.
           </p>
           <div class="page-actions">
-            <a class="button primary" href="/mirror/">Open the workspace</a>
+            <a
+              class="button primary"
+              href="/mirror/?start=1&amp;trust=local"
+              data-mirror-start
+              data-mirror-intent="I want to turn one decision into a useful artifact, receipt, and next step."
+            >Open the workspace</a>
             <a class="button secondary" href="/trust/">See the receipt model</a>
           </div>
         </div>
@@ -85,10 +95,42 @@
           <h2>Use it when a quick answer is not enough.</h2>
         </div>
         <div class="use-case-grid">
-          <article><strong>Founder decisions</strong><span>Product choices, pricing, hiring, customers, fundraising, and strategy.</span></article>
-          <article><strong>Executive tradeoffs</strong><span>Difficult conversations, team alignment, risks, and decision notes.</span></article>
-          <article><strong>Investor thinking</strong><span>Theses, assumptions, follow-up questions, contradictions, and changes in view.</span></article>
-          <article><strong>Research and strategy</strong><span>Notes, conversations, claims, briefs, recommendations, and open questions.</span></article>
+          <article class="linked-card">
+            <a
+              class="card-link"
+              href="/mirror/?start=1&amp;trust=local"
+              data-mirror-intent="I need to make a founder decision and leave with a receipt-backed next step."
+              data-mirror-boundary="client"
+              data-mirror-route="reflection"
+            ><strong>Founder decisions</strong><span>Product choices, pricing, hiring, customers, fundraising, and strategy.</span></a>
+          </article>
+          <article class="linked-card">
+            <a
+              class="card-link"
+              href="/mirror/?start=1&amp;trust=local"
+              data-mirror-intent="I need to work through an executive tradeoff and separate risks, assumptions, and the next decision."
+              data-mirror-boundary="client"
+              data-mirror-route="reflection"
+            ><strong>Executive tradeoffs</strong><span>Difficult conversations, team alignment, risks, and decision notes.</span></a>
+          </article>
+          <article class="linked-card">
+            <a
+              class="card-link"
+              href="/mirror/?start=1&amp;trust=local"
+              data-mirror-intent="I need to review an investment thesis, expose assumptions, and capture follow-up questions."
+              data-mirror-boundary="drafts"
+              data-mirror-route="reflection"
+            ><strong>Investor thinking</strong><span>Theses, assumptions, follow-up questions, contradictions, and changes in view.</span></a>
+          </article>
+          <article class="linked-card">
+            <a
+              class="card-link"
+              href="/mirror/?start=1&amp;trust=local"
+              data-mirror-intent="I need to turn scattered research into a decision memo with claims, gaps, and open questions."
+              data-mirror-boundary="drafts"
+              data-mirror-route="reflection"
+            ><strong>Research and strategy</strong><span>Notes, conversations, claims, briefs, recommendations, and open questions.</span></a>
+          </article>
         </div>
       </section>
     </main>

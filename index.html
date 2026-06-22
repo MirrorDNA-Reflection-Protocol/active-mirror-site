@@ -28,8 +28,13 @@
         <a href="/pricing/">Pricing</a>
       </nav>
       <div class="nav-actions">
-        <a class="text-link" href="/trust/">Trust layer</a>
-        <a class="button primary small" href="/mirror/">Build my mirror</a>
+        <a class="text-link" href="/trust/">How trust works</a>
+        <a
+          class="button primary small"
+          href="/mirror/?start=1&amp;trust=local"
+          data-mirror-start
+          data-mirror-intent="I want to turn one important decision into a receipt-backed workspace."
+        >Build my mirror</a>
       </div>
     </header>
 
@@ -38,15 +43,19 @@
         <div class="hero-glass" aria-hidden="true"></div>
 
         <div class="ritual-create-panel">
-          <p class="section-label">First use ritual</p>
           <h1>The AI that proves it.</h1>
           <p class="ritual-intro">
-            Most AI sounds confident and hides its work. Active Mirror shows you what
+            Most AI sounds confident, agrees too easily, and hides its work. Active Mirror shows you what
             it used, what it ignored, and why - every turn, as a receipt you can audit.
           </p>
           <div class="page-actions hero-proof-actions">
-            <a class="button primary" href="#receipts">See a receipt</a>
-            <a class="button secondary" href="#proof-sprint">Book a 72-hour proof</a>
+            <a
+              class="button primary"
+              href="/mirror/?start=1&amp;trust=local"
+              data-mirror-start
+              data-mirror-intent="I want to start with one important decision and see the receipt."
+            >Start with one decision</a>
+            <a class="button secondary" href="#receipts">Read a receipt</a>
           </div>
 
           <form class="ritual-input cinematic" aria-label="Active Mirror first-use form">
@@ -64,10 +73,10 @@
               <div>
                 <label for="ritual-boundary">Set a boundary for your mirror.</label>
                 <select id="ritual-boundary">
-                  <option value="personal">Do not store personal history without approval</option>
-                  <option value="client">Do not expose client or partner details</option>
-                  <option value="secrets">Do not send secrets to cloud models</option>
-                  <option value="drafts">Do not promote rough drafts to memory</option>
+                  <option value="personal">No personal history without approval</option>
+                  <option value="client">No client or partner details</option>
+                  <option value="secrets">No secrets to cloud models</option>
+                  <option value="drafts">Keep rough drafts temporary</option>
                 </select>
                 <em>Everything stays private unless you explicitly share it.</em>
               </div>
@@ -77,12 +86,12 @@
               Create my first mirror
             </button>
 
-            <small class="ritual-time">Takes about 15 seconds in the real product.</small>
+            <small class="ritual-time">Starts in your browser. Model help waits for approval.</small>
           </form>
 
           <div class="ritual-assurance" aria-label="First-use assurances">
             <span>Private by default</span>
-            <span>Built for clarity</span>
+            <span>Works before the cloud</span>
             <span>Only remembers what you approve</span>
           </div>
         </div>
@@ -163,8 +172,9 @@
       </section>
 
       <section class="tool-strip" aria-label="Works with common tools">
-        <p>Reflects before it predicts.</p>
+        <p>Online when useful. Browser-first by default.</p>
         <ul>
+          <li>Reflects before it predicts.</li>
           <li>Remembers only what you approve.</li>
           <li>Every action leaves a receipt.</li>
         </ul>
@@ -172,14 +182,13 @@
 
       <section class="how" id="how">
         <div class="section-heading">
-          <p class="section-label">Why it works</p>
           <h2>It reflects first. Then it predicts.</h2>
         </div>
         <div class="principles">
           <article>
             <span class="line-icon reflect" aria-hidden="true"></span>
-            <h3>Reflects before predicting</h3>
-            <p>Understands your full context before suggesting the next best step.</p>
+            <h3>Does not just agree</h3>
+            <p>Surfaces assumptions, weak spots, and the next honest move before it suggests an answer.</p>
           </article>
           <article>
             <span class="line-icon shield" aria-hidden="true"></span>
@@ -201,29 +210,56 @@
 
       <section class="try-loop" id="try">
         <div class="try-intro">
-          <p class="section-label">Try the loop</p>
           <h2>Turn each decision into a clear workspace.</h2>
           <p>Pick a scenario. Active Mirror reflects first, then builds the next useful summary, plan, or receipt-backed path.</p>
         </div>
 
         <div class="loop-workspace">
           <aside class="scenario-picker" aria-label="Choose a scenario">
-            <button class="scenario-button is-active" type="button" data-scenario="launch">
+            <a
+              class="scenario-button is-active"
+              href="/mirror/?start=1&amp;trust=local"
+              data-scenario="launch"
+              data-mirror-intent="I need to decide the next useful launch step from scattered notes, positioning, screenshots, and next actions."
+              data-mirror-boundary="drafts"
+              data-mirror-route="reflection"
+            >
               <strong>Launching a new product</strong>
               <span>From idea to first users</span>
-            </button>
-            <button class="scenario-button" type="button" data-scenario="return">
+            </a>
+            <a
+              class="scenario-button"
+              href="/mirror/?start=1&amp;trust=local"
+              data-scenario="return"
+              data-mirror-intent="I need to restart after a break, sort open loops, and choose one visible next move."
+              data-mirror-boundary="personal"
+              data-mirror-route="reflection"
+            >
               <strong>Returning after a break</strong>
               <span>Rebuild confidence and clarity</span>
-            </button>
-            <button class="scenario-button" type="button" data-scenario="research">
+            </a>
+            <a
+              class="scenario-button"
+              href="/mirror/?start=1&amp;trust=local"
+              data-scenario="research"
+              data-mirror-intent="I need to turn scattered research findings into a decision memo with assumptions and open questions."
+              data-mirror-boundary="drafts"
+              data-mirror-route="reflection"
+            >
               <strong>Managing research</strong>
               <span>Turn scattered findings into insight</span>
-            </button>
-            <button class="scenario-button" type="button" data-scenario="career">
+            </a>
+            <a
+              class="scenario-button"
+              href="/mirror/?start=1&amp;trust=local"
+              data-scenario="career"
+              data-mirror-intent="I need to map my skills and past work into a concrete next opportunity and proof artifact."
+              data-mirror-boundary="personal"
+              data-mirror-route="reflection"
+            >
               <strong>Career transition</strong>
               <span>Map skills to next opportunities</span>
-            </button>
+            </a>
           </aside>
 
           <div class="loop-steps" aria-label="Active Mirror loop">
@@ -241,7 +277,7 @@
             <div class="output-body">
               <p class="output-kicker">Here is what I am seeing</p>
               <ul id="insight-list"></ul>
-              <div class="tag-row" id="tag-row"></div>
+              <div class="tag-row" id="tag-row" hidden></div>
               <div class="confidence"><span></span><strong id="confidence-label">Confidence: High</strong></div>
             </div>
           </section>
@@ -265,7 +301,7 @@
               <strong>Suggested path</strong>
             </div>
             <ol id="route-list"></ol>
-            <a class="button primary full" id="open-workspace" href="/mirror/">Open in workspace</a>
+            <a class="button primary full" id="open-workspace" href="/mirror/?start=1&amp;trust=local">Start this in mirror</a>
           </section>
 
           <section class="receipt-drawer" id="receipt-drawer" aria-label="Receipts">
@@ -291,7 +327,6 @@
       <section class="route-airlock">
         <div class="airlock-shell">
           <div class="airlock-copy">
-            <p class="section-label">Proof</p>
             <h2>Built to govern real work.</h2>
             <p>
               Active Mirror keeps serious work under human approval, with receipts
@@ -340,7 +375,6 @@
 
       <section class="content-engine">
         <div class="section-copy">
-          <p class="section-label">Visual by default</p>
           <h2>Not another text-only AI site.</h2>
           <p>
             Active Mirror turns reflection into generated workspaces, diagrams, media plans,

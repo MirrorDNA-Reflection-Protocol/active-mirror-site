@@ -458,6 +458,30 @@ function setActiveButton(buttons, active) {
   });
 }
 
+function mirrorStartPath({ intent = "", boundary = "", route = "", trust = "local" } = {}) {
+  const url = new URL("/mirror/", window.location.origin);
+  url.searchParams.set("start", "1");
+  url.searchParams.set("trust", trust || "local");
+  if (intent) url.searchParams.set("intent", intent);
+  if (boundary) url.searchParams.set("boundary", boundary);
+  if (route) url.searchParams.set("route", route);
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+function buildMirrorStartUrl(source) {
+  return mirrorStartPath({
+    intent: source.dataset.mirrorIntent || "",
+    boundary: source.dataset.mirrorBoundary || "",
+    route: source.dataset.mirrorRoute || "",
+    trust: source.dataset.mirrorTrust || "local",
+  });
+}
+
+function setMirrorStartHref(source) {
+  if (!source) return;
+  source.setAttribute("href", buildMirrorStartUrl(source));
+}
+
 function setActiveModeButton(buttons, mode) {
   buttons.forEach((button) => {
     button.classList.toggle("is-active", button.dataset.mode === mode);
@@ -518,7 +542,15 @@ if (ritualIntent && ritualBoundary && ritualCreate && ritualReset) {
     animateRitualBoard();
   });
 
-  ritualCreate.addEventListener("click", markRitualGenerated);
+  ritualCreate.addEventListener("click", () => {
+    markRitualGenerated();
+    window.location.href = mirrorStartPath({
+      intent: ritualIntent.value || ritualInitialIntent,
+      boundary: ritualBoundary.value || "personal",
+      route: "reflection",
+      trust: "local",
+    });
+  });
   ritualRefresh?.addEventListener("click", markRitualGenerated);
   ritualExpand?.addEventListener("click", async () => {
     if (!mirrorDevice) return;
@@ -579,6 +611,7 @@ if (
   viewportCanvas
 ) {
   scenarioButtons.forEach((button) => {
+    setMirrorStartHref(button);
     button.addEventListener("click", () => {
       setActiveButton(scenarioButtons, button);
       renderScenario(button.dataset.scenario);
@@ -601,6 +634,13 @@ if (
   }
 
   if (openWorkspace) {
+    const activeScenario = scenarioButtons.find((button) => button.classList.contains("is-active")) || scenarioButtons[0];
+    if (activeScenario) {
+      openWorkspace.dataset.mirrorIntent = activeScenario.dataset.mirrorIntent || "";
+      openWorkspace.dataset.mirrorBoundary = activeScenario.dataset.mirrorBoundary || "";
+      openWorkspace.dataset.mirrorRoute = activeScenario.dataset.mirrorRoute || "";
+      setMirrorStartHref(openWorkspace);
+    }
     openWorkspace.addEventListener("click", () => {
       receiptDrawer.classList.add("is-open");
       steps.forEach((step, index) => {
@@ -612,6 +652,8 @@ if (
 
   renderScenario("launch");
 }
+
+document.querySelectorAll("[data-mirror-intent], [data-mirror-start]").forEach(setMirrorStartHref);
 
 const mirrorIntent = document.querySelector("#mirror-intent");
 const mirrorBoundary = document.querySelector("#mirror-boundary");
@@ -907,6 +949,11 @@ function boundaryLabel(value) {
 function routeTargetLabel(routeKey) {
   const route = workspaceRoutes[routeKey] || workspaceRoutes.reflection;
   return route.label;
+}
+
+function selectHasValue(select, value) {
+  if (!select || !value) return false;
+  return Array.from(select.options || []).some((option) => option.value === value);
 }
 
 function estimateTokens(text) {
@@ -1739,6 +1786,33 @@ if (mirrorIntent && mirrorBoundary && mirrorRoute && mirrorRun) {
     localStorage.removeItem("activeMirrorWorkspaceDemo");
   }
 
+  const applyMirrorStartParams = () => {
+    const params = new URLSearchParams(window.location.search);
+    const shouldStart =
+      params.has("start") || params.has("intent") || params.has("boundary") || params.has("route") || params.has("trust");
+    if (!shouldStart) return false;
+
+    const intent = params.get("intent")?.replace(/\s+/g, " ").trim();
+    if (intent) mirrorIntent.value = intent.slice(0, 1000);
+
+    const boundary = params.get("boundary");
+    if (boundaryCopy[boundary] && selectHasValue(mirrorBoundary, boundary)) mirrorBoundary.value = boundary;
+
+    const route = params.get("route");
+    if ((route === "auto" || workspaceRoutes[route]) && selectHasValue(mirrorRoute, route)) mirrorRoute.value = route;
+
+    const trust = params.get("trust");
+    if (trustModes[trust] && selectHasValue(mirrorTrust, trust)) {
+      mirrorTrust.value = trust;
+    } else if (mirrorTrust) {
+      mirrorTrust.value = "local";
+    }
+
+    return true;
+  };
+
+  const startedFromPublicLink = applyMirrorStartParams();
+
   const refreshWorkspaceDraft = () => {
     currentContextPacket = buildContextPacket();
     renderContextPacket(currentContextPacket);
@@ -1844,6 +1918,20 @@ if (mirrorIntent && mirrorBoundary && mirrorRoute && mirrorRun) {
   });
 
   refreshWorkspaceDraft();
+
+  if (startedFromPublicLink) {
+    mirrorPacketState.textContent = "Started in browser";
+    if (currentContextPacket?.local_only) {
+      mirrorRun.textContent = "Browser workspace ready";
+      mirrorRun.classList.add("is-complete");
+    }
+    window.setTimeout(() => {
+      document.querySelector(".workspace-app")?.scrollIntoView({
+        behavior: canAnimate ? "smooth" : "auto",
+        block: "start",
+      });
+    }, 80);
+  }
 }
 
 const observer = new IntersectionObserver(
