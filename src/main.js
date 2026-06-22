@@ -469,7 +469,7 @@ function homeLaneCopy(laneKey = currentHomeLane) {
 
 function homeHelpMode() {
   const value = homeModelMode?.value || "local";
-  return ["local", "reflection", "chat", "media"].includes(value) ? value : "local";
+  return ["local", "reflection", "media"].includes(value) ? value : "local";
 }
 
 function homeRouteFromMode(laneKey = currentHomeLane) {
@@ -482,17 +482,16 @@ function homeRouteFromMode(laneKey = currentHomeLane) {
 function homeHelpLabel(mode = homeHelpMode()) {
   return {
     local: "Browser only",
-    reflection: "GPT reflection",
-    chat: "Claude critique",
-    media: "Gemini media",
+    reflection: "Deeper reflection",
+    chat: "Critique help",
+    media: "Visual help",
   }[mode] || "Browser only";
 }
 
 function homeProviderLabel(route) {
   if (!route) return homeHelpLabel();
-  const model = route.model ? ` / ${route.model}` : "";
   const fallback = route.fallback ? " / backup" : "";
-  return `${route.capability} / ${route.primary}${model}${fallback}`;
+  return `${homeHelpLabel(route.capability)}${fallback}`;
 }
 
 function setActiveHomeLane(laneKey = currentHomeLane) {
@@ -1175,8 +1174,8 @@ const mirrorFollowups = document.querySelector("#mirror-followups");
 
 const workspaceRoutes = {
   reflection: {
-    label: "decisions / GPT",
-    route: "GPT helps with decisions, prioritization, and structured next moves.",
+    label: "decision help",
+    route: "Approved model help supports decisions, prioritization, and structured next moves.",
     goals: ["Name the real objective", "Separate signal from noise", "Create one momentum path"],
     blockers: ["Too much context at once", "Unclear priority order", "No accepted memory decision"],
     moves: ["Extract the strongest intent", "Pick one proof artifact", "Write the next-action board", "Approve or reject memory"],
@@ -1184,8 +1183,8 @@ const workspaceRoutes = {
     why: "The turn asks for a decision and momentum, so the decision route is the strongest fit.",
   },
   chat: {
-    label: "chat critique / Claude",
-    route: "Claude helps sharpen language, structure, critique, and receipt review.",
+    label: "critique help",
+    route: "Approved model help sharpens language, structure, critique, and receipt review.",
     goals: ["Clarify the message", "Tighten the structure", "Expose weak assumptions"],
     blockers: ["Copy may overclaim", "Tone can drift", "The useful objection is hidden"],
     moves: ["Rewrite the core claim", "List objections", "Cut unsupported language", "Produce a cleaner artifact"],
@@ -1193,8 +1192,8 @@ const workspaceRoutes = {
     why: "The turn needs language critique and structure more than raw prediction.",
   },
   media: {
-    label: "media / Gemini",
-    route: "Gemini helps with images, video, screenshots, and visual planning.",
+    label: "media help",
+    route: "Approved media help supports images, video, screenshots, and visual planning.",
     goals: ["Define the visual output", "Protect private context", "Create a media brief"],
     blockers: ["Visual direction is vague", "Source material may be sensitive", "Media work needs tight constraints"],
     moves: ["Choose format and aspect ratio", "Write the visual brief", "Exclude private details", "Generate or queue the asset"],

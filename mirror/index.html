@@ -50,7 +50,7 @@
 
         <div class="workspace-live-card" aria-label="Model help policy">
           <span>Model help</span>
-          <strong>GPT for decisions. Claude for critique. Gemini for media.</strong>
+          <strong>Private reflection first. Approved help only when needed.</strong>
           <p>You approve what leaves the browser before model help runs.</p>
         </div>
       </section>
@@ -78,9 +78,9 @@
               Model help
               <select id="mirror-route">
                 <option value="auto">Auto choose by intent</option>
-                <option value="reflection">Decision help: GPT</option>
-                <option value="chat">Chat critique: Claude</option>
-                <option value="media">Media and visuals: Gemini</option>
+                <option value="reflection">Decision help</option>
+                <option value="chat">Critique and rewrite</option>
+                <option value="media">Media and visuals</option>
               </select>
             </label>
             <label>
@@ -120,7 +120,7 @@
         <section class="workspace-panel workspace-output" aria-label="Generated mirror">
           <div class="panel-head split">
             <strong>Reflection workspace</strong>
-            <span id="mirror-route-label">decisions / GPT</span>
+            <span id="mirror-route-label">decision help</span>
           </div>
           <div class="workspace-board">
             <article class="workspace-column goals">

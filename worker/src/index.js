@@ -180,9 +180,8 @@ export default {
           mirror,
           route: {
             capability: route.capability,
-            primary: route.primary,
-            model: result.model,
-            fallback: result.fallbackReason || null,
+            label: publicRouteLabel(route.capability),
+            fallback: result.fallback ? publicFallbackReason(result.fallbackReason) : null,
           },
         },
         200,
@@ -275,9 +274,9 @@ function reflectionRoute() {
 function chatRoute() {
   return {
     capability: "chat",
-    primary: "anthropic",
-    modelEnv: "ANTHROPIC_CHAT_MODEL",
-    defaultModel: "claude-sonnet-4-6",
+    primary: "openai",
+    modelEnv: "OPENAI_REFLECTION_MODEL",
+    defaultModel: "gpt-5.5",
   };
 }
 
@@ -297,7 +296,7 @@ function buildPrompt(input, boundary, route) {
     "Use plain English ASCII text only.",
     "No therapy claims. No personal-data collection. No hallucinated facts.",
     "Create a first-use action board from the user's intent.",
-    `Capability route: ${route.capability} via ${route.primary}.`,
+    `Capability route: ${route.capability}.`,
     `Boundary: ${input.boundary}.`,
     `Context excluded: ${boundary.excluded}`,
     `Memory decision rule: ${boundary.memory}`,
@@ -313,9 +312,6 @@ async function runRoute(route, prompt, env, attempted = []) {
   try {
     if (provider === "openai" && env.OPENAI_API_KEY) {
       return await callOpenAI(prompt, route, env);
-    }
-    if (provider === "anthropic" && anthropicApiKey(env)) {
-      return await callAnthropic(prompt, route, env);
     }
     if (provider === "gemini" && (env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY)) {
       return await callGemini(prompt, route, env);
@@ -364,10 +360,6 @@ async function fallbackResult(route, prompt, env, attempted, reason) {
 function chooseFallbackRoute(route, env, attempted) {
   if (!attempted.includes("openai") && route.primary !== "openai" && env.OPENAI_API_KEY) {
     return { ...route, primary: "openai", modelEnv: "OPENAI_REFLECTION_MODEL", defaultModel: "gpt-5.5" };
-  }
-
-  if (!attempted.includes("anthropic") && route.primary !== "anthropic" && anthropicApiKey(env)) {
-    return { ...route, primary: "anthropic", modelEnv: "ANTHROPIC_CHAT_MODEL", defaultModel: "claude-sonnet-4-6" };
   }
 
   return null;
@@ -423,48 +415,6 @@ async function callOpenAIModel(prompt, model, env) {
 function shouldUseOpenAIFastFallback(error) {
   const message = String(error?.message || "");
   return message.startsWith("openai_timeout") || message.startsWith("openai_provider_429") || message.startsWith("openai_provider_503");
-}
-
-async function callAnthropic(prompt, route, env) {
-  const model = env[route.modelEnv] || route.defaultModel;
-  const key = anthropicApiKey(env);
-  const response = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": key,
-      "anthropic-version": "2023-06-01",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 1000,
-      system: "Use the create_mirror tool exactly once. No preamble.",
-      messages: [{ role: "user", content: prompt }],
-      tools: [
-        {
-          name: "create_mirror",
-          description: "Create the compact Active Mirror first-use board.",
-          input_schema: PROVIDER_MIRROR_SCHEMA,
-        },
-      ],
-      tool_choice: {
-        type: "tool",
-        name: "create_mirror",
-      },
-    }),
-  }, "anthropic", env);
-
-  const data = await readProviderResponse(response, "anthropic");
-  const toolUse = data.content?.find((item) => item.type === "tool_use" && item.name === "create_mirror");
-  if (toolUse?.input) {
-    return { fallback: false, model, mirror: parseProviderMirror(JSON.stringify(toolUse.input), "anthropic") };
-  }
-  const text = data.content?.find((item) => item.type === "text")?.text || "";
-  return { fallback: false, model, mirror: parseProviderMirror(text, "anthropic") };
-}
-
-function anthropicApiKey(env) {
-  return env.ANTHROPIC_API_KEY_ACTIVE_MIRROR || env.ANTHROPIC_API_KEY || env.CLAUDE_API_KEY || "";
 }
 
 async function callGemini(prompt, route, env) {
@@ -589,6 +539,9 @@ function isMirrorShape(value) {
 function normalizeMirror(candidate, input, boundary, route, result) {
   const fallback = deterministicMirror(input, boundary, route, result);
   if (!candidate || typeof candidate !== "object") return fallback;
+  const routeText = result.fallback
+    ? `Backup route used because ${publicFallbackReason(result.fallbackReason)}. Original route: ${publicRouteLabel(route.capability)}.`
+    : publicRouteReceipt(route.capability);
 
   return {
     goals: normalizeList(candidate.goals, fallback.goals, 3),
@@ -602,9 +555,7 @@ function normalizeMirror(candidate, input, boundary, route, result) {
       why: cleanText(candidate.receipt?.why, fallback.receipt.why, 220),
       context_used: cleanText(candidate.receipt?.context_used, fallback.receipt.context_used, 220),
       context_excluded: cleanText(candidate.receipt?.context_excluded, fallback.receipt.context_excluded, 220),
-      route: result.fallback
-        ? cleanText(`Fallback route used ${result.model} because ${result.fallbackReason}. Original route: ${route.capability} via ${route.primary}.`, fallback.receipt.route, 220)
-        : cleanText(candidate.receipt?.route, fallback.receipt.route, 220),
+      route: routeText,
       memory_decision: cleanText(candidate.receipt?.memory_decision, fallback.receipt.memory_decision, 220),
     },
   };
@@ -683,11 +634,36 @@ function deterministicMirror(input, boundary, route, result) {
       context_used: `Intent summary plus the selected ${input.boundary} boundary.`,
       context_excluded: boundary.excluded,
       route: result.fallback
-        ? `Local deterministic fallback because ${result.fallbackReason || "the provider route was unavailable"}.`
-        : `${route.capability} route via ${route.primary}; model output normalized by Active Mirror.`,
+        ? `Browser fallback because ${publicFallbackReason(result.fallbackReason)}.`
+        : publicRouteReceipt(route.capability),
       memory_decision: boundary.memory,
     },
   };
+}
+
+function publicRouteLabel(capability) {
+  return {
+    reflection: "reflection help",
+    chat: "critique help",
+    media: "media help",
+  }[capability] || "approved help";
+}
+
+function publicRouteReceipt(capability) {
+  return `${publicRouteLabel(capability)} used after boundary review; output normalized by Active Mirror.`;
+}
+
+function publicFallbackReason(reason) {
+  const value = String(reason || "the route was unavailable")
+    .replace(/openai/gi, "primary")
+    .replace(/gemini/gi, "media")
+    .replace(/anthropic/gi, "provider")
+    .replace(/claude/gi, "provider")
+    .replace(/gpt-[a-z0-9._-]+/gi, "backup")
+    .replace(/claude-[a-z0-9._-]+/gi, "backup")
+    .replace(/gemini-[a-z0-9._-]+/gi, "backup")
+    .replace(/fast_model/gi, "backup_route");
+  return cleanProviderCode(value).replace(/_/g, " ").slice(0, 90) || "the route was unavailable";
 }
 
 async function receiptHash(value) {
@@ -699,21 +675,18 @@ async function receiptHash(value) {
 function publicRoutes(env) {
   return {
     reflection: {
-      primary: "openai",
-      model: env.OPENAI_REFLECTION_MODEL || "gpt-5.5",
-      fast_model: env.OPENAI_FAST_MODEL || "gpt-5.4-mini",
+      label: "reflection help",
+      status: env.OPENAI_API_KEY ? "available" : "browser fallback",
       purpose: "reflective reasoning and first-use mirror generation",
     },
     chat: {
-      primary: "anthropic",
-      model: env.ANTHROPIC_CHAT_MODEL || "claude-sonnet-4-6",
+      label: "critique help",
+      status: env.OPENAI_API_KEY ? "available" : "browser fallback",
       purpose: "chat polish, critique, rewrite, and receipt review",
     },
     media: {
-      primary: "gemini",
-      model: env.GEMINI_MEDIA_MODEL || "gemini-3.5-flash",
-      image_model: env.GEMINI_IMAGE_MODEL || "gemini-3.1-flash-image",
-      video_model: env.GEMINI_VIDEO_MODEL || "veo-3.1-fast-generate-preview",
+      label: "media help",
+      status: env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY ? "available" : "browser fallback",
       purpose: "images, video, multimodal understanding, and media assets",
     },
   };

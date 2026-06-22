@@ -23,21 +23,19 @@ npm run worker:deploy
 
 Active Mirror should expose product capabilities, not raw provider choices.
 
-- Decision reasoning: GPT-first.
-- Chat polish, critique, and receipt review: Claude.
-- Images, video, and multimodal media work: Gemini.
+- Decision reasoning: reflection route.
+- Chat polish, critique, and receipt review: critique route.
+- Images, video, and multimodal media work: media route.
 - Browser frontend: no provider secrets.
 - Cloud routes: server-side gateway only, with explicit boundary and receipt output.
 - Provider failures fail soft: the gateway falls back to the next available safe route or deterministic local structure and records the fallback in the receipt.
 - The `/mirror/` workspace calls `https://gateway.activemirror.ai/v1/mirror/create` and keeps a browser-local fallback if the gateway is unavailable.
 
-Current Worker defaults:
+Current Worker capabilities:
 
-- Reflection: `gpt-5.5`
-- Chat critique: `claude-sonnet-4-6`
-- Media text/planning: `gemini-3.5-flash`
-- Image generation: `gemini-3.1-flash-image`
-- Video generation: `veo-3.1-fast-generate-preview`
+- Reflection help
+- Critique and rewrite help
+- Media and visual help
 
 The static site runs as a local browser demo until the Worker is deployed with provider secrets. Provider keys must be configured as Worker secrets, never committed or exposed in browser JavaScript.
 
