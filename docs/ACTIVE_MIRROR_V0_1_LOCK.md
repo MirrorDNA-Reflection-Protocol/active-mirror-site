@@ -11,13 +11,13 @@ Public category:
 Private AI workspace for important decisions.
 ```
 
-Internal/protocol category:
+Technical category:
 
 ```text
-Reflective AI with receipts, approved memory, and decision history.
+Private decision workspace with receipts, approved memory, and decision history.
 ```
 
-Do not lead public copy with MirrorDNA, MirrorGraph, judgment compounding, symbolic continuity, cognitive timeline, or full OS language. Those can exist in technical, protocol, investor, or architecture contexts after the basic product is clear.
+Do not lead public copy with MirrorDNA, MirrorGraph, abstract decision-memory language, symbolic continuity, cognitive timeline, full OS language, or other architecture-first terms. Those belong only in technical, protocol, investor, or architecture contexts after the basic product is clear.
 
 ## Public Promise
 
@@ -73,8 +73,9 @@ Competitors can remember facts, preferences, documents, repos, and conversation 
 - Browser-first workspace.
 - Context packet preview before sensitive routes.
 - Boundary or trust mode per session.
-- Generated viewport or artifact, not only chat text.
+- Generated summary, plan, board, brief, or other useful work output, not only chat text.
 - Receipt visible for serious output.
+- Follow-up questions capped at three, asked only when they change the decision, risk, or memory outcome.
 - Memory candidate review with no preselected approval.
 - Browser vault or local persistence where available.
 - Exportable artifact or receipt.
@@ -97,7 +98,7 @@ Competitors can remember facts, preferences, documents, repos, and conversation 
 
 Use these public names first:
 
-| Internal / protocol term | Public product term |
+| Technical term | Public product term |
 | --- | --- |
 | Mirror Session | Thinking Session |
 | Decision Receipt | Receipt / decision summary receipt |
@@ -113,7 +114,7 @@ Protocol names can appear in docs, specs, and technical proof pages, but the use
 
 Default product posture:
 
-- GPT-first for reflective reasoning.
+- GPT-first for reasoning through decisions.
 - Claude for critique, chat polish, and receipt review.
 - Gemini for media, images, video, and multimodal work.
 - Local deterministic fallback when the gateway or provider is unavailable.
@@ -165,7 +166,7 @@ Bring one workflow. Active Mirror produces governed, receipt-backed output. If i
 
 ## Drift Stop
 
-If the product discussion drifts toward browser OS, Siri replacement, full agent swarm, local daemon, phone mesh, autonomous workflows, or sovereignty doctrine before the workspace loop is reliable, return to:
+If the product discussion drifts toward browser OS, Siri replacement, full agent swarm, local daemon, phone mesh, autonomous workflows, or abstract theory language before the workspace loop is reliable, return to:
 
 ```text
 Important decision -> artifact -> receipt -> approved memory.

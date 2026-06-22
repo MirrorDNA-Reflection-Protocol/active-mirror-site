@@ -23,7 +23,7 @@ npm run worker:deploy
 
 Active Mirror should expose product capabilities, not raw provider choices.
 
-- Reflective reasoning: GPT-first.
+- Decision reasoning: GPT-first.
 - Chat polish, critique, and receipt review: Claude.
 - Images, video, and multimodal media work: Gemini.
 - Browser frontend: no provider secrets.

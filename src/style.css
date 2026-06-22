@@ -3876,8 +3876,10 @@ h3,
   grid-template-columns: minmax(320px, 0.8fr) minmax(0, 1.2fr);
   grid-template-areas:
     "input output"
-    "packet memory"
-    "receipt receipt"
+    "packet summary"
+    "receipt summary"
+    "followups memory"
+    "context context"
     "audit audit";
   gap: 18px;
   align-items: start;
@@ -3907,8 +3909,20 @@ h3,
   grid-area: receipt;
 }
 
+.workspace-summary {
+  grid-area: summary;
+}
+
 .workspace-memory {
   grid-area: memory;
+}
+
+.workspace-followups {
+  grid-area: followups;
+}
+
+.workspace-private-context {
+  grid-area: context;
 }
 
 .workspace-audit {
@@ -4002,6 +4016,243 @@ h3,
   color: var(--muted);
   font-size: 14px;
   line-height: 1.45;
+}
+
+.summary-controls,
+.summary-actions,
+.candidate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  align-items: end;
+}
+
+.summary-controls label {
+  flex: 1 1 190px;
+  display: grid;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.summary-controls select {
+  min-height: 44px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0 12px;
+}
+
+.summary-output {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.summary-output > strong,
+.private-context-list strong,
+.memory-candidate strong {
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.summary-output p,
+.private-context-list p,
+.memory-candidates > p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.summary-output div {
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+  border: 1px solid rgba(7, 93, 242, 0.16);
+  border-radius: 8px;
+  background: var(--blue-soft);
+}
+
+.summary-output div span {
+  color: var(--blue);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.summary-output ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 18px;
+  color: #263449;
+  font-size: 13px;
+  line-height: 1.38;
+}
+
+.summary-actions button,
+.candidate-actions button {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #263449;
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 830;
+  padding: 0 10px;
+}
+
+.summary-actions button:hover,
+.candidate-actions button:hover {
+  border-color: rgba(7, 93, 242, 0.34);
+  background: var(--blue-soft);
+}
+
+.summary-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.54;
+  background: var(--soft);
+}
+
+.memory-candidates,
+.private-context-list,
+.followup-list {
+  display: grid;
+  gap: 10px;
+}
+
+.memory-candidate,
+.private-context-list article,
+.followup-question {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.memory-candidate > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.memory-candidate span,
+.private-context-list span,
+.followup-question span {
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.memory-candidate textarea {
+  width: 100%;
+  min-height: 58px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  color: #263449;
+  background: var(--soft);
+  font-size: 13px;
+  line-height: 1.42;
+  resize: vertical;
+}
+
+.followup-list > p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.followup-question p {
+  color: #263449;
+  font-size: 14px;
+  line-height: 1.42;
+}
+
+.followup-question small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.followup-question textarea {
+  width: 100%;
+  min-height: 62px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  color: #263449;
+  background: var(--soft);
+  font-size: 13px;
+  line-height: 1.42;
+  resize: vertical;
+}
+
+.followup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.followup-actions button {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #263449;
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 830;
+  padding: 0 10px;
+}
+
+.followup-actions button:hover {
+  border-color: rgba(7, 93, 242, 0.34);
+  background: var(--blue-soft);
+}
+
+.followup-question[data-decision="answered"] {
+  border-color: rgba(7, 137, 82, 0.3);
+  background: rgba(231, 248, 239, 0.52);
+}
+
+.followup-question[data-decision="assumed"] {
+  border-color: rgba(179, 107, 20, 0.28);
+  background: rgba(255, 245, 223, 0.64);
+}
+
+.followup-question[data-decision="skipped"] {
+  border-color: rgba(191, 61, 53, 0.2);
+  background: rgba(255, 245, 244, 0.54);
+}
+
+.memory-candidate[data-decision="approve"] {
+  border-color: rgba(7, 137, 82, 0.3);
+  background: rgba(231, 248, 239, 0.52);
+}
+
+.memory-candidate[data-decision="temporary"] {
+  border-color: rgba(179, 107, 20, 0.28);
+  background: rgba(255, 245, 223, 0.64);
+}
+
+.memory-candidate[data-decision="reject"],
+.memory-candidate.is-rejected {
+  border-color: rgba(191, 61, 53, 0.24);
+  background: rgba(255, 245, 244, 0.68);
 }
 
 .vault-strip {
@@ -4470,7 +4721,10 @@ h3,
       "packet"
       "output"
       "receipt"
+      "summary"
+      "followups"
       "memory"
+      "context"
       "audit";
   }
 
@@ -4530,11 +4784,17 @@ h3,
 
   .packet-actions,
   .packet-actions .button,
-  .memory-actions {
+  .memory-actions,
+  .summary-actions,
+  .candidate-actions,
+  .followup-actions {
     width: 100%;
   }
 
-  .packet-actions {
+  .packet-actions,
+  .summary-actions,
+  .candidate-actions,
+  .followup-actions {
     display: grid;
   }
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Open the Active Mirror browser workspace. Reflect on an intent, set boundaries, generate a viewport, and inspect the receipt."
+      content="Open the Active Mirror browser workspace. Bring an intent, set boundaries, create a summary, and inspect the receipt."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Mirror Workspace | Active Mirror</title>
@@ -39,7 +39,7 @@
           <h1>Your mirror opens as a workspace, not a blank chatbot.</h1>
           <p>
             Bring a decision, workflow, or messy note. Active Mirror structures the issue,
-            generates the next useful viewport, shows the receipt, and lets you decide what becomes memory.
+            creates the next useful workspace, shows the receipt, and lets you decide what becomes future context.
           </p>
           <div class="page-actions">
             <a class="button primary" href="#mirror-intent">Create a mirror</a>
@@ -49,7 +49,7 @@
 
         <div class="workspace-live-card" aria-label="Live route policy">
           <span>Route policy</span>
-          <strong>GPT for reflection. Claude for chat critique. Gemini for media.</strong>
+          <strong>GPT for decisions. Claude for critique. Gemini for media.</strong>
           <p>Providers are helpers behind gates. The packet preview shows what leaves the browser before a route is approved.</p>
         </div>
       </section>
@@ -77,7 +77,7 @@
               Route
               <select id="mirror-route">
                 <option value="auto">Auto route by intent</option>
-                <option value="reflection">Reflective reasoning: GPT</option>
+                <option value="reflection">Decision help: GPT</option>
                 <option value="chat">Chat critique: Claude</option>
                 <option value="media">Media and visuals: Gemini</option>
               </select>
@@ -118,8 +118,8 @@
 
         <section class="workspace-panel workspace-output" aria-label="Generated mirror">
           <div class="panel-head split">
-            <strong>Generated viewport</strong>
-            <span id="mirror-route-label">reflection / GPT</span>
+            <strong>Generated workspace</strong>
+            <span id="mirror-route-label">decisions / GPT</span>
           </div>
           <div class="workspace-board">
             <article class="workspace-column goals">
@@ -155,12 +155,44 @@
           </dl>
         </section>
 
-        <section class="workspace-panel workspace-memory" aria-label="Memory decision">
+        <section class="workspace-panel workspace-summary" aria-label="Create summary">
           <div class="panel-head split">
-            <strong>Memory decision</strong>
+            <strong>Create summary</strong>
+            <span id="mirror-summary-state">Ready</span>
+          </div>
+          <p class="memory-copy">Turn this session into a useful note you can keep, export, or revise.</p>
+          <div class="summary-controls">
+            <label>
+              Summary type
+              <select id="mirror-summary-type">
+                <option value="decision">Decision summary</option>
+                <option value="strategy">Strategy note</option>
+                <option value="action">Action plan</option>
+                <option value="meeting">Meeting prep</option>
+                <option value="reflection">Reflection note</option>
+              </select>
+            </label>
+            <button class="button primary small" id="mirror-create-summary" type="button">Create summary</button>
+          </div>
+          <article class="summary-output" id="mirror-summary-output">
+            <strong>No summary yet</strong>
+            <p>Create a summary after the workspace has a receipt.</p>
+          </article>
+          <div class="summary-actions" aria-label="Summary export actions">
+            <button type="button" id="mirror-export-markdown">Export Markdown</button>
+            <button type="button" id="mirror-export-json">Export JSON</button>
+          </div>
+        </section>
+
+        <section class="workspace-panel workspace-memory" aria-label="Save for Future Context">
+          <div class="panel-head split">
+            <strong>Save for Future Context</strong>
             <span id="mirror-memory-state">Pending</span>
           </div>
-          <p class="memory-copy">Nothing becomes continuity until you choose what this turn means.</p>
+          <p class="memory-copy">Review each suggestion before it becomes future context. Nothing is selected for you.</p>
+          <div class="memory-candidates" id="mirror-memory-candidates" aria-live="polite">
+            <p>No saved-context suggestions yet. Create a summary to review them.</p>
+          </div>
           <div class="vault-strip" aria-label="Browser vault status">
             <div>
               <strong>Browser vault</strong>
@@ -175,6 +207,28 @@
             <button type="button" data-memory-decision="preference">Save as preference</button>
             <button type="button" data-memory-decision="never">Never use this</button>
             <button type="button" data-memory-decision="export">Export receipt</button>
+          </div>
+        </section>
+
+        <section class="workspace-panel workspace-followups" aria-label="Follow-up questions">
+          <div class="panel-head split">
+            <strong>Follow-up questions</strong>
+            <span id="mirror-followups-state">Waiting</span>
+          </div>
+          <p class="memory-copy">Questions appear only when the answer would change the decision, risk, or future context.</p>
+          <div class="followup-list" id="mirror-followups">
+            <p>Create a summary to see the questions worth answering.</p>
+          </div>
+        </section>
+
+        <section class="workspace-panel workspace-private-context" aria-label="Private Context">
+          <div class="panel-head split">
+            <strong>Private Context</strong>
+            <span id="mirror-private-context-count">0 saved</span>
+          </div>
+          <p class="memory-copy">Only approved saved context appears here.</p>
+          <div class="private-context-list" id="mirror-private-context-list">
+            <p>No approved context yet.</p>
           </div>
         </section>
 
@@ -216,7 +270,7 @@
           </p>
         </div>
         <div class="feature-grid tight">
-          <article><strong>Viewport</strong><span>The next useful UI appears turn by turn.</span></article>
+          <article><strong>Workspace</strong><span>The next useful summary, plan, or board appears turn by turn.</span></article>
           <article><strong>Receipt</strong><span>Reasoning, context, route, and exclusions stay visible.</span></article>
           <article><strong>Approved memory</strong><span>Continuity grows only from reviewed user decisions.</span></article>
         </div>

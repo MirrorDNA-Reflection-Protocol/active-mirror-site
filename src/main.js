@@ -46,7 +46,7 @@ const heroModes = {
 const scenarios = {
   launch: {
     confidence: "Confidence: High",
-    viewportType: "momentum_map",
+    viewportType: "Momentum map",
     viewportNodes: [["Capture", "Research"], ["Reflect", "Launch proof"], ["Act", "Prototype test"]],
     insights: [
       "You have enough material to ship a first story, but the audience and proof need to be tighter.",
@@ -68,7 +68,7 @@ const scenarios = {
   },
   return: {
     confidence: "Confidence: Medium-high",
-    viewportType: "return_path",
+    viewportType: "Restart path",
     viewportNodes: [["Sort", "Open loops"], ["Choose", "One win"], ["Act", "48-hour proof"]],
     insights: [
       "The work is not gone. It is scattered, unranked, and emotionally expensive to restart.",
@@ -90,7 +90,7 @@ const scenarios = {
   },
   research: {
     confidence: "Confidence: High",
-    viewportType: "source_synthesis",
+    viewportType: "Source synthesis",
     viewportNodes: [["Cluster", "Claims"], ["Verify", "Sources"], ["Decide", "Memo"]],
     insights: [
       "The research is useful, but it is not yet decision-shaped.",
@@ -112,7 +112,7 @@ const scenarios = {
   },
   career: {
     confidence: "Confidence: Medium",
-    viewportType: "offer_map",
+    viewportType: "Offer map",
     viewportNodes: [["Extract", "Strengths"], ["Package", "Offers"], ["Ship", "Portfolio proof"]],
     insights: [
       "The career path is not a blank slate. Past work contains patterns that can be turned into offers.",
@@ -252,7 +252,7 @@ const ritualModes = {
   restart: {
     goals: ["Recover useful past work", "Lower the emotional load", "Create one proof of motion"],
     blockers: ["Old context is scattered", "Restart friction is high", "Progress is hard to see"],
-    moves: ["Sort open loops without judgment", "Retire stale threads", "Choose a 48-hour win", "Save the momentum receipt"],
+    moves: ["Sort open loops without judging them", "Retire stale threads", "Choose a 48-hour win", "Save the momentum receipt"],
     artifact: ["Return path board", "What still matters, what can go, what moves first."],
     why: "The user is rebuilding momentum and needs continuity without reliving every detail.",
   },
@@ -439,7 +439,7 @@ function renderScenario(key) {
   confidenceLabel.textContent = scenario.confidence;
   viewportType.textContent = scenario.viewportType;
   viewportCanvas.querySelectorAll(".viewport-node").forEach((node, index) => {
-    const [title, detail] = scenario.viewportNodes[index] || ["Patch", "Next view"];
+    const [title, detail] = scenario.viewportNodes[index] || ["Update", "Next step"];
     node.querySelector("strong").textContent = title;
     node.querySelector("span").textContent = detail;
   });
@@ -658,16 +658,27 @@ const mirrorAuditKnownCount = document.querySelector("#mirror-audit-known-count"
 const mirrorAuditUncertainCount = document.querySelector("#mirror-audit-uncertain-count");
 const mirrorAuditExcludedCount = document.querySelector("#mirror-audit-excluded-count");
 const mirrorAuditCanonicalCount = document.querySelector("#mirror-audit-canonical-count");
+const mirrorSummaryType = document.querySelector("#mirror-summary-type");
+const mirrorCreateSummary = document.querySelector("#mirror-create-summary");
+const mirrorSummaryState = document.querySelector("#mirror-summary-state");
+const mirrorSummaryOutput = document.querySelector("#mirror-summary-output");
+const mirrorExportMarkdown = document.querySelector("#mirror-export-markdown");
+const mirrorExportJson = document.querySelector("#mirror-export-json");
+const mirrorMemoryCandidates = document.querySelector("#mirror-memory-candidates");
+const mirrorPrivateContextCount = document.querySelector("#mirror-private-context-count");
+const mirrorPrivateContextList = document.querySelector("#mirror-private-context-list");
+const mirrorFollowupsState = document.querySelector("#mirror-followups-state");
+const mirrorFollowups = document.querySelector("#mirror-followups");
 
 const workspaceRoutes = {
   reflection: {
-    label: "reflection / GPT",
-    route: "GPT is the reflective reasoning route for judgment, prioritization, and structured next moves.",
+    label: "decisions / GPT",
+    route: "GPT is the route for decisions, prioritization, and structured next moves.",
     goals: ["Name the real objective", "Separate signal from noise", "Create one momentum path"],
     blockers: ["Too much context at once", "Unclear priority order", "No accepted memory decision"],
     moves: ["Extract the strongest intent", "Pick one proof artifact", "Write the next-action board", "Approve or reject memory"],
     artifact: ["Reflection board", "Objective, blockers, next moves, and receipt."],
-    why: "The turn asks for judgment and momentum, so the reflection route is the strongest fit.",
+    why: "The turn asks for a decision and momentum, so the decision route is the strongest fit.",
   },
   chat: {
     label: "chat critique / Claude",
@@ -702,7 +713,7 @@ const trustModes = {
     label: "Local only",
     scope: "local/browser",
     localOnly: true,
-    approval: "No gateway call. Browser fallback generates the viewport.",
+    approval: "No gateway call. Browser fallback creates the workspace.",
     included: "Current turn intent and selected boundary only.",
     excluded: "All cloud routes, provider APIs, stored memory, files, tabs, and external tools.",
   },
@@ -739,6 +750,9 @@ let packetPreviewTimer = 0;
 let auditDecisionCount = 0;
 let vaultEntryCount = 0;
 let vaultChainHead = "genesis";
+let currentSummary = null;
+let currentMemoryCandidates = [];
+let currentFollowups = [];
 const auditDecisionMap = new Map();
 
 function loadAuditDecisions() {
@@ -916,7 +930,7 @@ function buildContextPacket({ forceLocal = false } = {}) {
     excluded_memory_items: [
       { id: "stored_memory", reason: "not admitted for this demo turn" },
       { id: "private_files", reason: "not attached or approved" },
-      { id: "external_tools", reason: "not requested for this viewport" },
+      { id: "external_tools", reason: "not requested for this workspace" },
     ],
     tools_requested: selectedTrust.localOnly ? ["browser_fallback"] : ["active_mirror_gateway"],
     risk_level: riskLevel,
@@ -950,7 +964,7 @@ function renderContextPacket(packet = currentContextPacket) {
     mirrorApprove.textContent = packet.local_only ? "Generate locally" : packet.approved ? "Approved" : "Approve route";
   }
   if (mirrorRun && !mirrorRun.disabled) {
-    mirrorRun.textContent = packet.local_only ? "Generate local mirror" : packet.approved ? "Generate viewport" : "Preview context packet";
+    mirrorRun.textContent = packet.local_only ? "Create local workspace" : packet.approved ? "Create workspace" : "Preview context packet";
     mirrorRun.classList.toggle("is-complete", Boolean(packet.local_only || packet.approved));
   }
 }
@@ -973,7 +987,7 @@ function previewContextPacket({ forceLocal = false } = {}) {
 
 function routeTruthText(remotePayload, routeKey, packet) {
   if (packet?.local_only) {
-    return "Local-only mode: no gateway call was made. Browser deterministic fallback generated this viewport.";
+    return "Local-only mode: no gateway call was made. Browser deterministic fallback created this workspace.";
   }
   if (remotePayload?.route) {
     const label = providerLabel(remotePayload.route);
@@ -999,8 +1013,83 @@ function captureReceiptSnapshot(packet, routeText) {
     context_excluded: mirrorReceiptExcluded?.textContent || "",
     route: routeText || mirrorReceiptRoute?.textContent || "",
     memory_decision: mirrorReceiptMemory?.textContent || "",
+    followups: currentFollowups.map((item) => ({
+      label: item.label,
+      question: item.question,
+      decision: item.decision || "pending",
+      answer: item.decision === "answered" ? item.answer || "" : null,
+      assumption: item.decision === "assumed" ? item.assumption || item.reason || "" : null,
+    })),
     exported_at: new Date().toISOString(),
   };
+}
+
+const summaryTypeLabels = {
+  decision: "Decision summary",
+  strategy: "Strategy note",
+  action: "Action plan",
+  meeting: "Meeting prep",
+  reflection: "Reflection note",
+};
+
+function readPrivateContext() {
+  try {
+    const value = JSON.parse(localStorage.getItem("activeMirrorPrivateContext") || "[]");
+    return Array.isArray(value) ? value : [];
+  } catch {
+    return [];
+  }
+}
+
+function writePrivateContext(items) {
+  localStorage.setItem("activeMirrorPrivateContext", JSON.stringify(items.slice(0, 24)));
+}
+
+function renderPrivateContext() {
+  if (!mirrorPrivateContextList || !mirrorPrivateContextCount) return;
+  const items = readPrivateContext();
+  mirrorPrivateContextCount.textContent = `${items.length} saved`;
+  if (!items.length) {
+    mirrorPrivateContextList.innerHTML = "<p>No approved context yet.</p>";
+    return;
+  }
+  mirrorPrivateContextList.innerHTML = items
+    .map(
+      (item) => `
+        <article>
+          <strong>${escapeHtml(item.label || "Saved context")}</strong>
+          <p>${escapeHtml(item.text || "")}</p>
+          <span>${escapeHtml(item.receipt_id || "local receipt")}</span>
+        </article>
+      `
+    )
+    .join("");
+}
+
+function setSummaryExportReady(ready) {
+  if (mirrorExportMarkdown) mirrorExportMarkdown.disabled = !ready;
+  if (mirrorExportJson) mirrorExportJson.disabled = !ready;
+}
+
+function clearSummaryReview() {
+  currentSummary = null;
+  currentMemoryCandidates = [];
+  currentFollowups = [];
+  if (mirrorSummaryState) mirrorSummaryState.textContent = "Ready";
+  if (mirrorSummaryOutput) {
+    mirrorSummaryOutput.innerHTML = `
+      <strong>No summary yet</strong>
+      <p>Create a summary after the workspace has a receipt.</p>
+    `;
+  }
+  if (mirrorMemoryCandidates) {
+    mirrorMemoryCandidates.innerHTML = "<p>No saved-context suggestions yet. Create a summary to review them.</p>";
+  }
+  if (mirrorFollowupsState) mirrorFollowupsState.textContent = "Waiting";
+  if (mirrorFollowups) {
+    mirrorFollowups.innerHTML = "<p>Create a summary to see the questions worth answering.</p>";
+  }
+  setSummaryExportReady(false);
 }
 
 function getListText(target) {
@@ -1017,6 +1106,348 @@ function getArtifactText() {
 
 function uniqueList(items) {
   return Array.from(new Set(items.map((item) => String(item || "").trim()).filter(Boolean)));
+}
+
+function buildSessionSummary(type = mirrorSummaryType?.value || "decision") {
+  const packet = currentContextPacket || buildContextPacket();
+  const goals = getListText(mirrorGoals);
+  const blockers = getListText(mirrorBlockers);
+  const nextMoves = getListText(mirrorMoves);
+  const artifact = getArtifactText();
+  const label = summaryTypeLabels[type] || summaryTypeLabels.decision;
+  const recommendation = nextMoves[0] || goals[0] || "Choose one concrete next move.";
+
+  return {
+    schema: "active-mirror-summary-v1",
+    type,
+    label,
+    title: `${label}: ${packet.task}`,
+    intent: packet.task,
+    boundary: packet.boundary_label,
+    route: mirrorRouteLabel?.textContent || packet.model_target,
+    receipt_id: mirrorReceiptId?.textContent || "local-receipt",
+    created_at: new Date().toISOString(),
+    why: mirrorReceiptWhy?.textContent || "",
+    context_used: mirrorReceiptUsed?.textContent || "",
+    context_excluded: mirrorReceiptExcluded?.textContent || "",
+    memory_decision: mirrorReceiptMemory?.textContent || "Pending review",
+    goals,
+    blockers,
+    next_moves: nextMoves,
+    artifact,
+    recommendation,
+  };
+}
+
+function buildMemoryCandidates(summary) {
+  return [
+    {
+      id: "decision_focus",
+      label: "Decision focus",
+      text: `Decision focus: ${summary.intent}`,
+    },
+    {
+      id: "next_step",
+      label: "Next step",
+      text: `Next step: ${summary.recommendation}`,
+    },
+    {
+      id: "boundary",
+      label: "Boundary",
+      text: `Boundary preference: ${summary.boundary}`,
+    },
+    {
+      id: "artifact",
+      label: "Saved note",
+      text: `Saved note: ${summary.title}. ${summary.artifact || summary.recommendation}`,
+    },
+  ];
+}
+
+function buildFollowups(summary) {
+  const packet = currentContextPacket || buildContextPacket();
+  const primaryMove = summary.recommendation || "the next move";
+  const routeKey = packet.route_key || "reflection";
+  const routeSpecific =
+    routeKey === "media"
+      ? {
+          label: "Source material",
+          question: "Which image, video, screenshot, or brand constraint should shape the media output?",
+          reason: "This prevents generic visuals and keeps private material out unless approved.",
+        }
+      : routeKey === "chat"
+        ? {
+            label: "Audience",
+            question: "Who is this message for, and what should they do after reading it?",
+            reason: "This makes critique concrete instead of polishing in the abstract.",
+          }
+        : {
+            label: "Success",
+            question: `What outcome would make \"${primaryMove}\" a win?`,
+            reason: "This turns the recommendation into a measurable decision.",
+          };
+
+  return [
+    routeSpecific,
+    {
+      label: "Risk",
+      question: "What constraint or missing fact could make this recommendation wrong?",
+      reason: "This keeps the receipt honest before the work is reused.",
+    },
+    {
+      label: "Future context",
+      question: "Should this be remembered as project context, a personal preference, temporary context, or not at all?",
+      reason: "This prevents silent memory and keeps continuity under your control.",
+    },
+  ].slice(0, 3);
+}
+
+function renderFollowups(items = currentFollowups) {
+  if (!mirrorFollowups || !mirrorFollowupsState) return;
+  currentFollowups = items;
+  mirrorFollowupsState.textContent = items.length ? "Review" : "Waiting";
+  if (!items.length) {
+    mirrorFollowups.innerHTML = "<p>Create a summary to see the questions worth answering.</p>";
+    return;
+  }
+  mirrorFollowups.innerHTML = items
+    .map(
+      (item, index) => `
+        <article class="followup-question" data-followup-index="${index}" data-decision="${escapeHtml(item.decision || "pending")}">
+          <span>${escapeHtml(item.label)}</span>
+          <p>${escapeHtml(item.question)}</p>
+          <small>${escapeHtml(item.reason)}</small>
+          <textarea rows="2" aria-label="${escapeHtml(item.label)} answer" placeholder="Optional answer"></textarea>
+          <div class="followup-actions">
+            <button type="button" data-followup-index="${index}" data-followup-action="answered">Save answer</button>
+            <button type="button" data-followup-index="${index}" data-followup-action="assumed">Make assumption</button>
+            <button type="button" data-followup-index="${index}" data-followup-action="skipped">Skip</button>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+}
+
+function setFollowupDecision(index, action) {
+  const item = currentFollowups[index];
+  if (!item || !mirrorFollowups || !mirrorFollowupsState) return;
+  const card = mirrorFollowups.querySelector(`[data-followup-index="${index}"]`);
+  const answer = card?.querySelector("textarea")?.value.replace(/\s+/g, " ").trim() || "";
+  if (action === "answered" && !answer) {
+    mirrorFollowupsState.textContent = "Answer needed";
+    return;
+  }
+
+  item.decision = action;
+  item.answer = action === "answered" ? answer : "";
+  item.assumption =
+    action === "assumed"
+      ? answer || "Proceeding with the current receipt; this point remains an assumption."
+      : "";
+  card?.setAttribute("data-decision", action);
+  const label = card?.querySelector("span");
+  if (label) {
+    label.textContent =
+      action === "answered"
+        ? `${item.label} - Answered`
+        : action === "assumed"
+          ? `${item.label} - Assumed`
+          : `${item.label} - Skipped`;
+  }
+  const reviewed = currentFollowups.filter((followup) => followup.decision).length;
+  mirrorFollowupsState.textContent = `${reviewed} reviewed`;
+  captureReceiptSnapshot(currentContextPacket, mirrorReceiptRoute?.textContent || "");
+  renderMirrorAudit(currentContextPacket);
+  persistVaultEntry("followup_decision", {
+    label: item.label,
+    question: item.question,
+    decision: action,
+    answer: action === "answered" ? answer : null,
+    assumption: action === "assumed" ? item.assumption : null,
+    receipt_id: mirrorReceiptId?.textContent || "local-receipt",
+  }).catch(() => setVaultStatus("Vault blocked", "Browser storage rejected this follow-up receipt."));
+}
+
+function renderSummary(summary = buildSessionSummary()) {
+  currentSummary = summary;
+  if (mirrorSummaryState) mirrorSummaryState.textContent = "Created";
+  if (mirrorSummaryOutput) {
+    mirrorSummaryOutput.innerHTML = `
+      <strong>${escapeHtml(summary.title)}</strong>
+      <p>${escapeHtml(summary.why || "The workspace created a structured next step from the current intent and boundary.")}</p>
+      <div>
+        <span>Recommended next move</span>
+        <strong>${escapeHtml(summary.recommendation)}</strong>
+      </div>
+      <ul>
+        ${summary.next_moves.slice(0, 4).map((move) => `<li>${escapeHtml(move)}</li>`).join("")}
+      </ul>
+    `;
+  }
+  renderFollowups(buildFollowups(summary));
+  currentMemoryCandidates = buildMemoryCandidates(summary);
+  renderMemoryCandidates(currentMemoryCandidates);
+  setSummaryExportReady(true);
+  captureReceiptSnapshot(currentContextPacket, mirrorReceiptRoute?.textContent || "");
+}
+
+function renderMemoryCandidates(candidates = currentMemoryCandidates) {
+  if (!mirrorMemoryCandidates) return;
+  if (!candidates.length) {
+    mirrorMemoryCandidates.innerHTML = "<p>No saved-context suggestions yet. Create a summary to review them.</p>";
+    return;
+  }
+  mirrorMemoryCandidates.innerHTML = candidates
+    .map(
+      (candidate, index) => `
+        <article class="memory-candidate" data-candidate-index="${index}" data-decision="${escapeHtml(candidate.decision || "pending")}">
+          <div>
+            <strong>${escapeHtml(candidate.label)}</strong>
+            <span>${candidate.decision ? `${escapeHtml(candidate.decision)} recorded` : "Needs review"}</span>
+          </div>
+          <textarea rows="2" aria-label="${escapeHtml(candidate.label)} saved context">${escapeHtml(candidate.text)}</textarea>
+          <div class="candidate-actions">
+            <button type="button" data-memory-candidate="${index}" data-memory-action="approve">Approve</button>
+            <button type="button" data-memory-candidate="${index}" data-memory-action="temporary">Temporary</button>
+            <button type="button" data-memory-candidate="${index}" data-memory-action="reject">Reject</button>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+}
+
+function setFutureContextDecision(index, action) {
+  const candidate = currentMemoryCandidates[index];
+  if (!candidate || !mirrorMemoryCandidates) return;
+  const card = mirrorMemoryCandidates.querySelector(`[data-candidate-index="${index}"]`);
+  const editedText = card?.querySelector("textarea")?.value.replace(/\s+/g, " ").trim() || candidate.text;
+  candidate.decision = action;
+  candidate.text = editedText;
+  card?.setAttribute("data-decision", action);
+  const status = card?.querySelector("div > span");
+  if (status) status.textContent = action === "approve" ? "Approved" : action === "temporary" ? "Temporary" : "Rejected";
+
+  const receiptId = mirrorReceiptId?.textContent || "local-receipt";
+  if (action === "approve") {
+    const items = readPrivateContext();
+    items.unshift({
+      id: `${candidate.id}_${Date.now()}`,
+      label: candidate.label,
+      text: editedText,
+      receipt_id: receiptId,
+      saved_at: new Date().toISOString(),
+    });
+    try {
+      writePrivateContext(items);
+    } catch {
+      setVaultStatus("Vault blocked", "Browser storage rejected the approved context.");
+    }
+    mirrorReceiptMemory.textContent = `Approved for future context: ${candidate.label}.`;
+    mirrorMemoryState.textContent = "Approved";
+    persistVaultEntry("approved_private_context", {
+      candidate_id: candidate.id,
+      label: candidate.label,
+      text: editedText,
+      receipt_id: receiptId,
+    }).catch(() => setVaultStatus("Vault blocked", "Browser storage rejected the approved context."));
+  } else if (action === "temporary") {
+    try {
+      const temporary = JSON.parse(sessionStorage.getItem("activeMirrorTemporaryContext") || "[]");
+      temporary.unshift({ label: candidate.label, text: editedText, receipt_id: receiptId, saved_at: new Date().toISOString() });
+      sessionStorage.setItem("activeMirrorTemporaryContext", JSON.stringify(temporary.slice(0, 12)));
+    } catch {
+      // Temporary context is best-effort and never promoted to durable memory.
+    }
+    mirrorReceiptMemory.textContent = `Kept temporary for this session: ${candidate.label}.`;
+    mirrorMemoryState.textContent = "Temporary";
+    persistVaultEntry("temporary_context_decision", {
+      candidate_id: candidate.id,
+      label: candidate.label,
+      text: editedText,
+      receipt_id: receiptId,
+    }).catch(() => setVaultStatus("Vault blocked", "Browser storage rejected this temporary decision."));
+  } else {
+    candidate.text = "";
+    if (card) {
+      const textarea = card.querySelector("textarea");
+      if (textarea) textarea.value = "";
+      card.classList.add("is-rejected");
+    }
+    mirrorReceiptMemory.textContent = `Rejected saved context: ${candidate.label}. Rejected text was not saved.`;
+    mirrorMemoryState.textContent = "Rejected";
+    persistVaultEntry("memory_candidate_rejected", {
+      candidate_id: candidate.id,
+      label: candidate.label,
+      text: null,
+      receipt_id: receiptId,
+    }).catch(() => setVaultStatus("Vault blocked", "Browser storage rejected this rejection receipt."));
+  }
+
+  captureReceiptSnapshot(currentContextPacket, mirrorReceiptRoute?.textContent || "");
+  renderPrivateContext();
+  renderMirrorAudit(currentContextPacket);
+}
+
+function summaryMarkdown(summary = currentSummary || buildSessionSummary()) {
+  return [
+    `# ${summary.title}`,
+    "",
+    `- Receipt: ${summary.receipt_id}`,
+    `- Boundary: ${summary.boundary}`,
+    `- Route: ${summary.route}`,
+    "",
+    "## Why",
+    summary.why || "No rationale recorded.",
+    "",
+    "## Recommended next move",
+    summary.recommendation,
+    "",
+    "## Next moves",
+    ...summary.next_moves.map((move) => `- ${move}`),
+    "",
+    "## Receipt",
+    `Context used: ${summary.context_used || "Not recorded."}`,
+    "",
+    `Context excluded: ${summary.context_excluded || "Not recorded."}`,
+    "",
+    `Memory decision: ${summary.memory_decision || "Pending review."}`,
+    "",
+  ].join("\n");
+}
+
+function downloadFile(filename, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+function exportSummary(format) {
+  const summary = currentSummary || buildSessionSummary();
+  if (!currentSummary) renderSummary(summary);
+  const baseName = summary.receipt_id || "active-mirror-summary";
+  if (format === "markdown") {
+    downloadFile(`${baseName}.md`, summaryMarkdown(summary), "text/markdown");
+  } else {
+    downloadFile(
+      `${baseName}.json`,
+      JSON.stringify({ summary, receipt: lastMirrorReceipt }, null, 2),
+      "application/json"
+    );
+  }
+  if (mirrorSummaryState) mirrorSummaryState.textContent = "Exported";
+  persistVaultEntry("summary_exported", {
+    format,
+    receipt_id: summary.receipt_id,
+    title: summary.title,
+  }).catch(() => setVaultStatus("Vault blocked", "Browser storage rejected this export receipt."));
 }
 
 function auditActionLabel(action) {
@@ -1137,6 +1568,7 @@ function renderWorkspaceMirror(remotePayload = null, packet = currentContextPack
   if (mirrorMemoryState) mirrorMemoryState.textContent = "Pending";
   captureReceiptSnapshot(packet, mirrorReceiptRoute.textContent);
   renderMirrorAudit(packet);
+  clearSummaryReview();
 
   try {
     localStorage.setItem(
@@ -1182,14 +1614,14 @@ async function generateWorkspaceMirror() {
   if (currentContextPacket.local_only) {
     renderWorkspaceMirror(null, currentContextPacket);
     mirrorRun.disabled = false;
-    mirrorRun.textContent = "Local viewport generated";
+    mirrorRun.textContent = "Local workspace ready";
     mirrorRun.classList.add("is-complete");
-    animateElements(Array.from(document.querySelectorAll(".workspace-column, .workspace-receipt, .workspace-memory")), {
+    animateElements(Array.from(document.querySelectorAll(".workspace-column, .workspace-receipt, .workspace-summary, .workspace-followups, .workspace-memory, .workspace-private-context")), {
       y: 10,
       duration: 0.38,
     });
     window.setTimeout(() => {
-      mirrorRun.textContent = "Generate local mirror";
+      mirrorRun.textContent = "Create local workspace";
       mirrorRun.classList.remove("is-complete");
     }, 1600);
     return;
@@ -1220,7 +1652,7 @@ async function generateWorkspaceMirror() {
     if (requestId !== mirrorRequestId) return;
 
     renderWorkspaceMirror(payload, currentContextPacket);
-    mirrorRun.textContent = payload.fallback ? "Fallback viewport" : "Viewport generated";
+    mirrorRun.textContent = payload.fallback ? "Fallback workspace ready" : "Workspace ready";
     mirrorRun.classList.add("is-complete");
   } catch (error) {
     window.clearTimeout(gatewayTimeout);
@@ -1230,7 +1662,7 @@ async function generateWorkspaceMirror() {
     mirrorRun.classList.add("is-complete");
   } finally {
     mirrorRun.disabled = false;
-    animateElements(Array.from(document.querySelectorAll(".workspace-column, .workspace-receipt, .workspace-memory")), {
+    animateElements(Array.from(document.querySelectorAll(".workspace-column, .workspace-receipt, .workspace-summary, .workspace-followups, .workspace-memory, .workspace-private-context")), {
       y: 10,
       duration: 0.38,
     });
@@ -1348,7 +1780,27 @@ if (mirrorIntent && mirrorBoundary && mirrorRoute && mirrorRun) {
   mirrorMemoryButtons.forEach((button) => {
     button.addEventListener("click", () => setMemoryDecision(button.dataset.memoryDecision));
   });
+  mirrorCreateSummary?.addEventListener("click", () => {
+    renderSummary(buildSessionSummary(mirrorSummaryType?.value || "decision"));
+    animateElements(Array.from(document.querySelectorAll(".summary-output, .memory-candidate")), {
+      y: 8,
+      duration: 0.34,
+    });
+  });
+  mirrorExportMarkdown?.addEventListener("click", () => exportSummary("markdown"));
+  mirrorExportJson?.addEventListener("click", () => exportSummary("json"));
+  mirrorMemoryCandidates?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-memory-candidate][data-memory-action]");
+    if (!button) return;
+    setFutureContextDecision(Number(button.dataset.memoryCandidate), button.dataset.memoryAction);
+  });
+  mirrorFollowups?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-followup-index][data-followup-action]");
+    if (!button) return;
+    setFollowupDecision(Number(button.dataset.followupIndex), button.dataset.followupAction);
+  });
   loadAuditDecisions();
+  renderPrivateContext();
   initializeBrowserVault().catch(() => setVaultStatus("Vault fallback", "Browser vault will use local session storage only."));
   mirrorAudit?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-audit-action]");
