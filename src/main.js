@@ -501,7 +501,9 @@ function setActiveHomeLane(laneKey = currentHomeLane) {
   });
   if (canAnimate) {
     const activeControls = homeWorkControls.filter((button) => button.dataset.workLane === currentHomeLane);
-    gsap.fromTo(activeControls, { scale: 0.992 }, { scale: 1, duration: 0.28, ease: "power2.out" });
+    if (activeControls.length) {
+      gsap.fromTo(activeControls, { scale: 0.992 }, { scale: 1, duration: 0.28, ease: "power2.out" });
+    }
   }
 }
 
@@ -774,11 +776,14 @@ async function markRitualGenerated(surfaceOverride = null, laneOverride = null) 
       { scale: 0.992, filter: "saturate(0.94)" },
       { scale: 1, filter: "saturate(1.04)", duration: 0.72, ease: "power3.out" }
     );
-    gsap.fromTo(
-      ".stage-pulse",
-      { autoAlpha: 0.2, scale: 0.82 },
-      { autoAlpha: 1, scale: 1.08, duration: 0.82, stagger: 0.08, ease: "power3.out" }
-    );
+    const pulseTargets = Array.from(document.querySelectorAll(".stage-pulse"));
+    if (pulseTargets.length) {
+      gsap.fromTo(
+        pulseTargets,
+        { autoAlpha: 0.2, scale: 0.82 },
+        { autoAlpha: 1, scale: 1.08, duration: 0.82, stagger: 0.08, ease: "power3.out" }
+      );
+    }
     window.setTimeout(() => architecture?.classList.remove("is-routing"), 1400);
   }
 
