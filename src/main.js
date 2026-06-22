@@ -25,7 +25,7 @@ const heroModes = {
   },
   learning: {
     title: "Learning map",
-    nextMove: "Build the next lesson route",
+    nextMove: "Build the next lesson path",
     receipts: [
       ["Source", "Questions and saved explanations"],
       ["Boundary", "No personal details collected"],
@@ -230,8 +230,8 @@ const boundaryCopy = {
     memory: "Only public-safe project learning can be promoted.",
   },
   secrets: {
-    excluded: "Keys, tokens, credentials, private URLs, and operational secrets are blocked from the route.",
-    route: "Secret-bearing work stays local. Cloud APIs only receive redacted tasks.",
+    excluded: "Keys, tokens, credentials, private URLs, and operational secrets are blocked from sharing.",
+    route: "Secret-bearing work stays local. Cloud models only receive redacted tasks.",
     memory: "Secrets are never saved as memory entries.",
   },
   drafts: {
@@ -673,7 +673,7 @@ const mirrorFollowups = document.querySelector("#mirror-followups");
 const workspaceRoutes = {
   reflection: {
     label: "decisions / GPT",
-    route: "GPT is the route for decisions, prioritization, and structured next moves.",
+    route: "GPT helps with decisions, prioritization, and structured next moves.",
     goals: ["Name the real objective", "Separate signal from noise", "Create one momentum path"],
     blockers: ["Too much context at once", "Unclear priority order", "No accepted memory decision"],
     moves: ["Extract the strongest intent", "Pick one proof artifact", "Write the next-action board", "Approve or reject memory"],
@@ -682,7 +682,7 @@ const workspaceRoutes = {
   },
   chat: {
     label: "chat critique / Claude",
-    route: "Claude is the chat, critique, rewrite, and receipt-review route for sharpening language and structure.",
+    route: "Claude helps sharpen language, structure, critique, and receipt review.",
     goals: ["Clarify the message", "Tighten the structure", "Expose weak assumptions"],
     blockers: ["Copy may overclaim", "Tone can drift", "The useful objection is hidden"],
     moves: ["Rewrite the core claim", "List objections", "Cut unsupported language", "Produce a cleaner artifact"],
@@ -691,9 +691,9 @@ const workspaceRoutes = {
   },
   media: {
     label: "media / Gemini",
-    route: "Gemini is the media and multimodal route for images, video, screenshots, and visual asset planning.",
+    route: "Gemini helps with images, video, screenshots, and visual planning.",
     goals: ["Define the visual output", "Protect private context", "Create a media brief"],
-    blockers: ["Visual direction is vague", "Source material may be sensitive", "Media route needs tight constraints"],
+    blockers: ["Visual direction is vague", "Source material may be sensitive", "Media work needs tight constraints"],
     moves: ["Choose format and aspect ratio", "Write the visual brief", "Exclude private details", "Generate or queue the asset"],
     artifact: ["Media brief", "Scene, format, constraints, and receipt."],
     why: "The turn asks for visual or multimodal work, so the media route is the correct helper lane.",
@@ -702,42 +702,42 @@ const workspaceRoutes = {
 
 const trustModes = {
   approved: {
-    label: "Approved cloud help",
-    scope: "personal/default",
+    label: "Approved model help",
+    scope: "Standard workspace",
     localOnly: false,
-    approval: "Cloud route requires explicit approval.",
-    included: "Current turn intent, selected boundary, route preference, and trust mode.",
-    excluded: "Stored memory, client records, files, tabs, and personal history are not included in this demo packet.",
+    approval: "Cloud model help requires explicit approval.",
+    included: "Current turn intent, selected boundary, model choice, and privacy setting.",
+    excluded: "Saved context, client records, files, tabs, and personal history are not included in this sharing review.",
   },
   local: {
     label: "Local only",
-    scope: "local/browser",
+    scope: "In this browser",
     localOnly: true,
-    approval: "No gateway call. Browser fallback creates the workspace.",
+    approval: "No cloud model call. The browser creates the workspace.",
     included: "Current turn intent and selected boundary only.",
-    excluded: "All cloud routes, provider APIs, stored memory, files, tabs, and external tools.",
+    excluded: "Cloud model help, saved context, files, tabs, and external tools.",
   },
   public: {
     label: "Public-safe",
     scope: "public/shareable",
     localOnly: false,
     approval: "Only public-safe context may leave the browser after approval.",
-    included: "Current turn intent after boundary review, public-safe product framing, and route preference.",
+    included: "Current turn intent after boundary review, public-safe product framing, and model choice.",
     excluded: "Private identity details, client-confidential material, secrets, and unapproved memory.",
   },
   client: {
     label: "Client-confidential",
     scope: "client/confidential",
     localOnly: false,
-    approval: "Client scope requires approval and receipt-visible exclusions.",
-    included: "Current turn intent, selected boundary, client-safe task label, and route preference.",
+    approval: "Client-confidential work requires approval and receipt-visible exclusions.",
+    included: "Current turn intent, selected boundary, client-safe task label, and model choice.",
     excluded: "Personal context, unrelated client context, raw files, credentials, and anything not approved for this client scope.",
   },
 };
 
 const memoryDecisionCopy = {
-  forget: "Forgotten for continuity: this turn remains visible only in the current browser session.",
-  project: "Saved for this project: future turns may use this receipt inside the same project scope.",
+  forget: "Forgotten for future context: this turn remains visible only in the current browser session.",
+  project: "Saved for this project: future turns may use this receipt inside the same project.",
   preference: "Saved as preference: the boundary or working style can guide future mirrors.",
   never: "Blocked from future use: this turn is marked never-use unless you reverse it later.",
 };
@@ -772,7 +772,7 @@ function setVaultStatus(state, summary = "", head = vaultChainHead) {
   if (!mirrorVaultState || !mirrorVaultSummary || !mirrorVaultHead) return;
   mirrorVaultState.textContent = state;
   if (summary) mirrorVaultSummary.textContent = summary;
-  mirrorVaultHead.textContent = `head: ${head === "genesis" ? "genesis" : head.slice(0, 12)}`;
+  mirrorVaultHead.textContent = `receipt chain: ${head === "genesis" ? "empty" : head.slice(0, 12)}`;
 }
 
 async function sha256Text(value) {
@@ -841,21 +841,21 @@ async function writeBrowserVault(mode, entries) {
 
 async function initializeBrowserVault() {
   if (!mirrorVaultState) return;
-  setVaultStatus("Checking", "Requesting browser-owned storage for receipts.");
+  setVaultStatus("Checking", "Checking browser storage for receipts.");
   const persisted = navigator.storage?.persist ? await navigator.storage.persist().catch(() => false) : false;
   const { mode, entries } = await readBrowserVault();
   const latest = entries.at(-1);
   vaultEntryCount = entries.length;
   vaultChainHead = latest?.hash || "genesis";
   setVaultStatus(
-    mode === "OPFS" ? "Vault ready" : "Vault fallback",
-    `${vaultEntryCount} ledger ${vaultEntryCount === 1 ? "entry" : "entries"} in ${mode}${persisted ? "; persistent storage granted" : ""}.`,
+    mode === "OPFS" ? "Storage ready" : "Storage limited",
+    `${vaultEntryCount} receipt ${vaultEntryCount === 1 ? "entry" : "entries"} saved in this browser${persisted ? "; protected storage granted" : ""}.`,
   );
 }
 
 async function persistVaultEntry(type, payload = {}) {
   if (!mirrorVaultState) return null;
-  setVaultStatus("Vault writing", "Appending a receipt-linked ledger entry.");
+  setVaultStatus("Saving", "Saving a receipt-linked entry.");
   const { mode, entries } = await readBrowserVault();
   const previous = entries.at(-1)?.hash || "genesis";
   const entryBody = {
@@ -873,8 +873,8 @@ async function persistVaultEntry(type, payload = {}) {
   vaultEntryCount = entries.length;
   vaultChainHead = hash;
   setVaultStatus(
-    "Vault saved",
-    `${vaultEntryCount} ledger ${vaultEntryCount === 1 ? "entry" : "entries"} in ${storedMode}. Latest: ${type.replace(/_/g, " ")}.`,
+    "Saved",
+    `${vaultEntryCount} receipt ${vaultEntryCount === 1 ? "entry" : "entries"} saved. Latest: ${type.replace(/_/g, " ")}.`,
     hash,
   );
   return entry;
@@ -891,7 +891,7 @@ function inferWorkspaceRoute(intent, selected) {
 function providerLabel(route) {
   if (!route) return "";
   const model = route.model ? ` / ${route.model}` : "";
-  const fallback = route.fallback ? " / fallback" : "";
+  const fallback = route.fallback ? " / backup" : "";
   return `${route.capability} / ${route.primary}${model}${fallback}`;
 }
 
@@ -925,12 +925,12 @@ function buildContextPacket({ forceLocal = false } = {}) {
     context_packet_id: `ctx_${Date.now()}_${String(mirrorTurn).padStart(3, "0")}`,
     task: shortIntent(intent || "No intent entered yet"),
     scope: selectedTrust.scope,
-    model_target: selectedTrust.localOnly ? "local/browser" : routeTargetLabel(selectedRoute),
+    model_target: selectedTrust.localOnly ? "Browser only" : routeTargetLabel(selectedRoute),
     memory_items_used: ["intent_current_turn", `boundary_${selectedBoundary}`, `trust_${mirrorTrust?.value || "approved"}`],
     excluded_memory_items: [
-      { id: "stored_memory", reason: "not admitted for this demo turn" },
-      { id: "private_files", reason: "not attached or approved" },
-      { id: "external_tools", reason: "not requested for this workspace" },
+      { id: "Saved context", reason: "not approved for this turn" },
+      { id: "Private files", reason: "not attached or approved" },
+      { id: "External tools", reason: "not requested for this workspace" },
     ],
     tools_requested: selectedTrust.localOnly ? ["browser_fallback"] : ["active_mirror_gateway"],
     risk_level: riskLevel,
@@ -951,7 +951,7 @@ function buildContextPacket({ forceLocal = false } = {}) {
 function renderContextPacket(packet = currentContextPacket) {
   if (!packet || !mirrorPacketState) return;
 
-  mirrorPacketState.textContent = packet.local_only ? "Local-only ready" : packet.approved ? "Approved" : "Needs approval";
+  mirrorPacketState.textContent = packet.local_only ? "Browser only ready" : packet.approved ? "Approved" : "Needs approval";
   mirrorPacketTask.textContent = packet.task;
   mirrorPacketScope.textContent = `${packet.scope} / ${packet.trust_label}`;
   mirrorPacketUsed.textContent = `${packet.included_text} Estimated ${packet.token_estimate} tokens.`;
@@ -961,10 +961,10 @@ function renderContextPacket(packet = currentContextPacket) {
 
   if (mirrorApprove) {
     mirrorApprove.disabled = false;
-    mirrorApprove.textContent = packet.local_only ? "Generate locally" : packet.approved ? "Approved" : "Approve route";
+    mirrorApprove.textContent = packet.local_only ? "Create in browser" : packet.approved ? "Approved" : "Approve model help";
   }
   if (mirrorRun && !mirrorRun.disabled) {
-    mirrorRun.textContent = packet.local_only ? "Create local workspace" : packet.approved ? "Create workspace" : "Preview context packet";
+    mirrorRun.textContent = packet.local_only ? "Create browser workspace" : packet.approved ? "Create workspace" : "Review what is shared";
     mirrorRun.classList.toggle("is-complete", Boolean(packet.local_only || packet.approved));
   }
 }
@@ -972,11 +972,11 @@ function renderContextPacket(packet = currentContextPacket) {
 function previewContextPacket({ forceLocal = false } = {}) {
   currentContextPacket = buildContextPacket({ forceLocal });
   renderContextPacket(currentContextPacket);
-  mirrorRun.textContent = "Packet ready";
+  mirrorRun.textContent = "Sharing review ready";
   mirrorRun.classList.add("is-complete");
   window.clearTimeout(packetPreviewTimer);
   packetPreviewTimer = window.setTimeout(() => {
-    mirrorRun.textContent = "Preview context packet";
+    mirrorRun.textContent = "Review what is shared";
     mirrorRun.classList.remove("is-complete");
   }, 1100);
   animateElements(Array.from(document.querySelectorAll(".workspace-packet .packet-grid > div, .packet-actions > *")), {
@@ -987,20 +987,20 @@ function previewContextPacket({ forceLocal = false } = {}) {
 
 function routeTruthText(remotePayload, routeKey, packet) {
   if (packet?.local_only) {
-    return "Local-only mode: no gateway call was made. Browser deterministic fallback created this workspace.";
+    return "Browser-only mode: no cloud model call was made. This workspace was created in your browser.";
   }
   if (remotePayload?.route) {
     const label = providerLabel(remotePayload.route);
     const fallback = remotePayload.fallback
-      ? " Provider fallback was used and is recorded in this receipt."
-      : " Gateway route completed without fallback.";
+      ? " Backup model help was used and is recorded in this receipt."
+      : " Model help completed without a backup path.";
     return `${label}.${fallback}`;
   }
   if (packet?.approval_required && !packet.approved) {
-    return "Packet preview only: no gateway call yet. Approve the scoped packet to route through the gateway.";
+    return "Review only: no cloud model call yet. Approve what can be shared before model help runs.";
   }
   const route = workspaceRoutes[routeKey] || workspaceRoutes.reflection;
-  return `${route.route} Gateway unavailable, blocked by origin policy, or provider fallback unavailable; local browser fallback used.`;
+  return `${route.route} Cloud model help was unavailable, so the browser created this workspace.`;
 }
 
 function captureReceiptSnapshot(packet, routeText) {
@@ -1396,7 +1396,7 @@ function summaryMarkdown(summary = currentSummary || buildSessionSummary()) {
     "",
     `- Receipt: ${summary.receipt_id}`,
     `- Boundary: ${summary.boundary}`,
-    `- Route: ${summary.route}`,
+    `- Model path: ${summary.route}`,
     "",
     "## Why",
     summary.why || "No rationale recorded.",
@@ -1457,7 +1457,7 @@ function auditActionLabel(action) {
     unknown: "Mark unknown",
     keep_out: "Keep out",
     review: "Review",
-    promote: "Promote",
+    promote: "Save",
     skip: "Skip",
   }[action] || "Mark";
 }
@@ -1490,24 +1490,24 @@ function renderMirrorAudit(packet = currentContextPacket) {
   const artifact = getArtifactText();
   const trust = activePacket.trust_label || currentTrustMode().label;
   const routeTarget = activePacket.model_target || routeTargetLabel(activePacket.route_key || "reflection");
-  const receiptState = mirrorReceiptId?.textContent?.startsWith("edge-")
-    ? "Edge receipt"
+  const receiptState = mirrorReceiptId?.textContent?.startsWith("model-")
+    ? "Model receipt"
     : activePacket.local_only || activePacket.approved
-      ? "Local receipt"
-      : "Draft audit";
+      ? "Browser receipt"
+      : "Draft review";
 
   const known = [
     `Intent: ${activePacket.task}`,
     `Boundary: ${activePacket.boundary_label}`,
-    `Trust mode: ${trust}`,
-    `Route target: ${routeTarget}`,
+    `Privacy: ${trust}`,
+    `Model help: ${routeTarget}`,
   ];
 
   const uncertain = [
-    "No durable vault entries are loaded in this browser demo.",
+    "No saved context from this browser has been approved for this turn.",
     "No files, tabs, emails, or prior chats were admitted for this turn.",
-    "Generated output is not canonical until a receipt is promoted.",
-    activePacket.approval_required && !activePacket.approved ? "Gateway route has not been approved yet." : "",
+    "Generated output is not reusable until you approve what should be saved.",
+    activePacket.approval_required && !activePacket.approved ? "Cloud model help has not been approved yet." : "",
   ];
 
   const excluded = [
@@ -1516,9 +1516,9 @@ function renderMirrorAudit(packet = currentContextPacket) {
   ];
 
   const canonical = [
-    goals[0] ? `Goal candidate: ${goals[0]}` : "",
-    moves[0] ? `Next-move candidate: ${moves[0]}` : "",
-    artifact ? `Artifact candidate: ${artifact}` : "",
+    goals[0] ? `Goal to save: ${goals[0]}` : "",
+    moves[0] ? `Next move to save: ${moves[0]}` : "",
+    artifact ? `Artifact to save: ${artifact}` : "",
     `Boundary preference: ${activePacket.boundary_label}`,
   ];
 
@@ -1551,7 +1551,7 @@ function renderWorkspaceMirror(remotePayload = null, packet = currentContextPack
 
   mirrorCount.textContent = `${mirrorIntent.value.length} / 1000`;
   const routeTruth = routeTruthText(remotePayload, routeKey, packet);
-  mirrorRouteLabel.textContent = packet?.local_only ? "local / browser fallback" : remotePayload?.route ? providerLabel(remotePayload.route) : route.label;
+  mirrorRouteLabel.textContent = packet?.local_only ? "browser only" : remotePayload?.route ? providerLabel(remotePayload.route) : route.label;
   renderRitualList(mirrorGoals, goals);
   renderRitualList(mirrorBlockers, blockers);
   renderRitualList(mirrorMoves, moves);
@@ -1559,9 +1559,9 @@ function renderWorkspaceMirror(remotePayload = null, packet = currentContextPack
   mirrorBlockerCount.textContent = String(blockers.length);
   mirrorMoveCount.textContent = String(moves.length);
   mirrorArtifact.innerHTML = `<p>${escapeHtml(artifactTitle)}</p><strong>${escapeHtml(artifactSummary)}</strong>`;
-  mirrorReceiptId.textContent = remotePayload?.receipt_id ? `edge-${remotePayload.receipt_id}` : `local-${routeKey}-${String(mirrorTurn).padStart(3, "0")}`;
+  mirrorReceiptId.textContent = remotePayload?.receipt_id ? `model-${remotePayload.receipt_id}` : `browser-${routeKey}-${String(mirrorTurn).padStart(3, "0")}`;
   mirrorReceiptWhy.textContent = receipt.why || route.why;
-  mirrorReceiptUsed.textContent = receipt.context_used || packet?.included_text || `Intent: "${shortIntent(intent || "No intent yet")}" plus selected boundary and route.`;
+  mirrorReceiptUsed.textContent = receipt.context_used || packet?.included_text || `Intent: "${shortIntent(intent || "No intent yet")}" plus selected boundary and model choice.`;
   mirrorReceiptExcluded.textContent = receipt.context_excluded || packet?.excluded_text || boundary.excluded;
   mirrorReceiptRoute.textContent = receipt.route ? `${receipt.route} ${routeTruth}` : routeTruth;
   mirrorReceiptMemory.textContent = receipt.memory_decision || "Pending: nothing saved until you choose a memory decision.";
@@ -1582,7 +1582,7 @@ function renderWorkspaceMirror(remotePayload = null, packet = currentContextPack
       })
     );
   } catch {
-    // The workspace demo remains usable without local persistence.
+    // The workspace remains usable without local persistence.
   }
 }
 
@@ -1608,7 +1608,7 @@ async function generateWorkspaceMirror() {
   const requestId = (mirrorRequestId += 1);
   window.clearTimeout(packetPreviewTimer);
   mirrorRun.disabled = true;
-  mirrorRun.textContent = currentContextPacket.local_only ? "Generating locally..." : "Generating at gateway...";
+    mirrorRun.textContent = currentContextPacket.local_only ? "Creating in browser..." : "Using approved model help...";
   mirrorRun.classList.remove("is-complete");
 
   if (currentContextPacket.local_only) {
@@ -1621,7 +1621,7 @@ async function generateWorkspaceMirror() {
       duration: 0.38,
     });
     window.setTimeout(() => {
-      mirrorRun.textContent = "Create local workspace";
+      mirrorRun.textContent = "Create browser workspace";
       mirrorRun.classList.remove("is-complete");
     }, 1600);
     return;
@@ -1652,13 +1652,13 @@ async function generateWorkspaceMirror() {
     if (requestId !== mirrorRequestId) return;
 
     renderWorkspaceMirror(payload, currentContextPacket);
-    mirrorRun.textContent = payload.fallback ? "Fallback workspace ready" : "Workspace ready";
+    mirrorRun.textContent = payload.fallback ? "Backup workspace ready" : "Workspace ready";
     mirrorRun.classList.add("is-complete");
   } catch (error) {
     window.clearTimeout(gatewayTimeout);
     if (requestId !== mirrorRequestId) return;
     renderWorkspaceMirror(null, currentContextPacket);
-    mirrorRun.textContent = "Local fallback generated";
+    mirrorRun.textContent = "Browser workspace ready";
     mirrorRun.classList.add("is-complete");
   } finally {
     mirrorRun.disabled = false;
@@ -1667,7 +1667,7 @@ async function generateWorkspaceMirror() {
       duration: 0.38,
     });
     window.setTimeout(() => {
-      mirrorRun.textContent = "Preview context packet";
+      mirrorRun.textContent = "Review what is shared";
       mirrorRun.classList.remove("is-complete");
     }, 1600);
   }
@@ -1801,7 +1801,7 @@ if (mirrorIntent && mirrorBoundary && mirrorRoute && mirrorRun) {
   });
   loadAuditDecisions();
   renderPrivateContext();
-  initializeBrowserVault().catch(() => setVaultStatus("Vault fallback", "Browser vault will use local session storage only."));
+  initializeBrowserVault().catch(() => setVaultStatus("Storage limited", "Receipts can still be saved in this browser session."));
   mirrorAudit?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-audit-action]");
     if (!button) return;
@@ -1820,7 +1820,7 @@ if (mirrorIntent && mirrorBoundary && mirrorRoute && mirrorRun) {
     } else {
       item.querySelector(".audit-decision-badge").textContent = `${auditActionLabel(action)} recorded`;
     }
-    button.textContent = action === "promote" ? "Promoted" : action === "keep_out" ? "Kept out" : "Marked";
+    button.textContent = action === "promote" ? "Saved" : action === "keep_out" ? "Kept out" : "Marked";
     mirrorAuditState.textContent = `Audit edits ${auditDecisionCount}`;
     try {
       const prior = JSON.parse(localStorage.getItem("activeMirrorAuditDecisions") || "[]");

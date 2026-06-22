@@ -47,21 +47,21 @@
           </div>
         </div>
 
-        <div class="workspace-live-card" aria-label="Live route policy">
-          <span>Route policy</span>
+        <div class="workspace-live-card" aria-label="Model help policy">
+          <span>Model help</span>
           <strong>GPT for decisions. Claude for critique. Gemini for media.</strong>
-          <p>Providers are helpers behind gates. The packet preview shows what leaves the browser before a route is approved.</p>
+          <p>You approve what leaves the browser before model help runs.</p>
         </div>
       </section>
 
-      <section class="workspace-app" aria-label="Active Mirror workspace demo">
+      <section class="workspace-app" aria-label="Active Mirror workspace">
         <form class="workspace-panel workspace-input" aria-label="Mirror input">
           <div class="panel-head split">
             <strong>Turn input</strong>
             <span id="mirror-count">0 / 1000</span>
           </div>
           <label for="mirror-intent">What are you trying to move forward?</label>
-          <textarea id="mirror-intent" rows="6" maxlength="1000">I need to decide the next Active Mirror v0.1 slice without drifting from the core loop: important decision, artifact, receipt, and approved memory.</textarea>
+          <textarea id="mirror-intent" rows="6" maxlength="1000">I need to decide the next useful product step without drifting from the core loop: decision, artifact, receipt, and approved memory.</textarea>
 
           <div class="workspace-controls">
             <label>
@@ -69,23 +69,23 @@
               <select id="mirror-boundary">
                 <option value="personal">Do not store personal history without approval</option>
                 <option value="client">Do not expose client or partner details</option>
-                <option value="secrets">Do not route secrets to cloud models</option>
+                <option value="secrets">Do not send secrets to cloud models</option>
                 <option value="drafts">Do not promote rough drafts to memory</option>
               </select>
             </label>
             <label>
-              Route
+              Model help
               <select id="mirror-route">
-                <option value="auto">Auto route by intent</option>
+                <option value="auto">Auto choose by intent</option>
                 <option value="reflection">Decision help: GPT</option>
                 <option value="chat">Chat critique: Claude</option>
                 <option value="media">Media and visuals: Gemini</option>
               </select>
             </label>
             <label>
-              Trust mode
+              Privacy
               <select id="mirror-trust">
-                <option value="approved">Approved cloud help</option>
+                <option value="approved">Use approved model help</option>
                 <option value="local">Local only</option>
                 <option value="public">Public-safe</option>
                 <option value="client">Client-confidential</option>
@@ -93,12 +93,12 @@
             </label>
           </div>
 
-          <button class="button primary full" id="mirror-run" type="button">Preview context packet</button>
+          <button class="button primary full" id="mirror-run" type="button">Review what is shared</button>
         </form>
 
-        <section class="workspace-panel workspace-packet" aria-label="Context packet preview">
+        <section class="workspace-panel workspace-packet" aria-label="Sharing review">
           <div class="panel-head split">
-            <strong>Context packet</strong>
+            <strong>Sharing review</strong>
             <span id="mirror-packet-state">Draft</span>
           </div>
           <dl class="packet-grid">
@@ -106,13 +106,13 @@
             <div><dt>Scope</dt><dd id="mirror-packet-scope"></dd></div>
             <div><dt>Context included</dt><dd id="mirror-packet-used"></dd></div>
             <div><dt>Context excluded</dt><dd id="mirror-packet-excluded"></dd></div>
-            <div><dt>Route target</dt><dd id="mirror-packet-route"></dd></div>
+            <div><dt>Model help</dt><dd id="mirror-packet-route"></dd></div>
             <div><dt>Boundary</dt><dd id="mirror-packet-boundary"></dd></div>
           </dl>
-          <div class="packet-actions" aria-label="Context packet actions">
-            <button class="button primary small" id="mirror-approve" type="button">Approve route</button>
-            <button class="button secondary small" id="mirror-force-local" type="button">Force local-only</button>
-            <button class="text-button" id="mirror-cancel" type="button">Cancel packet</button>
+          <div class="packet-actions" aria-label="Sharing review actions">
+            <button class="button primary small" id="mirror-approve" type="button">Approve model help</button>
+            <button class="button secondary small" id="mirror-force-local" type="button">Keep in browser</button>
+            <button class="text-button" id="mirror-cancel" type="button">Cancel sharing</button>
           </div>
         </section>
 
@@ -150,7 +150,7 @@
             <div><dt>Why</dt><dd id="mirror-receipt-why"></dd></div>
             <div><dt>Context used</dt><dd id="mirror-receipt-used"></dd></div>
             <div><dt>Context excluded</dt><dd id="mirror-receipt-excluded"></dd></div>
-            <div><dt>Route</dt><dd id="mirror-receipt-route"></dd></div>
+            <div><dt>Model path</dt><dd id="mirror-receipt-route"></dd></div>
             <div><dt>Memory decision</dt><dd id="mirror-receipt-memory"></dd></div>
           </dl>
         </section>
@@ -198,8 +198,8 @@
               <strong>Browser vault</strong>
               <span id="mirror-vault-state">Checking</span>
             </div>
-            <p id="mirror-vault-summary">Receipts stay in this browser first. OPFS is used when available.</p>
-            <code id="mirror-vault-head">head: genesis</code>
+            <p id="mirror-vault-summary">Receipts stay in this browser first. Protected browser storage is used when available.</p>
+            <code id="mirror-vault-head">receipt chain: empty</code>
           </div>
           <div class="memory-actions" aria-label="Memory decision actions">
             <button type="button" data-memory-decision="forget">Forget turn</button>
@@ -254,7 +254,7 @@
               <ul id="mirror-audit-excluded"></ul>
             </article>
             <article class="audit-bucket canonical">
-              <div><strong>Canonical candidates</strong><span id="mirror-audit-canonical-count">0</span></div>
+              <div><strong>Could be saved</strong><span id="mirror-audit-canonical-count">0</span></div>
               <ul id="mirror-audit-canonical"></ul>
             </article>
           </div>
@@ -263,7 +263,7 @@
 
       <section class="page-section split-section">
         <div>
-          <h2>The browser runtime has three jobs.</h2>
+          <h2>The workspace has three jobs.</h2>
           <p>
             It turns messy intent into structure, keeps sensitive material behind boundaries,
             and makes every useful recommendation inspectable before memory is saved.
@@ -271,7 +271,7 @@
         </div>
         <div class="feature-grid tight">
           <article><strong>Workspace</strong><span>The next useful summary, plan, or board appears turn by turn.</span></article>
-          <article><strong>Receipt</strong><span>Reasoning, context, route, and exclusions stay visible.</span></article>
+          <article><strong>Receipt</strong><span>Reasoning, context, model path, and exclusions stay visible.</span></article>
           <article><strong>Approved memory</strong><span>Continuity grows only from reviewed user decisions.</span></article>
         </div>
       </section>
