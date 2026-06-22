@@ -183,6 +183,7 @@ const receiptExcluded = document.querySelector("#receipt-excluded");
 const receiptRoute = document.querySelector("#receipt-route");
 const receiptMemory = document.querySelector("#receipt-memory");
 const receiptLines = Array.from(document.querySelectorAll(".receipt-line"));
+const openGeneratedMirror = document.querySelector("#open-generated-mirror");
 
 const mobileModeNodes = {
   launching: ["Research", "Launch proof", "Prototype", "Receipt"],
@@ -308,9 +309,9 @@ function initMagneticControls() {
 
 function initHeroParallax() {
   if (!canAnimate || !window.matchMedia("(pointer: fine)").matches) return;
-  const hero = document.querySelector(".ritual-hero");
-  const stage = document.querySelector(".ritual-stage");
-  const receipt = document.querySelector(".receipt-pack");
+  const hero = document.querySelector(".ritual-hero") || document.querySelector(".genui-workspace");
+  const stage = document.querySelector(".ritual-stage") || document.querySelector(".genui-stage");
+  const receipt = document.querySelector(".receipt-pack") || document.querySelector(".ritual-receipt");
   if (!hero || !stage) return;
 
   hero.addEventListener("pointermove", (event) => {
@@ -379,6 +380,7 @@ function currentRitualMode(text) {
 }
 
 function renderRitualList(target, items) {
+  if (!target) return;
   target.innerHTML = items.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
 }
 
@@ -388,28 +390,36 @@ function animateRitualBoard() {
 }
 
 function renderRitual() {
-  if (!ritualIntent || !ritualBoundary || !ritualGoals || !ritualBlockers || !ritualMoves) return;
+  if (!ritualIntent || !ritualBoundary) return;
   const intent = ritualIntent.value || ritualInitialIntent;
   const modeKey = currentRitualMode(intent);
   const mode = ritualModes[modeKey];
   const boundary = boundaryCopy[ritualBoundary.value] || boundaryCopy.personal;
 
   document.documentElement.dataset.ritualMode = modeKey;
-  ritualCount.textContent = String(ritualIntent.value.length);
+  if (ritualCount) ritualCount.textContent = String(ritualIntent.value.length);
   renderRitualList(ritualGoals, mode.goals);
   renderRitualList(ritualBlockers, mode.blockers);
   renderRitualList(ritualMoves, mode.moves);
 
-  goalCount.textContent = String(mode.goals.length);
-  blockerCount.textContent = String(mode.blockers.length);
-  moveCount.textContent = String(mode.moves.length);
-  ritualArtifact.innerHTML = `<p>${mode.artifact[0]}</p><strong>${mode.artifact[1]}</strong>`;
-  ritualReceiptTime.textContent = `local-turn-${String(ritualTurn).padStart(3, "0")}`;
-  receiptWhy.textContent = mode.why;
-  receiptUsed.textContent = `Intent: "${shortIntent(intent)}" plus the selected boundary.`;
-  receiptExcluded.textContent = boundary.excluded;
-  receiptRoute.textContent = boundary.route;
-  receiptMemory.textContent = boundary.memory;
+  if (goalCount) goalCount.textContent = String(mode.goals.length);
+  if (blockerCount) blockerCount.textContent = String(mode.blockers.length);
+  if (moveCount) moveCount.textContent = String(mode.moves.length);
+  if (ritualArtifact) ritualArtifact.innerHTML = `<p>${mode.artifact[0]}</p><strong>${mode.artifact[1]}</strong>`;
+  if (ritualReceiptTime) ritualReceiptTime.textContent = `local-turn-${String(ritualTurn).padStart(3, "0")}`;
+  if (receiptWhy) receiptWhy.textContent = mode.why;
+  if (receiptUsed) receiptUsed.textContent = `Intent: "${shortIntent(intent)}" plus the selected boundary.`;
+  if (receiptExcluded) receiptExcluded.textContent = boundary.excluded;
+  if (receiptRoute) receiptRoute.textContent = boundary.route;
+  if (receiptMemory) receiptMemory.textContent = boundary.memory;
+  if (openGeneratedMirror) {
+    openGeneratedMirror.href = mirrorStartPath({
+      intent,
+      boundary: ritualBoundary.value || "personal",
+      route: "reflection",
+      trust: "local",
+    });
+  }
 
   try {
     localStorage.setItem(
@@ -429,15 +439,27 @@ function markRitualGenerated() {
   withViewTransition(() => {
     ritualTurn += 1;
     renderRitual();
-    ritualStatus.textContent = "Updated in your browser";
+    if (ritualStatus) ritualStatus.textContent = "Reflected in browser";
     ritualCreate.textContent = "Mirror generated";
     ritualCreate.classList.add("is-complete");
     receiptLines[0]?.classList.add("is-open");
   });
   animateRitualBoard();
+  if (canAnimate) {
+    gsap.fromTo(
+      ".genui-stage",
+      { scale: 0.992, filter: "saturate(0.94)" },
+      { scale: 1, filter: "saturate(1.04)", duration: 0.72, ease: "power3.out" }
+    );
+    gsap.fromTo(
+      ".stage-pulse",
+      { autoAlpha: 0.2, scale: 0.82 },
+      { autoAlpha: 1, scale: 1.08, duration: 0.82, stagger: 0.08, ease: "power3.out" }
+    );
+  }
 
   window.setTimeout(() => {
-    ritualCreate.textContent = "Create my first mirror";
+    ritualCreate.textContent = "Reflect again";
     ritualCreate.classList.remove("is-complete");
   }, 1700);
 }
@@ -584,7 +606,7 @@ if (
   renderHeroMode("launching");
 }
 
-if (ritualIntent && ritualBoundary && ritualCreate && ritualReset) {
+if (ritualIntent && ritualBoundary && ritualCreate) {
   try {
     const savedRitual = JSON.parse(localStorage.getItem("activeMirrorFirstUse") || "null");
     if (savedRitual?.intent) ritualIntent.value = savedRitual.intent;
@@ -605,12 +627,6 @@ if (ritualIntent && ritualBoundary && ritualCreate && ritualReset) {
 
   ritualCreate.addEventListener("click", () => {
     markRitualGenerated();
-    window.location.href = mirrorStartPath({
-      intent: ritualIntent.value || ritualInitialIntent,
-      boundary: ritualBoundary.value || "personal",
-      route: "reflection",
-      trust: "local",
-    });
   });
   ritualRefresh?.addEventListener("click", markRitualGenerated);
   ritualExpand?.addEventListener("click", async () => {
@@ -630,12 +646,12 @@ if (ritualIntent && ritualBoundary && ritualCreate && ritualReset) {
     if (ritualExpand) ritualExpand.textContent = document.fullscreenElement ? "Close" : "Expand";
   });
 
-  ritualReset.addEventListener("click", () => {
+  ritualReset?.addEventListener("click", () => {
     withViewTransition(() => {
       ritualTurn = 1;
       ritualIntent.value = ritualInitialIntent;
       ritualBoundary.value = "personal";
-      ritualStatus.textContent = "Ready in browser";
+      if (ritualStatus) ritualStatus.textContent = "Ready";
       receiptLines.forEach((line, index) => line.classList.toggle("is-open", index === 0));
       renderRitual();
     });
@@ -654,7 +670,7 @@ if (ritualIntent && ritualBoundary && ritualCreate && ritualReset) {
   });
 
   renderRitual();
-  animateElements(Array.from(document.querySelectorAll(".ritual-create-panel, .mirror-device, .receipt-pack, .space-control")), {
+  animateElements(Array.from(document.querySelectorAll(".ritual-create-panel, .genui-panel, .mirror-device, .genui-stage, .receipt-pack, .space-control")), {
     y: 22,
     duration: 0.7,
     stagger: 0.09,
