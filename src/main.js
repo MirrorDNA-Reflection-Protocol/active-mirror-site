@@ -290,6 +290,67 @@ function animateElements(targets, vars = {}) {
   );
 }
 
+function initMagneticControls() {
+  if (!canAnimate || !window.matchMedia("(pointer: fine)").matches) return;
+  const controls = Array.from(document.querySelectorAll(".button, .scenario-button, .card-link, .tool-button"));
+  controls.forEach((control) => {
+    control.addEventListener("pointermove", (event) => {
+      const rect = control.getBoundingClientRect();
+      const x = (event.clientX - rect.left - rect.width / 2) * 0.12;
+      const y = (event.clientY - rect.top - rect.height / 2) * 0.16;
+      gsap.to(control, { x, y, duration: 0.35, ease: "power3.out" });
+    });
+    control.addEventListener("pointerleave", () => {
+      gsap.to(control, { x: 0, y: 0, duration: 0.55, ease: "elastic.out(1, 0.55)" });
+    });
+  });
+}
+
+function initHeroParallax() {
+  if (!canAnimate || !window.matchMedia("(pointer: fine)").matches) return;
+  const hero = document.querySelector(".ritual-hero");
+  const stage = document.querySelector(".ritual-stage");
+  const receipt = document.querySelector(".receipt-pack");
+  if (!hero || !stage) return;
+
+  hero.addEventListener("pointermove", (event) => {
+    const rect = hero.getBoundingClientRect();
+    const x = event.clientX / rect.width - 0.5;
+    const y = (event.clientY - rect.top) / rect.height - 0.5;
+    gsap.to(stage, { x: x * 12, y: y * 10, duration: 0.8, ease: "power3.out" });
+    if (receipt) gsap.to(receipt, { x: x * -8, y: y * -5, rotate: x * -0.7, duration: 0.8, ease: "power3.out" });
+  });
+  hero.addEventListener("pointerleave", () => {
+    gsap.to([stage, receipt].filter(Boolean), { x: 0, y: 0, rotate: 0, duration: 0.7, ease: "power3.out" });
+  });
+}
+
+function initScrollReveals() {
+  if (!canAnimate) return;
+  const revealTargets = Array.from(
+    document.querySelectorAll(".receipt-line, .route-card, .airlock-stack > div, .image-frame, .linked-card")
+  );
+  if (!revealTargets.length) return;
+
+  const revealObserver = new IntersectionObserver(
+    (entries, localObserver) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting || entry.target.dataset.revealed) return;
+        entry.target.dataset.revealed = "true";
+        gsap.fromTo(
+          entry.target,
+          { autoAlpha: 0, y: 18, filter: "blur(8px)" },
+          { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: 0.62, ease: "power3.out" }
+        );
+        localObserver.unobserve(entry.target);
+      });
+    },
+    { rootMargin: "0px 0px -12% 0px", threshold: 0.12 }
+  );
+
+  revealTargets.forEach((target) => revealObserver.observe(target));
+}
+
 function shortIntent(text) {
   const clean = text.replace(/\s+/g, " ").trim();
   if (clean.length <= 86) return clean;
@@ -1949,3 +2010,7 @@ document.querySelectorAll("section, .tool-strip, .cta-panel").forEach((section) 
   section.classList.add("reveal");
   observer.observe(section);
 });
+
+initMagneticControls();
+initHeroParallax();
+initScrollReveals();
