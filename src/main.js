@@ -635,7 +635,7 @@ if (ritualIntent && ritualBoundary && ritualCreate && ritualReset) {
       ritualTurn = 1;
       ritualIntent.value = ritualInitialIntent;
       ritualBoundary.value = "personal";
-      ritualStatus.textContent = "Generated just now";
+      ritualStatus.textContent = "Ready in browser";
       receiptLines.forEach((line, index) => line.classList.toggle("is-open", index === 0));
       renderRitual();
     });
