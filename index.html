@@ -9,7 +9,7 @@
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Active Mirror | The AI that proves it</title>
-    <script type="module" crossorigin src="/assets/main-BmmqkJyN.js"></script>
+    <script type="module" crossorigin src="/assets/main-dVQ7Ta-o.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/main-DC7ZrIKi.css">
   </head>
   <body>
@@ -68,7 +68,7 @@
                 <select id="ritual-boundary">
                   <option value="personal">Do not store personal history without approval</option>
                   <option value="client">Do not expose client or partner details</option>
-                  <option value="secrets">Do not route secrets to cloud models</option>
+                  <option value="secrets">Do not send secrets to cloud models</option>
                   <option value="drafts">Do not promote rough drafts to memory</option>
                 </select>
                 <em>Everything stays private unless you explicitly share it.</em>
@@ -128,7 +128,7 @@
           <div class="ritual-receipt receipt-pack" id="receipts" aria-label="First mirror receipts">
             <div class="receipt-section-heading">
               <h2>Don't trust it. Read the receipt.</h2>
-              <p>Context used. Context excluded. Route taken. Memory decision. Every turn, on the record.</p>
+              <p>Context used. Context excluded. Model path. Memory decision. Every turn, on the record.</p>
             </div>
             <div class="receipt-strip">
               <span>Receipt</span>
@@ -147,8 +147,8 @@
               <strong id="receipt-excluded">Secrets, personal details, and unapproved memory promotion.</strong>
             </button>
             <button class="receipt-line" type="button">
-              <span>Route</span>
-              <strong id="receipt-route">Local browser board first. Cloud model only after gate approval.</strong>
+              <span>Model path</span>
+              <strong id="receipt-route">Local browser board first. Cloud model help only after approval.</strong>
             </button>
             <button class="receipt-line" type="button">
               <span>Memory decision</span>
@@ -264,7 +264,7 @@
           <section class="workspace-route">
             <div class="panel-head">
               <span class="document-icon" aria-hidden="true"></span>
-              <strong>Generated workspace route</strong>
+              <strong>Suggested path</strong>
             </div>
             <ol id="route-list"></ol>
             <a class="button primary full" id="open-workspace" href="/mirror/">Open in workspace</a>
@@ -296,44 +296,44 @@
             <p class="section-label">Proof</p>
             <h2>Built to govern real work.</h2>
             <p>
-              Active Mirror runs live, receipt-backed infrastructure under human approval
-              and truth-state enforcement. The protocol behind it is published and citable.
+              Active Mirror keeps serious work under human approval, with receipts
+              that show what was used, what was excluded, and what was saved.
             </p>
-            <a class="button secondary small" href="https://doi.org/10.5281/zenodo.17787618">Read the SCD protocol &rarr;</a>
+            <a class="button secondary small" href="https://doi.org/10.5281/zenodo.17787618">Read the published method &rarr;</a>
             <div class="airlock-stack">
-              <div><span>Approval</span><strong>Human approval stays visible before memory or route changes.</strong></div>
-              <div><span>Truth</span><strong>Claims, context, and exclusions stay receipt-backed.</strong></div>
-              <div><span>Protocol</span><strong>The governance pattern is published and citable.</strong></div>
+              <div><span>Approval</span><strong>You approve what can be shared or remembered.</strong></div>
+              <div><span>Receipts</span><strong>Claims, context, and exclusions stay visible.</strong></div>
+              <div><span>Proof</span><strong>The method behind the workflow is published and citable.</strong></div>
             </div>
           </div>
           <div class="airlock-panel">
             <div class="panel-head split">
-              <strong>Route Airlock</strong>
-              <span class="live-pill">Policy active</span>
+              <strong>Sharing check</strong>
+              <span class="live-pill">Active</span>
             </div>
             <div class="route-grid">
               <article class="route-card">
-                <span>Network</span>
-                <strong>Online</strong>
-                <p>Latency checked before route selection.</p>
+                <span>Connection</span>
+                <strong>Ready</strong>
+                <p>Checks availability before cloud model help is used.</p>
               </article>
               <article class="route-card">
-                <span>Classification</span>
-                <strong>Sovereign</strong>
-                <p>Private context forces local-first execution.</p>
+                <span>Privacy</span>
+                <strong>In browser</strong>
+                <p>Private context stays in the browser unless you approve sharing.</p>
               </article>
               <article class="route-card">
-                <span>Adapter</span>
-                <strong>local-webgpu</strong>
-                <p>Cloud adapters are swappable, not core logic.</p>
+                <span>Model help</span>
+                <strong>Optional</strong>
+                <p>GPT, Claude, and Gemini support the work only after approval.</p>
               </article>
             </div>
             <div class="route-meter">
               <div class="meter-line" aria-hidden="true"></div>
               <div class="meter-copy">
-                <span>Local worker</span>
-                <span>Privacy airlock</span>
-                <span>External API</span>
+                <span>Browser first</span>
+                <span>Approval check</span>
+                <span>Model help</span>
               </div>
             </div>
           </div>
