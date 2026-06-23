@@ -9,8 +9,8 @@
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Active Mirror | Welcome</title>
-    <script type="module" crossorigin src="/assets/main-DYqmSugi.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/main-D5KlB2cV.css">
+    <script type="module" crossorigin src="/assets/main-BTTk51mR.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/main-DnXQ4EOB.css">
   </head>
   <body class="home-genui">
     <header class="site-nav genui-nav" aria-label="Primary">
@@ -81,6 +81,27 @@
             </div>
             <small><strong id="ritual-count">91</strong> / 1000 - private first, extra help waits for approval</small>
           </form>
+
+          <section class="approved-help-review" id="approved-help-review" aria-label="Extra help approval" hidden>
+            <div class="approval-head">
+              <span>Approval check</span>
+              <strong>Review what leaves this browser.</strong>
+            </div>
+            <dl>
+              <div>
+                <dt>Used</dt>
+                <dd id="approved-help-used">Current turn and selected boundary.</dd>
+              </div>
+              <div>
+                <dt>Kept out</dt>
+                <dd id="approved-help-excluded">Saved context, files, and private history stay out.</dd>
+              </div>
+            </dl>
+            <div class="approval-actions">
+              <button class="button primary small" id="approved-help-approve" type="button">Approve this turn</button>
+              <button class="button secondary small" id="approved-help-cancel" type="button">Keep browser first</button>
+            </div>
+          </section>
 
           <section class="live-turn" aria-label="Live mirror response">
             <div class="turn-speaker">
@@ -353,11 +374,58 @@
           <p>Bring one workflow. Active Mirror reflects it, shapes the work, and shows what happened.</p>
           <div>
             <a class="button secondary small" id="open-generated-mirror" href="#first-use">Keep working here</a>
-            <a class="button primary small" href="mailto:hello@activemirror.ai?subject=Active%20Mirror%2072-hour%20proof%20sprint">Start proof sprint</a>
+            <button class="button primary small" id="proof-sprint-open" type="button">Start proof sprint</button>
             <button class="button secondary small" id="ritual-reset" type="button">Reset</button>
           </div>
         </div>
       </section>
+
+      <div class="proof-sprint-modal" id="proof-sprint-modal" aria-labelledby="proof-sprint-title" hidden>
+        <div class="proof-sprint-backdrop" data-proof-close></div>
+        <section class="proof-sprint-card" role="dialog" aria-modal="true">
+          <div class="proof-sprint-head">
+            <div>
+              <span>Proof sprint</span>
+              <h2 id="proof-sprint-title">Bring one workflow.</h2>
+              <p>We prepare a receipt-backed request you approve before anything is sent.</p>
+            </div>
+            <button class="proof-close" id="proof-sprint-close" type="button" aria-label="Close proof sprint">Close</button>
+          </div>
+
+          <form class="proof-sprint-form" id="proof-sprint-form">
+            <label>
+              Workflow
+              <textarea id="proof-workflow" rows="4" maxlength="1000" placeholder="What workflow should Active Mirror prove on?"></textarea>
+            </label>
+            <label>
+              Success looks like
+              <input id="proof-success" type="text" maxlength="180" placeholder="Example: clear decision, artifact, receipt, next move" />
+            </label>
+            <div class="proof-grid">
+              <label>
+                Boundary
+                <select id="proof-boundary">
+                  <option value="No personal context">No personal context</option>
+                  <option value="No client details">No client details</option>
+                  <option value="No secrets">No secrets</option>
+                  <option value="Drafts only">Drafts only</option>
+                </select>
+              </label>
+              <label>
+                Email
+                <input id="proof-email" type="email" autocomplete="email" maxlength="180" placeholder="you@example.com" />
+              </label>
+            </div>
+            <button class="button primary full" type="submit">Prepare request</button>
+          </form>
+
+          <article class="proof-sprint-output" id="proof-sprint-output" hidden>
+            <span>Ready to send</span>
+            <p id="proof-sprint-summary">Your request is prepared locally.</p>
+            <a class="button secondary full" id="proof-sprint-mail" href="mailto:hello@activemirror.ai?subject=Active%20Mirror%20proof%20sprint">Open email</a>
+          </article>
+        </section>
+      </div>
     </main>
 
   </body>
