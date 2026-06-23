@@ -5167,10 +5167,10 @@ body.home-genui::before {
 }
 
 .genui-workspace {
-  width: min(1500px, calc(100vw - 32px));
+  width: min(1380px, calc(100vw - 32px));
   min-height: calc(100svh - 100px);
   display: grid;
-  grid-template-columns: minmax(360px, 0.42fr) minmax(0, 0.78fr);
+  grid-template-columns: minmax(360px, 0.38fr) minmax(0, 0.82fr);
   grid-template-rows: minmax(0, 1fr) auto;
   grid-template-areas:
     "panel stage"
@@ -5192,9 +5192,8 @@ body.home-genui::before {
 .genui-panel {
   grid-area: panel;
   display: grid;
-  grid-template-rows: auto auto auto auto;
   align-content: start;
-  gap: 18px;
+  gap: 16px;
   min-width: 0;
   padding: clamp(18px, 2vw, 28px);
   border-radius: 18px;
@@ -5202,15 +5201,16 @@ body.home-genui::before {
 }
 
 .genui-copy {
+  order: 1;
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .genui-copy h1 {
-  max-width: 560px;
+  max-width: 520px;
   color: var(--ink);
-  font-size: clamp(46px, 5vw, 78px);
-  line-height: 0.95;
+  font-size: clamp(38px, 4vw, 62px);
+  line-height: 1;
   letter-spacing: 0;
   text-shadow: none;
 }
@@ -5222,7 +5222,32 @@ body.home-genui::before {
   line-height: 1.5;
 }
 
+.front-trust {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 0;
+  margin: 2px 0 0;
+  list-style: none;
+}
+
+.front-trust li {
+  flex: 0 0 auto;
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid rgba(7, 137, 82, 0.24);
+  border-radius: 999px;
+  color: #057647;
+  background: rgba(231, 248, 239, 0.74);
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 820;
+}
+
 .reflection-composer {
+  order: 3;
   display: grid;
   gap: 12px;
   min-width: 0;
@@ -5273,13 +5298,13 @@ body.home-genui::before {
 
 .composer-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(150px, 0.72fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
 }
 
 #home-model-mode {
-  min-width: 150px;
+  display: none;
 }
 
 .reflection-composer small {
@@ -5290,6 +5315,7 @@ body.home-genui::before {
 }
 
 .approved-help-review {
+  order: 4;
   display: grid;
   gap: 12px;
   min-width: 0;
@@ -5362,7 +5388,7 @@ body.home-genui::before {
 }
 
 .live-turn {
-  display: grid;
+  display: none;
   gap: 10px;
   min-width: 0;
   padding: 12px;
@@ -5445,7 +5471,8 @@ body.home-genui::before {
 }
 
 .glass-state-strip {
-  display: grid;
+  order: 5;
+  display: none;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   padding: 10px;
@@ -5487,11 +5514,13 @@ body.home-genui::before {
 }
 
 .work-lanes {
-  display: flex;
+  order: 2;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 9px;
   min-width: 0;
   padding-bottom: 2px;
-  overflow-x: auto;
+  overflow: visible;
   scrollbar-width: none;
 }
 
@@ -5500,7 +5529,7 @@ body.home-genui::before {
 }
 
 .home-work-lane {
-  flex: 0 0 138px;
+  width: 100%;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   grid-template-areas:
@@ -5508,7 +5537,7 @@ body.home-genui::before {
     "num copy";
   gap: 3px 10px;
   min-height: 66px;
-  padding: 12px;
+  padding: 11px;
   border: 1px solid rgba(185, 199, 216, 0.84);
   border-radius: 12px;
   color: var(--ink);
@@ -5665,9 +5694,9 @@ body.home-genui::before {
   position: relative;
   grid-area: stage;
   min-width: 0;
-  min-height: 640px;
+  min-height: 560px;
   display: grid;
-  grid-template-rows: auto auto minmax(240px, auto) auto;
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 14px;
   padding: 18px;
   border-radius: 22px;
@@ -5678,7 +5707,7 @@ body.home-genui::before {
 .live-map {
   position: relative;
   min-height: 280px;
-  display: grid;
+  display: none;
   grid-template-columns: minmax(150px, 0.95fr) minmax(230px, 1.15fr) minmax(150px, 0.95fr);
   grid-template-areas:
     "edge edge edge"
@@ -5857,7 +5886,7 @@ body.home-genui::before {
 }
 
 .privacy-rail {
-  display: grid;
+  display: none;
   grid-template-columns: auto repeat(4, minmax(0, 1fr));
   gap: 1px;
   align-items: stretch;
@@ -5933,6 +5962,7 @@ body.home-genui::before {
 }
 
 .home-surface {
+  order: 1;
   min-height: 260px;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
@@ -6198,6 +6228,7 @@ body.home-genui::before {
 }
 
 .receipt-card {
+  order: 2;
   position: static;
   width: auto;
   display: grid;
@@ -6746,6 +6777,10 @@ body.modal-open {
 
   .genui-copy h1 {
     font-size: clamp(32px, 10.2vw, 42px);
+  }
+
+  .front-trust {
+    display: none;
   }
 
   .glass-state-strip {

@@ -1033,7 +1033,7 @@ async function markRitualGenerated(surfaceOverride = null, laneOverride = null) 
     setActiveHomeLane(laneKey);
     renderRitual(surfaceKey, laneKey);
     if (ritualStatus) ritualStatus.textContent = selectedHelp === "local" ? "Reflected in browser" : `Using ${homeHelpLabel(selectedHelp)}`;
-    ritualCreate.textContent = selectedHelp === "local" ? "Reflected" : "Working...";
+    ritualCreate.textContent = selectedHelp === "local" ? "Next move ready" : "Working...";
     ritualCreate.disabled = selectedHelp !== "local";
     ritualCreate.classList.add("is-complete");
     receiptLines[0]?.classList.add("is-open");
@@ -1089,7 +1089,7 @@ async function markRitualGenerated(surfaceOverride = null, laneOverride = null) 
 
   window.setTimeout(() => {
     if (requestId !== homeRequestId) return;
-    ritualCreate.textContent = "Reflect again";
+    ritualCreate.textContent = "Get next move";
     ritualCreate.classList.remove("is-complete");
   }, selectedHelp === "local" ? 1700 : 2200);
 }
@@ -1100,10 +1100,10 @@ function applyLandingVariant() {
   const copy = document.querySelector(".genui-copy p");
   const bottomCopy = document.querySelector(".genui-bottom-bar p");
   document.documentElement.dataset.landingVariant = "proof";
-  if (title) title.textContent = "Most AI gives answers. Active Mirror shows its work.";
+  if (title) title.textContent = "Try one workflow.";
   if (copy) {
     copy.textContent =
-      "Try one workflow. See what it used, what it left out, what changed, and what needs your approval before anything moves.";
+      "Get a next move. See the receipt first.";
   }
   if (bottomCopy) bottomCopy.textContent = "Use one real workflow. If the receipt is useful, start a proof sprint.";
   if (ritualIntent) {
