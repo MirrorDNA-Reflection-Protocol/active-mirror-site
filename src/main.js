@@ -199,6 +199,10 @@ const homeStateMode = document.querySelector("#home-state-mode");
 const homeStateRoute = document.querySelector("#home-state-route");
 const homeStateBoundary = document.querySelector("#home-state-boundary");
 const homeStateReceipt = document.querySelector("#home-state-receipt");
+const homeChatSummary = document.querySelector("#home-chat-summary");
+const homeChatNext = document.querySelector("#home-chat-next");
+const homeChatBoundary = document.querySelector("#home-chat-boundary");
+const homeFollowups = document.querySelector("#home-followups");
 
 let currentHomeLane = "decision";
 let homeRemotePayload = null;
@@ -241,7 +245,7 @@ const ritualInitialIntent =
 const boundaryCopy = {
   personal: {
     excluded: "Personal history, sensitive emotion, and private identity context stay out unless approved.",
-    route: "Local browser board first. Hosted models can help only after a boundary gate.",
+    route: "Browser reflection first. Extra help can join only after a boundary check.",
     memory: "No personal context is promoted until the receipt is accepted.",
   },
   client: {
@@ -251,7 +255,7 @@ const boundaryCopy = {
   },
   secrets: {
     excluded: "Keys, tokens, credentials, private URLs, and operational secrets are blocked from sharing.",
-    route: "Secret-bearing work stays local. Cloud models only receive redacted tasks.",
+    route: "Secret-bearing work stays local. Extra help only receives a redacted task.",
     memory: "Secrets are never saved as memory entries.",
   },
   drafts: {
@@ -481,11 +485,11 @@ function homeRouteFromMode(laneKey = currentHomeLane) {
 
 function homeHelpLabel(mode = homeHelpMode()) {
   return {
-    local: "Browser only",
-    reflection: "Deeper reflection",
-    chat: "Critique help",
-    media: "Visual help",
-  }[mode] || "Browser only";
+    local: "Browser first",
+    reflection: "Deep reflection",
+    chat: "Critique",
+    media: "Visual creation",
+  }[mode] || "Browser first";
 }
 
 function homeProviderLabel(route) {
@@ -509,12 +513,76 @@ function setActiveHomeLane(laneKey = currentHomeLane) {
 
 function setOpenWorkspaceHref() {
   if (!openGeneratedMirror || !ritualIntent || !ritualBoundary) return;
-  const mode = homeHelpMode();
-  openGeneratedMirror.href = mirrorStartPath({
-    intent: ritualIntent.value || ritualInitialIntent,
-    boundary: ritualBoundary.value || "personal",
-    route: mode === "local" ? homeRouteFromMode(currentHomeLane) : mode,
-    trust: mode === "local" ? "local" : "approved",
+  openGeneratedMirror.href = "#first-use";
+}
+
+function animateHomeReflection() {
+  if (!canAnimate) return;
+  const stage = document.querySelector(".genui-stage");
+  const surface = document.querySelector(".home-surface");
+  const receipt = document.querySelector(".receipt-card");
+  const highlighted = [surface, receipt].filter(Boolean);
+
+  stage?.classList.add("is-reflecting");
+  highlighted.forEach((element) => element.classList.add("is-updated"));
+
+  gsap.fromTo(
+    highlighted,
+    { y: 14, scale: 0.99, filter: "saturate(0.92)" },
+    { y: 0, scale: 1, filter: "saturate(1.04)", duration: 0.62, stagger: 0.06, ease: "power3.out" }
+  );
+  gsap.fromTo(
+    ".surface-output > article",
+    { autoAlpha: 0, y: 12 },
+    { autoAlpha: 1, y: 0, duration: 0.42, ease: "power3.out" }
+  );
+  gsap.fromTo(".receipt-line.is-open", { x: -5 }, { x: 0, duration: 0.32, ease: "power2.out" });
+
+  window.setTimeout(() => {
+    stage?.classList.remove("is-reflecting");
+    highlighted.forEach((element) => element.classList.remove("is-updated"));
+  }, 1400);
+}
+
+function followupOptions(modeKey, laneKey, surfaceKey) {
+  if (laneKey === "files" || surfaceKey === "table") {
+    return ["Turn this into a file plan", "What can stay local?", "Make the summary shorter"];
+  }
+  if (laneKey === "images" || surfaceKey === "media") {
+    return ["Create a visual brief", "What is safe to share?", "Give me three directions"];
+  }
+  if (laneKey === "research" || surfaceKey === "browser") {
+    return ["What should I verify?", "Find the strongest sources", "Separate facts from guesses"];
+  }
+  if (laneKey === "memory") {
+    return ["What should be remembered?", "What should be temporary?", "Show the memory receipt"];
+  }
+  if (modeKey === "restart") {
+    return ["Make a 48-hour path", "What should I retire?", "Choose one visible win"];
+  }
+  if (modeKey === "career") {
+    return ["Package this as an offer", "Find the proof", "What is the next outreach?"];
+  }
+  return ["What should I do first?", "What should I leave out?", "Make this a proof sprint"];
+}
+
+function renderHomeConversation({ intent, mode, boundary, laneKey, surfaceKey }) {
+  if (homeChatSummary) homeChatSummary.textContent = shortIntent(intent || ritualInitialIntent);
+  if (homeChatNext) homeChatNext.textContent = mode.moves?.[0] || mode.why;
+  if (homeChatBoundary) homeChatBoundary.textContent = `Kept out: ${boundary.excluded}`;
+  if (!homeFollowups) return;
+  homeFollowups.innerHTML = followupOptions(currentRitualMode(intent), laneKey, surfaceKey)
+    .map((question) => `<button type="button" data-followup="${escapeHtml(question)}">${escapeHtml(question)}</button>`)
+    .join("");
+  homeFollowups.querySelectorAll("button").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.followup || button.textContent || "";
+      const base = ritualIntent?.value.trim() || ritualInitialIntent;
+      if (ritualIntent) ritualIntent.value = `${base}\n\nFollow-up: ${question}`;
+      homeRemotePayload = null;
+      renderRitual();
+      markRitualGenerated(surfaceKey, laneKey);
+    });
   });
 }
 
@@ -522,6 +590,18 @@ function setHomeSurfaceTab(surfaceKey) {
   homeSurfaceTabs.forEach((button) => {
     button.classList.toggle("is-active", button.dataset.surfaceTab === surfaceKey);
   });
+}
+
+function activeHomeSurfaceKey() {
+  return homeSurfaceTabs.find((button) => button.classList.contains("is-active"))?.dataset.surfaceTab || inferHomeSurface(ritualIntent?.value || ritualInitialIntent);
+}
+
+function activeHomeLaneKey() {
+  return document.querySelector(".home-work-lane.is-active")?.dataset.workLane || currentHomeLane;
+}
+
+function runSelectedHomeReflection() {
+  markRitualGenerated(activeHomeSurfaceKey(), activeHomeLaneKey());
 }
 
 function renderHomeSurface(surfaceKey = inferHomeSurface(ritualIntent?.value || ritualInitialIntent), laneOverride = null) {
@@ -532,7 +612,7 @@ function renderHomeSurface(surfaceKey = inferHomeSurface(ritualIntent?.value || 
   if (laneKey !== currentHomeLane || !homeWorkControls.some((button) => button.classList.contains("is-active"))) {
     setActiveHomeLane(laneKey);
   }
-  const lane = homeLaneCopy(currentHomeLane);
+  const lane = homeLaneCopy(laneKey);
   const mode = ritualModes[currentRitualMode(intent)];
   const mirror = homeRemotePayload?.mirror && typeof homeRemotePayload.mirror === "object" ? homeRemotePayload.mirror : null;
   const goals = normalizedList(mirror?.goals, mode.goals, 3);
@@ -544,10 +624,10 @@ function renderHomeSurface(surfaceKey = inferHomeSurface(ritualIntent?.value || 
   const short = shortIntent(intent);
   const helpMode = homeHelpMode();
   const routeLabel = homeRemotePayload?.route ? homeProviderLabel(homeRemotePayload.route) : helpMode === "local" ? lane.route : homeHelpLabel(helpMode);
-  const receiptState = homeRemotePayload ? (homeRemotePayload.fallback ? "Backup" : "Model") : helpMode === "local" ? lane.receipt : "Approval";
+  const receiptState = homeRemotePayload ? (homeRemotePayload.fallback ? "Backup" : "Ready") : helpMode === "local" ? lane.receipt : "Approval";
   const surfaceLabels = {
     plan: ["Plan", "Next move"],
-    document: currentHomeLane === "memory" ? ["Continuity note", "Memory"] : ["Note", "Draft"],
+    document: laneKey === "memory" ? ["Continuity note", "Memory"] : ["Note", "Draft"],
     table: ["File plan", "Local context"],
     browser: ["Web check", "Research"],
     media: ["Visual brief", "Creative"],
@@ -560,12 +640,12 @@ function renderHomeSurface(surfaceKey = inferHomeSurface(ritualIntent?.value || 
   if (homeRouteTitle) homeRouteTitle.textContent = routeLabel;
   if (homeRouteCopy) {
     homeRouteCopy.textContent = homeRemotePayload
-      ? "The receipt records the model path, fallback, and memory decision."
+      ? "The receipt records the help used, fallback, and memory decision."
       : helpMode !== "local"
         ? "Only the current turn and selected boundary are shared after approval."
-        : currentHomeLane === "research"
+        : laneKey === "research"
           ? "The page prepares the question before anything leaves your browser."
-          : currentHomeLane === "images"
+          : laneKey === "images"
             ? "Media help receives only the public-safe brief you approve."
             : "Private reflection runs first. External help waits for your approval.";
   }
@@ -576,6 +656,13 @@ function renderHomeSurface(surfaceKey = inferHomeSurface(ritualIntent?.value || 
   if (homeStateBoundary) homeStateBoundary.textContent = lane.boundary;
   if (homeStateReceipt) homeStateReceipt.textContent = receiptState;
   setOpenWorkspaceHref();
+  renderHomeConversation({
+    intent,
+    mode,
+    boundary: boundaryCopy[ritualBoundary?.value || "personal"],
+    laneKey,
+    surfaceKey,
+  });
 
   const templates = {
     plan: `
@@ -661,9 +748,9 @@ function renderHomeSurface(surfaceKey = inferHomeSurface(ritualIntent?.value || 
 function applyHomeRemoteReceipt(payload) {
   const mirror = payload?.mirror || {};
   const receipt = mirror.receipt || {};
-  if (ritualReceiptTime && payload?.receipt_id) ritualReceiptTime.textContent = `model-${payload.receipt_id}`;
-  if (receiptWhy) receiptWhy.textContent = receipt.why || "Model help produced a receipt-backed working surface.";
-  if (receiptUsed) receiptUsed.textContent = receipt.context_used || "Current turn intent, selected boundary, and approved model route.";
+  if (ritualReceiptTime && payload?.receipt_id) ritualReceiptTime.textContent = `help-${payload.receipt_id}`;
+  if (receiptWhy) receiptWhy.textContent = receipt.why || "Extra help produced a receipt-backed working surface.";
+  if (receiptUsed) receiptUsed.textContent = receipt.context_used || "Current turn intent, selected boundary, and approved help.";
   if (receiptExcluded) receiptExcluded.textContent = receipt.context_excluded || boundaryCopy[ritualBoundary?.value || "personal"].excluded;
   if (receiptRoute) receiptRoute.textContent = receipt.route || homeProviderLabel(payload?.route);
   if (receiptMemory) receiptMemory.textContent = receipt.memory_decision || "Nothing is saved until you accept the receipt.";
@@ -702,7 +789,7 @@ function animateRitualBoard() {
   animateElements(Array.from(document.querySelectorAll(".receipt-line")), { x: 0, delay: 0.08 });
 }
 
-function renderRitual() {
+function renderRitual(surfaceOverride = null, laneOverride = null) {
   if (!ritualIntent || !ritualBoundary) return;
   const intent = ritualIntent.value || ritualInitialIntent;
   const modeKey = currentRitualMode(intent);
@@ -733,7 +820,7 @@ function renderRitual() {
       trust: "local",
     });
   }
-  renderHomeSurface();
+  renderHomeSurface(surfaceOverride || inferHomeSurface(intent), laneOverride);
 
   try {
     localStorage.setItem(
@@ -759,7 +846,7 @@ async function markRitualGenerated(surfaceOverride = null, laneOverride = null) 
   withViewTransition(() => {
     ritualTurn += 1;
     setActiveHomeLane(laneKey);
-    renderRitual();
+    renderRitual(surfaceKey, laneKey);
     if (ritualStatus) ritualStatus.textContent = selectedHelp === "local" ? "Reflected in browser" : `Using ${homeHelpLabel(selectedHelp)}`;
     ritualCreate.textContent = selectedHelp === "local" ? "Reflected" : "Working...";
     ritualCreate.disabled = selectedHelp !== "local";
@@ -768,6 +855,7 @@ async function markRitualGenerated(surfaceOverride = null, laneOverride = null) 
   });
   animateRitualBoard();
   renderHomeSurface(surfaceKey, laneKey);
+  animateHomeReflection();
   if (canAnimate) {
     const architecture = document.querySelector(".mirror-architecture");
     architecture?.classList.add("is-routing");
@@ -794,13 +882,14 @@ async function markRitualGenerated(surfaceOverride = null, laneOverride = null) 
       homeRemotePayload = payload;
       applyHomeRemoteReceipt(payload);
       renderHomeSurface(surfaceKey, laneKey);
-      if (ritualStatus) ritualStatus.textContent = payload.fallback ? "Backup receipt ready" : "Model receipt ready";
+      animateHomeReflection();
+      if (ritualStatus) ritualStatus.textContent = payload.fallback ? "Backup receipt ready" : "Receipt ready";
       ritualCreate.textContent = payload.fallback ? "Backup ready" : "Receipt ready";
     } catch {
       if (requestId !== homeRequestId) return;
       homeRemotePayload = null;
       if (ritualStatus) ritualStatus.textContent = "Browser fallback ready";
-      if (receiptRoute) receiptRoute.textContent = "Model help was unavailable, so the browser kept this turn local.";
+      if (receiptRoute) receiptRoute.textContent = "Extra help was unavailable, so the browser kept this turn local.";
       if (homeStateReceipt) homeStateReceipt.textContent = "Browser";
       ritualCreate.textContent = "Browser ready";
     } finally {
@@ -986,8 +1075,13 @@ if (ritualIntent && ritualBoundary && ritualCreate) {
     renderHomeSurface(inferHomeSurface(ritualIntent.value), currentHomeLane);
   });
 
-  ritualCreate.addEventListener("click", () => {
-    markRitualGenerated();
+  ritualCreate.addEventListener("click", runSelectedHomeReflection);
+
+  openGeneratedMirror?.addEventListener("click", (event) => {
+    event.preventDefault();
+    ritualIntent.focus({ preventScroll: true });
+    document.querySelector("#first-use")?.scrollIntoView({ behavior: canAnimate ? "smooth" : "auto", block: "start" });
+    runSelectedHomeReflection();
   });
 
   homeWorkControls.forEach((button) => {
@@ -1004,8 +1098,7 @@ if (ritualIntent && ritualBoundary && ritualCreate) {
       const surfaceKey = button.dataset.surface || inferHomeSurface(ritualIntent.value);
       const laneKey = button.dataset.workLane || inferHomeLane(ritualIntent.value, surfaceKey);
       setActiveHomeLane(laneKey);
-      renderRitual();
-      renderHomeSurface(surfaceKey, laneKey);
+      renderRitual(surfaceKey, laneKey);
     });
   });
 
@@ -1014,7 +1107,7 @@ if (ritualIntent && ritualBoundary && ritualCreate) {
       renderHomeSurface(button.dataset.surfaceTab, currentHomeLane);
     });
   });
-  ritualRefresh?.addEventListener("click", markRitualGenerated);
+  ritualRefresh?.addEventListener("click", runSelectedHomeReflection);
   ritualExpand?.addEventListener("click", async () => {
     if (!mirrorDevice) return;
     if (!document.fullscreenElement && mirrorDevice.requestFullscreen) {
@@ -1039,9 +1132,11 @@ if (ritualIntent && ritualBoundary && ritualCreate) {
       ritualIntent.value = ritualInitialIntent;
       ritualBoundary.value = "personal";
       if (homeModelMode) homeModelMode.value = "local";
-      if (ritualStatus) ritualStatus.textContent = "Ready";
+      setActiveHomeLane("decision");
+      if (ritualStatus) ritualStatus.textContent = "Reflects first";
       receiptLines.forEach((line, index) => line.classList.toggle("is-open", index === 0));
       renderRitual();
+      renderHomeSurface("plan", "decision");
     });
     animateRitualBoard();
   });
@@ -1180,7 +1275,7 @@ const mirrorFollowups = document.querySelector("#mirror-followups");
 const workspaceRoutes = {
   reflection: {
     label: "decision help",
-    route: "Approved model help supports decisions, prioritization, and structured next moves.",
+    route: "Approved extra help supports decisions, prioritization, and structured next moves.",
     goals: ["Name the real objective", "Separate signal from noise", "Create one momentum path"],
     blockers: ["Too much context at once", "Unclear priority order", "No accepted memory decision"],
     moves: ["Extract the strongest intent", "Pick one proof artifact", "Write the next-action board", "Approve or reject memory"],
@@ -1189,7 +1284,7 @@ const workspaceRoutes = {
   },
   chat: {
     label: "critique help",
-    route: "Approved model help sharpens language, structure, critique, and receipt review.",
+    route: "Approved extra help sharpens language, structure, critique, and receipt review.",
     goals: ["Clarify the message", "Tighten the structure", "Expose weak assumptions"],
     blockers: ["Copy may overclaim", "Tone can drift", "The useful objection is hidden"],
     moves: ["Rewrite the core claim", "List objections", "Cut unsupported language", "Produce a cleaner artifact"],
@@ -1209,27 +1304,27 @@ const workspaceRoutes = {
 
 const trustModes = {
   approved: {
-    label: "Approved model help",
+    label: "Approved extra help",
     scope: "Standard workspace",
     localOnly: false,
-    approval: "Cloud model help requires explicit approval.",
-    included: "Current turn intent, selected boundary, model choice, and privacy setting.",
+    approval: "Extra help requires explicit approval.",
+    included: "Current turn intent, selected boundary, help type, and privacy setting.",
     excluded: "Saved context, client records, files, tabs, and personal history are not included in this sharing review.",
   },
   local: {
     label: "Local only",
     scope: "In this browser",
     localOnly: true,
-    approval: "No cloud model call. The browser creates the workspace.",
+    approval: "No external call. The browser creates the workspace.",
     included: "Current turn intent and selected boundary only.",
-    excluded: "Cloud model help, saved context, files, tabs, and external tools.",
+    excluded: "Extra help, saved context, files, tabs, and external tools.",
   },
   public: {
     label: "Public-safe",
     scope: "public/shareable",
     localOnly: false,
     approval: "Only public-safe context may leave the browser after approval.",
-    included: "Current turn intent after boundary review, public-safe product framing, and model choice.",
+    included: "Current turn intent after boundary review, public-safe product framing, and help type.",
     excluded: "Private identity details, client-confidential material, secrets, and unapproved memory.",
   },
   client: {
@@ -1237,7 +1332,7 @@ const trustModes = {
     scope: "client/confidential",
     localOnly: false,
     approval: "Client-confidential work requires approval and receipt-visible exclusions.",
-    included: "Current turn intent, selected boundary, client-safe task label, and model choice.",
+    included: "Current turn intent, selected boundary, client-safe task label, and help type.",
     excluded: "Personal context, unrelated client context, raw files, credentials, and anything not approved for this client scope.",
   },
 };
@@ -1397,9 +1492,8 @@ function inferWorkspaceRoute(intent, selected) {
 
 function providerLabel(route) {
   if (!route) return "";
-  const model = route.model ? ` / ${route.model}` : "";
   const fallback = route.fallback ? " / backup" : "";
-  return `${route.capability} / ${route.primary}${model}${fallback}`;
+  return `${route.capability} help${fallback}`;
 }
 
 function currentTrustMode() {
@@ -1468,12 +1562,12 @@ function renderContextPacket(packet = currentContextPacket) {
   mirrorPacketScope.textContent = `${packet.scope} / ${packet.trust_label}`;
   mirrorPacketUsed.textContent = `${packet.included_text} Estimated ${packet.token_estimate} tokens.`;
   mirrorPacketExcluded.textContent = packet.excluded_text;
-  mirrorPacketRoute.textContent = `${packet.model_target}. ${packet.approval_text}`;
+    mirrorPacketRoute.textContent = `${packet.model_target}. ${packet.approval_text}`;
   mirrorPacketBoundary.textContent = packet.boundary_label;
 
   if (mirrorApprove) {
     mirrorApprove.disabled = false;
-    mirrorApprove.textContent = packet.local_only ? "Create in browser" : packet.approved ? "Approved" : "Approve model help";
+    mirrorApprove.textContent = packet.local_only ? "Create in browser" : packet.approved ? "Approved" : "Approve extra help";
   }
   if (mirrorRun && !mirrorRun.disabled) {
     mirrorRun.textContent = packet.local_only ? "Create browser workspace" : packet.approved ? "Create workspace" : "Review what is shared";
@@ -1499,20 +1593,20 @@ function previewContextPacket({ forceLocal = false } = {}) {
 
 function routeTruthText(remotePayload, routeKey, packet) {
   if (packet?.local_only) {
-    return "Browser-only mode: no cloud model call was made. This workspace was created in your browser.";
+    return "Browser-only mode: no external call was made. This workspace was created in your browser.";
   }
   if (remotePayload?.route) {
     const label = providerLabel(remotePayload.route);
     const fallback = remotePayload.fallback
-      ? " Backup model help was used and is recorded in this receipt."
-      : " Model help completed without a backup path.";
+      ? " Backup help was used and is recorded in this receipt."
+      : " Extra help completed without a backup path.";
     return `${label}.${fallback}`;
   }
   if (packet?.approval_required && !packet.approved) {
-    return "Review only: no cloud model call yet. Approve what can be shared before model help runs.";
+    return "Review only: no external call yet. Approve what can be shared before extra help runs.";
   }
   const route = workspaceRoutes[routeKey] || workspaceRoutes.reflection;
-  return `${route.route} Cloud model help was unavailable, so the browser created this workspace.`;
+  return `${route.route} Extra help was unavailable, so the browser created this workspace.`;
 }
 
 function captureReceiptSnapshot(packet, routeText) {
@@ -1908,7 +2002,7 @@ function summaryMarkdown(summary = currentSummary || buildSessionSummary()) {
     "",
     `- Receipt: ${summary.receipt_id}`,
     `- Boundary: ${summary.boundary}`,
-    `- Model path: ${summary.route}`,
+    `- Help path: ${summary.route}`,
     "",
     "## Why",
     summary.why || "No rationale recorded.",
@@ -2002,8 +2096,8 @@ function renderMirrorAudit(packet = currentContextPacket) {
   const artifact = getArtifactText();
   const trust = activePacket.trust_label || currentTrustMode().label;
   const routeTarget = activePacket.model_target || routeTargetLabel(activePacket.route_key || "reflection");
-  const receiptState = mirrorReceiptId?.textContent?.startsWith("model-")
-    ? "Model receipt"
+  const receiptState = mirrorReceiptId?.textContent?.startsWith("help-")
+    ? "Help receipt"
     : activePacket.local_only || activePacket.approved
       ? "Browser receipt"
       : "Draft review";
@@ -2012,14 +2106,14 @@ function renderMirrorAudit(packet = currentContextPacket) {
     `Intent: ${activePacket.task}`,
     `Boundary: ${activePacket.boundary_label}`,
     `Privacy: ${trust}`,
-    `Model help: ${routeTarget}`,
+    `Help path: ${routeTarget}`,
   ];
 
   const uncertain = [
     "No saved context from this browser has been approved for this turn.",
     "No files, tabs, emails, or prior chats were admitted for this turn.",
     "Generated output is not reusable until you approve what should be saved.",
-    activePacket.approval_required && !activePacket.approved ? "Cloud model help has not been approved yet." : "",
+    activePacket.approval_required && !activePacket.approved ? "Extra help has not been approved yet." : "",
   ];
 
   const excluded = [
@@ -2071,9 +2165,9 @@ function renderWorkspaceMirror(remotePayload = null, packet = currentContextPack
   mirrorBlockerCount.textContent = String(blockers.length);
   mirrorMoveCount.textContent = String(moves.length);
   mirrorArtifact.innerHTML = `<p>${escapeHtml(artifactTitle)}</p><strong>${escapeHtml(artifactSummary)}</strong>`;
-  mirrorReceiptId.textContent = remotePayload?.receipt_id ? `model-${remotePayload.receipt_id}` : `browser-${routeKey}-${String(mirrorTurn).padStart(3, "0")}`;
+  mirrorReceiptId.textContent = remotePayload?.receipt_id ? `help-${remotePayload.receipt_id}` : `browser-${routeKey}-${String(mirrorTurn).padStart(3, "0")}`;
   mirrorReceiptWhy.textContent = receipt.why || route.why;
-  mirrorReceiptUsed.textContent = receipt.context_used || packet?.included_text || `Intent: "${shortIntent(intent || "No intent yet")}" plus selected boundary and model choice.`;
+  mirrorReceiptUsed.textContent = receipt.context_used || packet?.included_text || `Intent: "${shortIntent(intent || "No intent yet")}" plus selected boundary and help type.`;
   mirrorReceiptExcluded.textContent = receipt.context_excluded || packet?.excluded_text || boundary.excluded;
   mirrorReceiptRoute.textContent = receipt.route ? `${receipt.route} ${routeTruth}` : routeTruth;
   mirrorReceiptMemory.textContent = receipt.memory_decision || "Pending: nothing saved until you choose a memory decision.";
@@ -2120,7 +2214,7 @@ async function generateWorkspaceMirror() {
   const requestId = (mirrorRequestId += 1);
   window.clearTimeout(packetPreviewTimer);
   mirrorRun.disabled = true;
-    mirrorRun.textContent = currentContextPacket.local_only ? "Creating in browser..." : "Using approved model help...";
+  mirrorRun.textContent = currentContextPacket.local_only ? "Creating in browser..." : "Using approved extra help...";
   mirrorRun.classList.remove("is-complete");
 
   if (currentContextPacket.local_only) {

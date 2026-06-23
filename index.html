@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Active Mirror starts with private reflection, then shows the route, memory decision, and receipt behind every useful next move."
+      content="Active Mirror is a private AI workspace that reflects before it acts, turns messy context into clear next moves, and shows receipts you can inspect."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Active Mirror | Welcome</title>
@@ -26,7 +26,7 @@
       </nav>
       <div class="nav-actions">
         <a class="text-link" href="/privacy/">Privacy</a>
-        <a class="button primary small" href="#first-use">Start now</a>
+        <a class="button primary small" href="#first-use">Start</a>
       </div>
     </header>
 
@@ -34,10 +34,10 @@
       <section class="genui-workspace" id="first-use" aria-label="Active Mirror reflective workspace">
         <div class="genui-panel">
           <div class="genui-copy">
-            <h1>Start with one thing.</h1>
+            <h1>The AI workspace that reflects before it acts.</h1>
             <p>
-              Active Mirror turns a messy thought into a clear next move, a boundary,
-              and a receipt you can inspect.
+              Turn messy context into clear next moves, working surfaces,
+              and receipts you can inspect. Private first. Memory only by approval.
             </p>
           </div>
 
@@ -61,7 +61,7 @@
           </section>
 
           <form class="reflection-composer chat-composer" aria-label="Start a reflection">
-            <label for="ritual-intent">Chat with your mirror</label>
+            <label for="ritual-intent">What are you trying to move forward?</label>
             <textarea id="ritual-intent" rows="5" maxlength="1000">Restarting a product launch: notes, positioning, screenshots, and next steps are scattered.</textarea>
             <div class="composer-row">
               <select id="ritual-boundary" aria-label="Reflection boundary">
@@ -70,15 +70,28 @@
                 <option value="secrets">No secrets</option>
                 <option value="drafts">Drafts temporary</option>
               </select>
-              <select id="home-model-mode" aria-label="Model help">
-                <option value="local">Browser only</option>
-                <option value="reflection">Deeper reflection</option>
-                <option value="media">Visual help</option>
+              <select id="home-model-mode" aria-label="Help type">
+                <option value="local">Browser first</option>
+                <option value="reflection">Deep reflection</option>
+                <option value="media">Visual creation</option>
               </select>
               <button class="button primary ritual-button" id="ritual-create" type="button">Reflect</button>
             </div>
-            <small><strong id="ritual-count">91</strong> / 1000 - browser first, model help waits for approval</small>
+            <small><strong id="ritual-count">91</strong> / 1000 - private first, extra help waits for approval</small>
           </form>
+
+          <section class="live-turn" aria-label="Live mirror response">
+            <div class="turn-speaker">
+              <span>You</span>
+              <p id="home-chat-summary">Restarting a product launch with scattered notes and unclear next steps.</p>
+            </div>
+            <div class="turn-speaker mirror">
+              <span>Mirror</span>
+              <p id="home-chat-next">Start by turning the scattered work into one visible proof and one test.</p>
+              <small id="home-chat-boundary">Kept out: personal history and unapproved memory.</small>
+            </div>
+            <div class="followup-row" id="home-followups" aria-label="Follow-up questions"></div>
+          </section>
 
           <section class="work-lanes" aria-label="Ways to start">
             <button
@@ -91,7 +104,7 @@
             >
               <span aria-hidden="true">01</span>
               <strong>Decide</strong>
-              <small>Find the next move.</small>
+              <small>Get a clear next move.</small>
             </button>
             <button
               type="button"
@@ -146,7 +159,7 @@
         </div>
 
         <div class="genui-stage" aria-label="Active Mirror workspace">
-          <div class="live-map mirror-architecture" aria-label="Live Active Mirror architecture">
+          <div class="live-map mirror-architecture" aria-label="Active Mirror workspace map">
             <div class="edge-badge" aria-label="Edge privacy default">
               <span aria-hidden="true">
                 <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
@@ -191,14 +204,14 @@
                   <path d="M12 11v7.6" />
                 </svg>
               </span>
-              <span class="node-label">Local intelligence</span>
+              <span class="node-label">Private reflection</span>
               <strong>Private reflection</strong>
-              <p>Organizes before model help.</p>
+              <p>Organizes before extra help.</p>
             </button>
 
             <article class="mirror-core-live arch-core">
               <span>Active Mirror</span>
-              <strong id="ritual-status">Ready in browser</strong>
+              <strong id="ritual-status">Reflects first</strong>
               <div aria-hidden="true">
                 <i>Consent</i>
                 <i>Receipt</i>
@@ -212,15 +225,15 @@
               data-work-lane="decision"
               data-surface="plan"
               data-boundary="personal"
-              data-intent="Route this decision to the right model only after the browser has removed what should not be shared."
+              data-intent="Route this decision to extra help only after the browser has removed what should not be shared."
             >
               <span class="node-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
                   <path d="M7.2 17h10.4a3.6 3.6 0 0 0 .4-7.2 5.3 5.3 0 0 0-10.1-1.6A4.5 4.5 0 0 0 7.2 17Z" />
                 </svg>
               </span>
-              <span class="node-label">Model route</span>
-              <strong id="home-route-title">Browser only</strong>
+              <span class="node-label">AI help</span>
+              <strong id="home-route-title">Browser first</strong>
               <p id="home-route-copy">Extra help only when chosen.</p>
             </button>
             <button
@@ -279,7 +292,7 @@
               </span>
               <span class="node-label">Receipts and continuity</span>
               <strong>Receipt</strong>
-              <p>Used, left out, route, memory.</p>
+              <p>Used, left out, why, memory.</p>
             </button>
           </div>
 
@@ -293,7 +306,7 @@
 
           <section class="home-surface" aria-label="Generated working surface">
             <div class="panel-head split">
-              <strong id="home-surface-title">Response</strong>
+              <strong id="home-surface-title">Working surface</strong>
               <span id="home-surface-type">Plan</span>
             </div>
             <div class="surface-tabs" aria-label="Ways to view this turn">
@@ -325,7 +338,7 @@
             </button>
             <button class="receipt-line" type="button">
               <span>How it ran</span>
-              <strong id="receipt-route">Local browser board first. Cloud model help only after approval.</strong>
+              <strong id="receipt-route">Browser reflection first. Extra help only after approval.</strong>
             </button>
             <button class="receipt-line" type="button">
               <span>Memory</span>
@@ -335,9 +348,10 @@
         </div>
 
         <div class="genui-bottom-bar">
-          <p>Type one thing. The page reflects it, shapes the right workspace, and shows its receipt.</p>
+          <p>Bring one workflow. Active Mirror reflects it, shapes the work, and shows what happened.</p>
           <div>
-            <a class="button secondary small" id="open-generated-mirror" href="/mirror/?start=1&trust=local">Open full workspace</a>
+            <a class="button secondary small" id="open-generated-mirror" href="#first-use">Keep working here</a>
+            <a class="button primary small" href="mailto:hello@activemirror.ai?subject=Active%20Mirror%2072-hour%20proof%20sprint">Start proof sprint</a>
             <button class="button secondary small" id="ritual-reset" type="button">Reset</button>
           </div>
         </div>
