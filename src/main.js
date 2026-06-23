@@ -203,10 +203,29 @@ const homeChatSummary = document.querySelector("#home-chat-summary");
 const homeChatNext = document.querySelector("#home-chat-next");
 const homeChatBoundary = document.querySelector("#home-chat-boundary");
 const homeFollowups = document.querySelector("#home-followups");
+const approvedHelpReview = document.querySelector("#approved-help-review");
+const approvedHelpUsed = document.querySelector("#approved-help-used");
+const approvedHelpExcluded = document.querySelector("#approved-help-excluded");
+const approvedHelpApprove = document.querySelector("#approved-help-approve");
+const approvedHelpCancel = document.querySelector("#approved-help-cancel");
+const proofSprintOpen = document.querySelector("#proof-sprint-open");
+const proofSprintModal = document.querySelector("#proof-sprint-modal");
+const proofSprintClose = document.querySelector("#proof-sprint-close");
+const proofSprintForm = document.querySelector("#proof-sprint-form");
+const proofWorkflow = document.querySelector("#proof-workflow");
+const proofSuccess = document.querySelector("#proof-success");
+const proofBoundary = document.querySelector("#proof-boundary");
+const proofEmail = document.querySelector("#proof-email");
+const proofSprintOutput = document.querySelector("#proof-sprint-output");
+const proofSprintSummary = document.querySelector("#proof-sprint-summary");
+const proofSprintMail = document.querySelector("#proof-sprint-mail");
 
 let currentHomeLane = "decision";
 let homeRemotePayload = null;
 let homeRequestId = 0;
+let homeApprovedHelp = false;
+let pendingApprovedSurface = null;
+let pendingApprovedLane = null;
 
 const mobileModeNodes = {
   launching: ["Research", "Launch proof", "Prototype", "Receipt"],
@@ -394,6 +413,70 @@ function escapeHtml(value) {
   });
 }
 
+const siteEventNames = new Set([
+  "page_view",
+  "reflect_click",
+  "lane_click",
+  "surface_click",
+  "followup_click",
+  "approval_review",
+  "approval_confirm",
+  "approval_cancel",
+  "proof_open",
+  "proof_prepare",
+  "proof_mail",
+]);
+
+function landingVariant() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("proof") === "1" || params.get("intent") === "proof") return "proof";
+  return "home";
+}
+
+function safeEventDetail(detail = {}) {
+  const allowed = ["variant", "lane", "surface", "help", "boundary", "state"];
+  return allowed.reduce((next, key) => {
+    if (detail[key] === undefined || detail[key] === null) return next;
+    next[key] = String(detail[key]).slice(0, 64);
+    return next;
+  }, {});
+}
+
+function canSendSiteEvent() {
+  return navigator.globalPrivacyControl !== true && navigator.doNotTrack !== "1" && navigator.doNotTrack !== "yes";
+}
+
+function trackSiteEvent(name, detail = {}) {
+  if (!siteEventNames.has(name)) return;
+  const event = {
+    name,
+    path: window.location.pathname,
+    at: new Date().toISOString(),
+    detail: safeEventDetail({ variant: landingVariant(), ...detail }),
+  };
+  try {
+    const counts = JSON.parse(localStorage.getItem("activeMirrorPublicEventCounts") || "{}");
+    counts[name] = (Number(counts[name]) || 0) + 1;
+    localStorage.setItem("activeMirrorPublicEventCounts", JSON.stringify(counts));
+  } catch {
+    // Event counts are optional. Reflection still works without browser storage.
+  }
+  if (!canSendSiteEvent()) return;
+  try {
+    const payload = new Blob([JSON.stringify(event)], { type: "application/json" });
+    if (!navigator.sendBeacon?.(`${MIRROR_GATEWAY_URL}/v1/site/event`, payload)) {
+      fetch(`${MIRROR_GATEWAY_URL}/v1/site/event`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(event),
+        keepalive: true,
+      }).catch(() => {});
+    }
+  } catch {
+    // Site measurement must never block the product surface.
+  }
+}
+
 function currentRitualMode(text) {
   const value = text.toLowerCase();
   if (value.includes("career") || value.includes("job") || value.includes("offer") || value.includes("portfolio")) return "career";
@@ -498,6 +581,51 @@ function homeProviderLabel(route) {
   return `${homeHelpLabel(route.capability)}${fallback}`;
 }
 
+function resetHomeApproval() {
+  homeApprovedHelp = false;
+  pendingApprovedSurface = null;
+  pendingApprovedLane = null;
+}
+
+function renderApprovedHelpReview(surfaceKey = activeHomeSurfaceKey(), laneKey = currentHomeLane) {
+  if (!approvedHelpReview) return;
+  const help = homeHelpMode();
+  const needsApproval = help !== "local";
+  approvedHelpReview.hidden = !needsApproval;
+  if (!needsApproval) return;
+  const boundary = boundaryCopy[ritualBoundary?.value || "personal"] || boundaryCopy.personal;
+  const surfaceLabel = {
+    plan: "current turn and decision frame",
+    document: "current turn and note outline",
+    table: "current turn and file summary request",
+    browser: "current turn and research question",
+    media: "current turn and public-safe creative brief",
+  }[surfaceKey] || "current turn and selected boundary";
+  if (approvedHelpUsed) {
+    approvedHelpUsed.textContent = `${surfaceLabel}. Boundary: ${ritualBoundary?.selectedOptions?.[0]?.textContent || "selected boundary"}.`;
+  }
+  if (approvedHelpExcluded) approvedHelpExcluded.textContent = boundary.excluded;
+  approvedHelpApprove?.classList.toggle("is-complete", homeApprovedHelp);
+  if (approvedHelpApprove) approvedHelpApprove.textContent = homeApprovedHelp ? "Approved for this turn" : "Approve this turn";
+  if (homeStateReceipt && !homeApprovedHelp) homeStateReceipt.textContent = "Review";
+  pendingApprovedSurface = surfaceKey;
+  pendingApprovedLane = laneKey;
+}
+
+function requestHomeApproval(surfaceKey, laneKey) {
+  renderApprovedHelpReview(surfaceKey, laneKey);
+  trackSiteEvent("approval_review", {
+    lane: laneKey,
+    surface: surfaceKey,
+    help: homeHelpMode(),
+    boundary: ritualBoundary?.value || "personal",
+  });
+  if (ritualStatus) ritualStatus.textContent = "Approval needed";
+  if (ritualCreate) ritualCreate.textContent = "Approve to continue";
+  approvedHelpReview?.scrollIntoView({ behavior: canAnimate ? "smooth" : "auto", block: "nearest" });
+  approvedHelpApprove?.focus({ preventScroll: true });
+}
+
 function setActiveHomeLane(laneKey = currentHomeLane) {
   currentHomeLane = laneKey;
   homeWorkControls.forEach((button) => {
@@ -580,6 +708,8 @@ function renderHomeConversation({ intent, mode, boundary, laneKey, surfaceKey })
       const base = ritualIntent?.value.trim() || ritualInitialIntent;
       if (ritualIntent) ritualIntent.value = `${base}\n\nFollow-up: ${question}`;
       homeRemotePayload = null;
+      resetHomeApproval();
+      trackSiteEvent("followup_click", { lane: laneKey, surface: surfaceKey, help: homeHelpMode() });
       renderRitual();
       markRitualGenerated(surfaceKey, laneKey);
     });
@@ -624,7 +754,15 @@ function renderHomeSurface(surfaceKey = inferHomeSurface(ritualIntent?.value || 
   const short = shortIntent(intent);
   const helpMode = homeHelpMode();
   const routeLabel = homeRemotePayload?.route ? homeProviderLabel(homeRemotePayload.route) : helpMode === "local" ? lane.route : homeHelpLabel(helpMode);
-  const receiptState = homeRemotePayload ? (homeRemotePayload.fallback ? "Backup" : "Ready") : helpMode === "local" ? lane.receipt : "Approval";
+  const receiptState = homeRemotePayload
+    ? homeRemotePayload.fallback
+      ? "Backup"
+      : "Ready"
+    : helpMode === "local"
+      ? lane.receipt
+      : homeApprovedHelp
+        ? "Approved"
+        : "Review";
   const surfaceLabels = {
     plan: ["Plan", "Next move"],
     document: laneKey === "memory" ? ["Continuity note", "Memory"] : ["Note", "Draft"],
@@ -669,6 +807,20 @@ function renderHomeSurface(surfaceKey = inferHomeSurface(ritualIntent?.value || 
       <article class="surface-plan">
         <strong>${escapeHtml(artifactTitle)}</strong>
         <p>${escapeHtml(receipt.why || mode.why)}</p>
+        <div class="surface-proof-grid">
+          <section>
+            <span>Decision</span>
+            <b>${escapeHtml(goals[0] || "Choose the next move")}</b>
+          </section>
+          <section>
+            <span>Blind spot</span>
+            <b>${escapeHtml(blockers[0] || "The weak assumption stays visible")}</b>
+          </section>
+          <section>
+            <span>Next 24h</span>
+            <b>${escapeHtml(moves[0] || "Create one visible proof")}</b>
+          </section>
+        </div>
         <ol>
           ${moves.slice(0, 3).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
         </ol>
@@ -678,8 +830,20 @@ function renderHomeSurface(surfaceKey = inferHomeSurface(ritualIntent?.value || 
       <article class="surface-document">
         <h3>Decision note</h3>
         <p><strong>What I heard:</strong> ${escapeHtml(receipt.context_used || short)}</p>
-        <p><strong>Watch for:</strong> ${escapeHtml(blockers[0])}</p>
-        <p><strong>Next:</strong> ${escapeHtml(moves[0])}</p>
+        <div class="surface-proof-grid">
+          <section>
+            <span>Useful signal</span>
+            <b>${escapeHtml(goals[0])}</b>
+          </section>
+          <section>
+            <span>Watch for</span>
+            <b>${escapeHtml(blockers[0])}</b>
+          </section>
+          <section>
+            <span>Next</span>
+            <b>${escapeHtml(moves[0])}</b>
+          </section>
+        </div>
       </article>
     `,
     table: `
@@ -690,7 +854,7 @@ function renderHomeSurface(surfaceKey = inferHomeSurface(ritualIntent?.value || 
         </label>
         <p data-file-state>Nothing is uploaded. Selection stays in this browser.</p>
         <table class="surface-table">
-          <thead><tr><th>Input</th><th>Use</th><th>Decision</th></tr></thead>
+          <thead><tr><th>Input</th><th>Use</th><th>Handling</th></tr></thead>
           <tbody>
             ${["Document", "Screenshot", "Notes"].map((item, index) => `
               <tr>
@@ -707,11 +871,20 @@ function renderHomeSurface(surfaceKey = inferHomeSurface(ritualIntent?.value || 
       <article class="surface-browser">
         <div><span></span><span></span><span></span><strong>Web check prepared</strong></div>
         <p>Search only after approval. Start with: ${escapeHtml(short)}</p>
-        <ul>
-          <li>What claim needs evidence?</li>
-          <li>Which source would change the decision?</li>
-          <li>What should stay out of the request?</li>
-        </ul>
+        <section class="surface-proof-grid">
+          <section>
+            <span>Claim</span>
+            <b>What must be verified before action?</b>
+          </section>
+          <section>
+            <span>Evidence</span>
+            <b>Which source would change the decision?</b>
+          </section>
+          <section>
+            <span>Keep out</span>
+            <b>${escapeHtml(boundaryCopy[ritualBoundary?.value || "personal"].excluded)}</b>
+          </section>
+        </section>
       </article>
     `,
     media: `
@@ -723,9 +896,10 @@ function renderHomeSurface(surfaceKey = inferHomeSurface(ritualIntent?.value || 
           <input data-local-picker type="file" accept="image/*,video/*" multiple />
         </label>
         <p data-file-state>No media selected. References stay local until approved.</p>
-        <div>
+        <div class="surface-media-brief">
           <span>Output</span><b>Image, slide, or short clip</b>
           <span>Boundary</span><b>${escapeHtml(boundaryCopy[ritualBoundary?.value || "personal"].excluded)}</b>
+          <span>Direction</span><b>${escapeHtml(moves[0] || "Create one public-safe visual direction")}</b>
         </div>
       </article>
     `,
@@ -743,6 +917,7 @@ function renderHomeSurface(surfaceKey = inferHomeSurface(ritualIntent?.value || 
     }
   });
   setHomeSurfaceTab(surfaceKey);
+  renderApprovedHelpReview(surfaceKey, laneKey);
 }
 
 function applyHomeRemoteReceipt(payload) {
@@ -842,6 +1017,16 @@ async function markRitualGenerated(surfaceOverride = null, laneOverride = null) 
   const selectedHelp = homeHelpMode();
   const routeKey = homeRouteFromMode(laneKey);
   const requestId = (homeRequestId += 1);
+  trackSiteEvent("reflect_click", {
+    lane: laneKey,
+    surface: surfaceKey,
+    help: selectedHelp,
+    boundary: ritualBoundary?.value || "personal",
+  });
+  if (selectedHelp !== "local" && !homeApprovedHelp) {
+    requestHomeApproval(surfaceKey, laneKey);
+    return;
+  }
   homeRemotePayload = null;
   withViewTransition(() => {
     ritualTurn += 1;
@@ -895,6 +1080,9 @@ async function markRitualGenerated(surfaceOverride = null, laneOverride = null) 
     } finally {
       if (requestId === homeRequestId) {
         ritualCreate.disabled = false;
+        homeApprovedHelp = false;
+        pendingApprovedSurface = null;
+        pendingApprovedLane = null;
       }
     }
   }
@@ -904,6 +1092,87 @@ async function markRitualGenerated(surfaceOverride = null, laneOverride = null) 
     ritualCreate.textContent = "Reflect again";
     ritualCreate.classList.remove("is-complete");
   }, selectedHelp === "local" ? 1700 : 2200);
+}
+
+function applyLandingVariant() {
+  if (landingVariant() !== "proof") return;
+  const title = document.querySelector(".genui-copy h1");
+  const copy = document.querySelector(".genui-copy p");
+  const bottomCopy = document.querySelector(".genui-bottom-bar p");
+  document.documentElement.dataset.landingVariant = "proof";
+  if (title) title.textContent = "Most AI gives answers. Active Mirror shows its work.";
+  if (copy) {
+    copy.textContent =
+      "Try one workflow. See what it used, what it left out, what changed, and what needs your approval before anything moves.";
+  }
+  if (bottomCopy) bottomCopy.textContent = "Use one real workflow. If the receipt is useful, start a proof sprint.";
+  if (ritualIntent) {
+    ritualIntent.value =
+      "I want to test Active Mirror with one important workflow and see the receipt before I share or save anything.";
+  }
+}
+
+function proofSprintBody() {
+  const workflow = (proofWorkflow?.value || ritualIntent?.value || ritualInitialIntent).replace(/\s+/g, " ").trim();
+  const success = (proofSuccess?.value || "Clear output, receipt, and next move.").replace(/\s+/g, " ").trim();
+  const boundary = proofBoundary?.value || ritualBoundary?.selectedOptions?.[0]?.textContent || "No personal context";
+  const email = (proofEmail?.value || "").replace(/\s+/g, " ").trim();
+  return [
+    "Active Mirror proof sprint request",
+    "",
+    `Workflow: ${workflow}`,
+    `Success: ${success}`,
+    `Boundary: ${boundary}`,
+    email ? `Reply email: ${email}` : "",
+    "",
+    "Please use this as a public-safe intake. I will approve any additional context before it is used.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function currentProofBoundaryLabel() {
+  return {
+    personal: "No personal context",
+    client: "No client details",
+    secrets: "No secrets",
+    drafts: "Drafts only",
+  }[ritualBoundary?.value || "personal"] || "No personal context";
+}
+
+function openProofSprint() {
+  if (!proofSprintModal) return;
+  if (proofWorkflow && !proofWorkflow.value.trim()) proofWorkflow.value = ritualIntent?.value || ritualInitialIntent;
+  if (proofBoundary) proofBoundary.value = currentProofBoundaryLabel();
+  proofSprintModal.hidden = false;
+  document.body.classList.add("modal-open");
+  trackSiteEvent("proof_open", { lane: currentHomeLane, surface: activeHomeSurfaceKey(), help: homeHelpMode() });
+  window.setTimeout(() => proofWorkflow?.focus({ preventScroll: true }), 0);
+}
+
+function closeProofSprint() {
+  if (!proofSprintModal) return;
+  proofSprintModal.hidden = true;
+  document.body.classList.remove("modal-open");
+  proofSprintOpen?.focus({ preventScroll: true });
+}
+
+function prepareProofSprint(event) {
+  event.preventDefault();
+  const body = proofSprintBody();
+  const subject = "Active Mirror proof sprint";
+  const workflow = (proofWorkflow?.value || ritualIntent?.value || ritualInitialIntent).replace(/\s+/g, " ").trim();
+  if (proofSprintSummary) {
+    proofSprintSummary.textContent = `Prepared locally: ${shortIntent(workflow)} Boundary: ${
+      proofBoundary?.value || "selected boundary"
+    }.`;
+  }
+  if (proofSprintMail) {
+    proofSprintMail.href = `mailto:hello@activemirror.ai?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+  if (proofSprintOutput) proofSprintOutput.hidden = false;
+  trackSiteEvent("proof_prepare", { lane: currentHomeLane, surface: activeHomeSurfaceKey(), help: homeHelpMode() });
+  proofSprintMail?.focus({ preventScroll: true });
 }
 
 function renderHeroMode(modeKey) {
@@ -1058,24 +1327,60 @@ if (ritualIntent && ritualBoundary && ritualCreate) {
     localStorage.removeItem("activeMirrorFirstUse");
   }
 
+  applyLandingVariant();
+  trackSiteEvent("page_view", { lane: currentHomeLane, surface: activeHomeSurfaceKey(), help: homeHelpMode() });
+
   ritualIntent.addEventListener("input", () => {
     homeRemotePayload = null;
+    resetHomeApproval();
     renderRitual();
   });
 
   ritualBoundary.addEventListener("change", () => {
     homeRemotePayload = null;
+    resetHomeApproval();
     withViewTransition(renderRitual);
     animateRitualBoard();
   });
 
   homeModelMode?.addEventListener("change", () => {
     homeRemotePayload = null;
+    resetHomeApproval();
     renderRitual();
     renderHomeSurface(inferHomeSurface(ritualIntent.value), currentHomeLane);
   });
 
   ritualCreate.addEventListener("click", runSelectedHomeReflection);
+
+  approvedHelpApprove?.addEventListener("click", () => {
+    homeApprovedHelp = true;
+    trackSiteEvent("approval_confirm", {
+      lane: pendingApprovedLane || currentHomeLane,
+      surface: pendingApprovedSurface || activeHomeSurfaceKey(),
+      help: homeHelpMode(),
+      boundary: ritualBoundary?.value || "personal",
+    });
+    renderApprovedHelpReview(pendingApprovedSurface || activeHomeSurfaceKey(), pendingApprovedLane || currentHomeLane);
+    markRitualGenerated(pendingApprovedSurface || activeHomeSurfaceKey(), pendingApprovedLane || currentHomeLane);
+  });
+
+  approvedHelpCancel?.addEventListener("click", () => {
+    if (homeModelMode) homeModelMode.value = "local";
+    resetHomeApproval();
+    trackSiteEvent("approval_cancel", { lane: currentHomeLane, surface: activeHomeSurfaceKey(), help: "local" });
+    renderRitual(activeHomeSurfaceKey(), currentHomeLane);
+  });
+
+  proofSprintOpen?.addEventListener("click", openProofSprint);
+  proofSprintClose?.addEventListener("click", closeProofSprint);
+  proofSprintModal?.querySelector("[data-proof-close]")?.addEventListener("click", closeProofSprint);
+  proofSprintForm?.addEventListener("submit", prepareProofSprint);
+  proofSprintMail?.addEventListener("click", () => {
+    trackSiteEvent("proof_mail", { lane: currentHomeLane, surface: activeHomeSurfaceKey(), help: homeHelpMode() });
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && proofSprintModal && !proofSprintModal.hidden) closeProofSprint();
+  });
 
   openGeneratedMirror?.addEventListener("click", (event) => {
     event.preventDefault();
@@ -1087,6 +1392,7 @@ if (ritualIntent && ritualBoundary && ritualCreate) {
   homeWorkControls.forEach((button) => {
     button.addEventListener("click", () => {
       homeRemotePayload = null;
+      resetHomeApproval();
       const currentText = ritualIntent.value.trim();
       const untouched = currentText === ritualInitialIntent.trim();
       if (!currentText || untouched) {
@@ -1098,12 +1404,14 @@ if (ritualIntent && ritualBoundary && ritualCreate) {
       const surfaceKey = button.dataset.surface || inferHomeSurface(ritualIntent.value);
       const laneKey = button.dataset.workLane || inferHomeLane(ritualIntent.value, surfaceKey);
       setActiveHomeLane(laneKey);
+      trackSiteEvent("lane_click", { lane: laneKey, surface: surfaceKey, help: homeHelpMode() });
       renderRitual(surfaceKey, laneKey);
     });
   });
 
   homeSurfaceTabs.forEach((button) => {
     button.addEventListener("click", () => {
+      trackSiteEvent("surface_click", { lane: currentHomeLane, surface: button.dataset.surfaceTab, help: homeHelpMode() });
       renderHomeSurface(button.dataset.surfaceTab, currentHomeLane);
     });
   });
@@ -1132,6 +1440,7 @@ if (ritualIntent && ritualBoundary && ritualCreate) {
       ritualIntent.value = ritualInitialIntent;
       ritualBoundary.value = "personal";
       if (homeModelMode) homeModelMode.value = "local";
+      resetHomeApproval();
       setActiveHomeLane("decision");
       if (ritualStatus) ritualStatus.textContent = "Reflects first";
       receiptLines.forEach((line, index) => line.classList.toggle("is-open", index === 0));
