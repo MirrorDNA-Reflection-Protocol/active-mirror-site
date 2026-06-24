@@ -38,8 +38,9 @@
     </header>
 
     <main id="top" class="genui-main">
-      <section class="seed-section" id="brainscan" aria-label="Mint your Mirror Seed">
-        <div class="seed-mount" id="mirror-seed"></div>
+      <section class="reflect-hero" aria-label="Active Mirror">
+        <h1 class="reflect-h1">Meet the AI that makes you think.</h1>
+        <p class="reflect-lead">Most AI hands you an answer. Active Mirror hands you a better question — and the thinking to back it.</p>
       </section>
       <section class="genui-workspace" id="first-use" aria-label="Active Mirror reflective workspace">
         <div class="genui-panel">
@@ -87,7 +88,13 @@
           </section>
 
           <form class="reflection-composer chat-composer" aria-label="Start a reflection">
-            <label for="ritual-intent">Type one sentence.</label>
+            <div class="primed-chips" aria-label="Start with one of these">
+              <button type="button" class="primed-chip" data-prompt-chip="Pressure-test a decision I've already made: ">Pressure-test my decision</button>
+              <button type="button" class="primed-chip" data-prompt-chip="Tell me what I'm getting wrong about ">What am I getting wrong?</button>
+              <button type="button" class="primed-chip" data-prompt-chip="I think this is the right move — argue the other side: ">Argue the other side</button>
+              <button type="button" class="primed-chip" data-prompt-chip="Reflect my plan back to me and find the weak spot: ">Find my weak spot</button>
+            </div>
+            <label for="ritual-intent">Type one sentence — or start with one above.</label>
             <textarea id="ritual-intent" rows="4" maxlength="1000" placeholder="Example: I do not know what to do next."></textarea>
             <div class="composer-row">
               <select id="ritual-boundary" aria-label="Reflection boundary">
@@ -259,6 +266,10 @@
             <button class="button secondary small" id="ritual-reset" type="button">Reset</button>
           </div>
         </div>
+      </section>
+
+      <section class="seed-section" id="brainscan" aria-label="Mint your Mirror Seed">
+        <div class="seed-mount" id="mirror-seed"></div>
       </section>
 
       <div class="proof-sprint-modal" id="proof-sprint-modal" aria-labelledby="proof-sprint-title" hidden>

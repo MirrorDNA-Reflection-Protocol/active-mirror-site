@@ -1,4 +1,5 @@
 import "./style.css";
+import "./prompt-chips.js";
 import { seedSummary, signWithSeed, verifyWithSeed, getSeedPublicKey } from "./mirror-seed.js";
 import { gsap } from "gsap";
 

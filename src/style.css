@@ -7526,3 +7526,79 @@ body.modal-open {
   color: #5b6b85;
   line-height: 1.45;
 }
+
+/* Reflection hero — the USP, for AI fatigue */
+.reflect-hero {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 44px 20px 4px;
+  text-align: center;
+}
+.reflect-eyebrow {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--verify, #0a6b42);
+  margin: 0 0 12px;
+}
+.reflect-h1 {
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-weight: 700;
+  font-size: clamp(30px, 5vw, 52px);
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  margin: 0 auto 14px;
+  max-width: 20ch;
+}
+.reflect-lead {
+  color: #33415c;
+  font-size: clamp(15px, 2vw, 18px);
+  line-height: 1.5;
+  margin: 0 auto 22px;
+  max-width: 58ch;
+}
+.reflect-lead b {
+  color: #0b1220;
+  font-weight: 600;
+}
+.reflect-cta {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.reflect-cta .button {
+  text-decoration: none;
+}
+@media (max-width: 640px) {
+  .reflect-hero {
+    padding-top: 28px;
+  }
+}
+
+/* Primed pushback chips — invite the first challenge */
+.primed-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.primed-chip {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid #e3e9f2;
+  background: #fff;
+  color: #33415c;
+  border-radius: 999px;
+  padding: 7px 13px;
+  transition: 0.15s;
+}
+.primed-chip:hover {
+  border-color: #1452f0;
+  color: #0b1220;
+  background: #f2f6ff;
+}
