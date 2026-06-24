@@ -35,7 +35,7 @@
       <section class="genui-workspace" id="first-use" aria-label="Active Mirror reflective workspace">
         <div class="genui-panel">
           <div class="genui-copy">
-            <h1>Bring one messy thing.</h1>
+            <h1>What feels stuck?</h1>
           </div>
 
           <section class="work-lanes" aria-label="Ways to start">
@@ -47,9 +47,9 @@
               data-boundary="personal"
               data-intent="Help me make one good decision from messy context, weak assumptions, and competing next steps."
             >
-              <span aria-hidden="true">01</span>
-              <strong>Decide</strong>
-              <small>Pick the move.</small>
+              <span aria-hidden="true">1</span>
+              <strong>Decision</strong>
+              <small></small>
             </button>
             <button
               type="button"
@@ -59,9 +59,9 @@
               data-boundary="drafts"
               data-intent="Work on local files and turn them into a clear summary, action list, and receipt without sharing private context."
             >
-              <span aria-hidden="true">02</span>
-              <strong>Files</strong>
-              <small>Use context.</small>
+              <span aria-hidden="true">2</span>
+              <strong>Messy notes</strong>
+              <small></small>
             </button>
             <button
               type="button"
@@ -71,20 +71,15 @@
               data-boundary="client"
               data-intent="Research this question online, separate evidence from opinion, and show what should stay out of the request."
             >
-              <span aria-hidden="true">03</span>
+              <span aria-hidden="true">3</span>
               <strong>Research</strong>
-              <small>Check sources.</small>
+              <small></small>
             </button>
           </section>
 
           <form class="reflection-composer chat-composer" aria-label="Start a reflection">
-            <label for="ritual-intent">What needs to move?</label>
-            <textarea id="ritual-intent" rows="7" maxlength="1000">I don't really know what to do.
-Lots of notes everywhere.
-Screenshots of ideas. Half-built landing page.
-Need a product story that feels real.
-Who is it for? What problem do we actually solve?
-I'm stuck.</textarea>
+            <label for="ritual-intent">Type one sentence.</label>
+            <textarea id="ritual-intent" rows="4" maxlength="1000" placeholder="Example: I do not know what to do next."></textarea>
             <div class="composer-row">
               <select id="ritual-boundary" aria-label="Reflection boundary">
                 <option value="personal">No personal</option>
@@ -97,9 +92,9 @@ I'm stuck.</textarea>
                 <option value="reflection">Deep reflection</option>
                 <option value="media">Visual creation</option>
               </select>
-              <button class="button primary ritual-button" id="ritual-create" type="button">Get next move</button>
+              <button class="button primary ritual-button" id="ritual-create" type="button">Show me</button>
             </div>
-            <small><strong id="ritual-count">176</strong> / 1000 - private first, approval before sharing</small>
+            <small>Private by default.</small>
           </form>
 
           <section class="approved-help-review" id="approved-help-review" aria-label="Extra help approval" hidden>
@@ -137,9 +132,8 @@ I'm stuck.</textarea>
           </section>
 
           <ul class="front-trust" aria-label="Active Mirror basics">
-            <li>Private first</li>
-            <li>Approval before sharing</li>
-            <li>You choose memory</li>
+            <li>No account needed</li>
+            <li>Nothing saved unless you choose</li>
           </ul>
 
         </div>
@@ -147,8 +141,8 @@ I'm stuck.</textarea>
         <div class="genui-stage" aria-label="Active Mirror workspace">
           <section class="home-surface" aria-label="Generated working surface">
             <div class="panel-head split">
-              <strong id="home-surface-title">Next move</strong>
-              <span id="home-surface-type">Private first</span>
+              <strong id="home-surface-title">Your canvas</strong>
+              <span id="home-surface-type">Private</span>
             </div>
             <div class="surface-tabs" aria-label="Ways to view this turn">
               <button type="button" class="is-active" data-surface-tab="plan">Plan</button>
@@ -189,8 +183,8 @@ I'm stuck.</textarea>
 
           <section class="ritual-receipt receipt-card" id="receipts" aria-label="Reflection receipt">
             <div class="receipt-strip">
-              <span>Receipt</span>
-              <strong id="ritual-receipt-time">local-turn-001</strong>
+              <span>Why?</span>
+              <strong id="ritual-receipt-time">Tap a row</strong>
             </div>
             <button class="receipt-line is-open" type="button">
               <span>Why</span>
@@ -216,10 +210,10 @@ I'm stuck.</textarea>
         </div>
 
         <div class="genui-bottom-bar">
-          <p>Get the move first. Save or share only after the receipt makes sense.</p>
+          <p>Start here. One stuck thing is enough.</p>
           <div>
-            <a class="button secondary small" id="open-generated-mirror" href="#first-use">Run it again</a>
-            <button class="button primary small" id="proof-sprint-open" type="button">Start proof sprint</button>
+            <a class="button secondary small" id="open-generated-mirror" href="#first-use">Again</a>
+            <button class="button primary small" id="proof-sprint-open" type="button">Send this</button>
             <button class="button secondary small" id="ritual-reset" type="button">Reset</button>
           </div>
         </div>

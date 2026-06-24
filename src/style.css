@@ -1073,7 +1073,7 @@ h1 span {
   display: grid;
   grid-template-columns: minmax(320px, 0.58fr) minmax(0, 1fr);
   gap: 16px;
-  align-items: stretch;
+  align-items: start;
 }
 
 .ritual-input,
@@ -5174,7 +5174,7 @@ body.home-genui::before {
 
 .genui-workspace {
   width: min(1380px, calc(100vw - 32px));
-  min-height: calc(100svh - 100px);
+  min-height: 0;
   display: grid;
   grid-template-columns: minmax(360px, 0.38fr) minmax(0, 0.82fr);
   grid-template-rows: minmax(0, 1fr) auto;
@@ -5182,7 +5182,7 @@ body.home-genui::before {
     "panel stage"
     "bar bar";
   gap: 18px;
-  align-items: stretch;
+  align-items: start;
   margin: 0 auto;
   padding: 28px 0 18px;
 }
@@ -5284,7 +5284,7 @@ body.home-genui::before {
 
 .reflection-composer textarea {
   resize: vertical;
-  min-height: 138px;
+  min-height: 116px;
   max-height: 260px;
   padding: 14px;
   font-size: 15px;
@@ -5306,13 +5306,18 @@ body.home-genui::before {
 
 .composer-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 1fr;
   gap: 10px;
   align-items: center;
 }
 
+#ritual-boundary,
 #home-model-mode {
   display: none;
+}
+
+.reflection-composer .button {
+  width: 100%;
 }
 
 .reflection-composer small {
@@ -5544,7 +5549,7 @@ body.home-genui::before {
     "num title"
     "num copy";
   gap: 3px 10px;
-  min-height: 66px;
+  min-height: 58px;
   padding: 11px;
   border: 1px solid rgba(185, 199, 216, 0.84);
   border-radius: 12px;
@@ -5588,6 +5593,7 @@ body.home-genui::before {
 }
 
 .home-work-lane small {
+  display: none;
   grid-area: copy;
   min-width: 0;
   color: var(--muted);
@@ -5702,9 +5708,9 @@ body.home-genui::before {
   position: relative;
   grid-area: stage;
   min-width: 0;
-  min-height: 560px;
+  min-height: 0;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto auto;
+  grid-template-rows: auto auto auto;
   gap: 14px;
   padding: 18px;
   border-radius: 22px;
@@ -5974,12 +5980,16 @@ body.home-genui::before {
 
 .home-surface {
   order: 1;
-  min-height: 360px;
+  min-height: 330px;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   border-radius: 16px;
   overflow: hidden;
-  background: #ffffff;
+  background:
+    linear-gradient(rgba(220, 228, 239, 0.5) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(220, 228, 239, 0.42) 1px, transparent 1px),
+    #ffffff;
+  background-size: 28px 28px;
   transition: border-color 240ms ease, box-shadow 240ms ease;
 }
 
@@ -6008,7 +6018,7 @@ body.home-genui::before {
 }
 
 .surface-tabs {
-  display: flex;
+  display: none;
   gap: 6px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--line);
@@ -6070,6 +6080,136 @@ body.home-genui::before {
 .surface-output article {
   display: grid;
   gap: 12px;
+}
+
+.simple-result {
+  min-height: 190px;
+  align-content: center;
+}
+
+.simple-result > strong {
+  max-width: 760px;
+  font-size: clamp(30px, 4vw, 52px);
+  line-height: 1.02;
+  letter-spacing: 0;
+}
+
+.simple-result > p {
+  max-width: 560px;
+  font-size: 16px;
+}
+
+.simple-next-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.simple-next-grid span {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(220, 228, 239, 0.96);
+  border-radius: 12px;
+  color: #25344a;
+  background: var(--soft);
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 760;
+}
+
+.mirror-canvas {
+  min-height: 250px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.28fr) minmax(190px, 0.72fr);
+  grid-template-areas:
+    "main watch"
+    "main keep"
+    "actions actions";
+  gap: 12px;
+}
+
+.canvas-card {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 15px;
+  border: 1px solid rgba(185, 199, 216, 0.82);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 14px 32px rgba(23, 39, 61, 0.08);
+}
+
+.canvas-card span {
+  color: var(--green);
+  font-size: 10px;
+  font-weight: 880;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.canvas-card strong {
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.18;
+}
+
+.canvas-card p {
+  color: #33435a;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.canvas-card-main {
+  grid-area: main;
+  min-height: 178px;
+  align-content: center;
+  border-color: rgba(7, 93, 242, 0.22);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(7, 93, 242, 0.12), transparent 40%),
+    #ffffff;
+}
+
+.canvas-card-main strong {
+  font-size: clamp(30px, 3.5vw, 48px);
+  line-height: 1.02;
+}
+
+.canvas-card-watch {
+  grid-area: watch;
+}
+
+.canvas-card-keep {
+  grid-area: keep;
+}
+
+.canvas-actions {
+  grid-area: actions;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.canvas-option {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(7, 93, 242, 0.22);
+  border-radius: 999px;
+  color: var(--blue);
+  background: rgba(255, 255, 255, 0.88);
+  font-size: 12px;
+  font-weight: 820;
+  cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+
+.canvas-option:hover,
+.canvas-option:focus-visible {
+  border-color: rgba(7, 93, 242, 0.42);
+  background: var(--blue-soft);
+  transform: translateY(-1px);
+  outline: none;
 }
 
 .surface-kicker {
@@ -6280,7 +6420,7 @@ body.home-genui::before {
 
 .proof-console {
   order: 2;
-  display: grid;
+  display: none;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 1px;
   padding: 1px;
@@ -6339,8 +6479,11 @@ body.home-genui::before {
 }
 
 .home-genui .receipt-strip {
-  padding: 4px 4px 8px;
-  border-bottom: 1px solid rgba(220, 228, 239, 0.95);
+  display: none;
+}
+
+.home-genui .receipt-line:not(.is-open) {
+  display: none;
 }
 
 .home-genui .receipt-strip span,
@@ -6697,6 +6840,28 @@ body.modal-open {
 
   .home-surface {
     order: 1;
+  }
+
+  .mirror-canvas {
+    min-height: 0;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "main"
+      "watch"
+      "keep"
+      "actions";
+  }
+
+  .canvas-card {
+    padding: 13px;
+  }
+
+  .canvas-card-main {
+    min-height: 168px;
+  }
+
+  .canvas-card-main strong {
+    font-size: clamp(28px, 9vw, 38px);
   }
 
   .receipt-card {

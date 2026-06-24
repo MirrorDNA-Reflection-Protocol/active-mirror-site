@@ -1,12 +1,13 @@
 **Design QA**
 
 source visual truth path:
+- `/Users/mirror-pro/Downloads/edge-privacy.png`
 - `/Users/mirror-pro/Downloads/WhatsApp Image 2026-05-29 at 15.44.43 (1).jpeg`
 - `/Users/mirror-pro/Downloads/WhatsApp Image 2026-05-29 at 15.45.11 (1).jpeg`
 
 implementation screenshot path:
-- `/tmp/active-mirror-desktop2.png`
-- `/tmp/active-mirror-mobile2.png`
+- `/tmp/active-mirror-canvas-desktop-final.png`
+- `/tmp/active-mirror-canvas-mobile-final.png`
 
 viewport:
 - desktop: 1440 x 950
@@ -14,33 +15,33 @@ viewport:
 
 state:
 - Homepage first-use state at `/#first-use`
-- Default reflection input, local-first result, proof console, and receipt visible
+- One prompt, one primary action, generated right-side canvas, one receipt row
+- Proof console, tabs, model labels, and internal controls hidden from the first-use surface
 
-full-view comparison evidence:
-- `/tmp/active-mirror-design-qa-comparison.jpg`
-
-focused region comparison evidence:
-- Focused region was not needed for this pass. The source target is a TUI/glass-dashboard direction rather than an exact component mock, and the implementation intentionally translates it into a public-facing product surface instead of copying terminal density.
+browser interaction evidence:
+- Desktop and mobile loaded without horizontal overflow
+- `Show me` generated the canvas state
+- `Risk` appended a follow-up and regenerated the local turn
+- Browser console error count: 0 on desktop and mobile
 
 **Findings**
 - No blocking P0/P1/P2 findings remain.
 
 **Required Fidelity Surfaces**
-- Fonts and typography: The implementation uses the existing site system font stack with strong display hierarchy. Headline wrapping is controlled on desktop and mobile. Small console labels use monospace to echo the TUI reference without making the primary task hard to read.
-- Spacing and layout rhythm: The first screen has one clear left-side action and one right-side result surface. Mobile stacks in the correct order: prompt, result, proof console, receipt. No horizontal overflow was detected.
-- Colors and visual tokens: The proof console carries the dark cyan/blue terminal-glass direction from the source images. The main input and result surfaces stay light for consumer readability.
-- Image quality and asset fidelity: No static screenshot is used as product UI. The TUI reference is translated into code-native proof-console components.
-- Copy and content: Public copy avoids internal terms such as GenUI, viewport, widget, substrate, protocol, and provider names. The page now centers on one user action: bring one messy thing, get the next move, inspect the receipt.
+- Fonts and typography: The implementation uses the existing site stack with a large, plain-language entry question. The generated canvas uses strong hierarchy without viewport-scaled typography.
+- Spacing and layout rhythm: Desktop presents the product as prompt-left and canvas-right. Mobile stacks the prompt, canvas, receipt, and actions in a single usable flow. No horizontal overflow was detected.
+- Colors and visual tokens: The right-side canvas borrows the edge-privacy diagram structure and the TUI/glass dashboard contrast without exposing the user to internal architecture language.
+- Image quality and asset fidelity: No static screenshot is used as product UI. The canvas is generated DOM with active refinement controls.
+- Copy and content: Public copy avoids internal terms such as GenUI, viewport, widget, substrate, protocol, and provider names. The page centers on one user action: type one stuck thing and see the generated working surface.
 
 **Patches Made**
-- Removed the hidden architecture-map-first homepage presentation.
-- Added a compact proof console inspired by the TUI dashboard screenshots.
-- Simplified the first-use flow to starter choices, one input, one action, generated output, and receipt.
-- Fixed mobile blank-panel issue caused by global reveal opacity on nested product sections.
-- Preserved local-first receipt behavior and approval language.
-
-**Follow-up Polish**
-- P3: Consider renaming `Start proof sprint` to a softer consumer CTA if this page targets individual self-serve users first.
-- P3: Add one tasteful generated visual asset or motion state once the interaction copy is stable.
+- Replaced the homepage lead with `What feels stuck?`
+- Simplified starter choices to `Decision`, `Messy notes`, and `Research`
+- Changed the primary action to `Show me`
+- Replaced the right-side plan block with an interactive generated canvas
+- Added `Smaller`, `Risk`, and `Checklist` canvas refinements
+- Hid first-use proof console and surface tabs by default
+- Added mobile stacking rules for the generated canvas
+- Suppressed production telemetry sends on localhost
 
 final result: passed

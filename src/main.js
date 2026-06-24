@@ -259,7 +259,7 @@ function withViewTransition(callback) {
 }
 
 const ritualInitialIntent =
-  "I don't really know what to do.\nLots of notes everywhere.\nScreenshots of ideas. Half-built landing page.\nNeed a product story that feels real.\nWho is it for? What problem do we actually solve?\nI'm stuck.";
+  "I do not know what to do next.";
 
 const boundaryCopy = {
   personal: {
@@ -443,7 +443,8 @@ function safeEventDetail(detail = {}) {
 }
 
 function canSendSiteEvent() {
-  return navigator.globalPrivacyControl !== true && navigator.doNotTrack !== "1" && navigator.doNotTrack !== "yes";
+  const isProductionHost = window.location.hostname === "activemirror.ai" || window.location.hostname === "www.activemirror.ai";
+  return isProductionHost && navigator.globalPrivacyControl !== true && navigator.doNotTrack !== "1" && navigator.doNotTrack !== "yes";
 }
 
 function trackSiteEvent(name, detail = {}) {
@@ -766,7 +767,7 @@ function renderHomeSurface(surfaceKey = inferHomeSurface(ritualIntent?.value || 
         ? "Approved"
         : "Review";
   const surfaceLabels = {
-    plan: ["Next move", "Private first"],
+    plan: ["Your canvas", "Private"],
     document: laneKey === "memory" ? ["Continuity note", "Memory"] : ["Note", "Draft"],
     table: ["File plan", "Local context"],
     browser: ["Web check", "Research"],
@@ -806,27 +807,25 @@ function renderHomeSurface(surfaceKey = inferHomeSurface(ritualIntent?.value || 
 
   const templates = {
     plan: `
-      <article class="surface-plan">
-        <span class="surface-kicker">Start here</span>
-        <strong>${escapeHtml(moves[0] || artifactTitle)}</strong>
-        <p>${escapeHtml(receipt.why || mode.why)}</p>
-        <div class="surface-proof-grid">
-          <section>
-            <span>Promise</span>
-            <b>${escapeHtml(goals[0] || "Choose the next move")}</b>
-          </section>
-          <section>
-            <span>Watch</span>
-            <b>${escapeHtml(blockers[0] || "The weak assumption stays visible")}</b>
-          </section>
-          <section>
-            <span>Do next</span>
-            <b>${escapeHtml(moves[0] || "Create one visible proof")}</b>
-          </section>
+      <article class="surface-plan mirror-canvas">
+        <section class="canvas-card canvas-card-main">
+          <span>Next move</span>
+          <strong>${escapeHtml(moves[0] || artifactTitle)}</strong>
+          <p>Small enough to do now. Useful enough to create clarity.</p>
+        </section>
+        <section class="canvas-card canvas-card-watch">
+          <span>Watch</span>
+          <strong>${escapeHtml(blockers[0] || "The weak assumption")}</strong>
+        </section>
+        <section class="canvas-card canvas-card-keep">
+          <span>Keep</span>
+          <strong>${escapeHtml(goals[0] || "The useful signal")}</strong>
+        </section>
+        <div class="canvas-actions" aria-label="Refine this result">
+          <button type="button" class="canvas-option" data-canvas-followup="Make it smaller">Smaller</button>
+          <button type="button" class="canvas-option" data-canvas-followup="Show the risk">Risk</button>
+          <button type="button" class="canvas-option" data-canvas-followup="Turn it into a checklist">Checklist</button>
         </div>
-        <ol>
-          ${moves.slice(0, 3).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
-        </ol>
       </article>
     `,
     document: `
@@ -919,6 +918,17 @@ function renderHomeSurface(surfaceKey = inferHomeSurface(ritualIntent?.value || 
         : "Nothing selected. Nothing leaves this browser.";
     }
   });
+  homeSurfaceOutput.querySelectorAll("[data-canvas-followup]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const followup = button.dataset.canvasFollowup || button.textContent || "Refine this";
+      const base = ritualIntent?.value.trim() || ritualInitialIntent;
+      if (ritualIntent) ritualIntent.value = `${base}\n\n${followup}.`;
+      homeRemotePayload = null;
+      resetHomeApproval();
+      renderRitual(surfaceKey, laneKey);
+      markRitualGenerated(surfaceKey, laneKey);
+    });
+  });
   setHomeSurfaceTab(surfaceKey);
   renderApprovedHelpReview(surfaceKey, laneKey);
 }
@@ -926,7 +936,7 @@ function renderHomeSurface(surfaceKey = inferHomeSurface(ritualIntent?.value || 
 function applyHomeRemoteReceipt(payload) {
   const mirror = payload?.mirror || {};
   const receipt = mirror.receipt || {};
-  if (ritualReceiptTime && payload?.receipt_id) ritualReceiptTime.textContent = `help-${payload.receipt_id}`;
+  if (ritualReceiptTime && payload?.receipt_id) ritualReceiptTime.textContent = "Details ready";
   if (receiptWhy) receiptWhy.textContent = receipt.why || "Extra help produced a receipt-backed working surface.";
   if (receiptUsed) receiptUsed.textContent = receipt.context_used || "Current turn intent, selected boundary, and approved help.";
   if (receiptExcluded) receiptExcluded.textContent = receipt.context_excluded || boundaryCopy[ritualBoundary?.value || "personal"].excluded;
@@ -984,7 +994,7 @@ function renderRitual(surfaceOverride = null, laneOverride = null) {
   if (blockerCount) blockerCount.textContent = String(mode.blockers.length);
   if (moveCount) moveCount.textContent = String(mode.moves.length);
   if (ritualArtifact) ritualArtifact.innerHTML = `<p>${mode.artifact[0]}</p><strong>${mode.artifact[1]}</strong>`;
-  if (ritualReceiptTime) ritualReceiptTime.textContent = `local-turn-${String(ritualTurn).padStart(3, "0")}`;
+  if (ritualReceiptTime) ritualReceiptTime.textContent = "Details ready";
   if (receiptWhy) receiptWhy.textContent = mode.why;
   if (receiptUsed) receiptUsed.textContent = `Intent: "${shortIntent(intent)}" plus the selected boundary.`;
   if (receiptExcluded) receiptExcluded.textContent = boundary.excluded;
@@ -1035,8 +1045,8 @@ async function markRitualGenerated(surfaceOverride = null, laneOverride = null) 
     ritualTurn += 1;
     setActiveHomeLane(laneKey);
     renderRitual(surfaceKey, laneKey);
-    if (ritualStatus) ritualStatus.textContent = selectedHelp === "local" ? "Reflected in browser" : `Using ${homeHelpLabel(selectedHelp)}`;
-    ritualCreate.textContent = selectedHelp === "local" ? "Next move ready" : "Working...";
+    if (ritualStatus) ritualStatus.textContent = selectedHelp === "local" ? "Ready" : `Using ${homeHelpLabel(selectedHelp)}`;
+    ritualCreate.textContent = selectedHelp === "local" ? "Done" : "Working...";
     ritualCreate.disabled = selectedHelp !== "local";
     ritualCreate.classList.add("is-complete");
     receiptLines[0]?.classList.add("is-open");
@@ -1072,14 +1082,14 @@ async function markRitualGenerated(surfaceOverride = null, laneOverride = null) 
       renderHomeSurface(surfaceKey, laneKey);
       animateHomeReflection();
       if (ritualStatus) ritualStatus.textContent = payload.fallback ? "Backup receipt ready" : "Receipt ready";
-      ritualCreate.textContent = payload.fallback ? "Backup ready" : "Receipt ready";
+      ritualCreate.textContent = payload.fallback ? "Done" : "Done";
     } catch {
       if (requestId !== homeRequestId) return;
       homeRemotePayload = null;
       if (ritualStatus) ritualStatus.textContent = "Browser fallback ready";
       if (receiptRoute) receiptRoute.textContent = "Extra help was unavailable, so the browser kept this turn local.";
       if (homeStateReceipt) homeStateReceipt.textContent = "Browser";
-      ritualCreate.textContent = "Browser ready";
+      ritualCreate.textContent = "Done";
     } finally {
       if (requestId === homeRequestId) {
         ritualCreate.disabled = false;
@@ -1092,7 +1102,7 @@ async function markRitualGenerated(surfaceOverride = null, laneOverride = null) 
 
   window.setTimeout(() => {
     if (requestId !== homeRequestId) return;
-    ritualCreate.textContent = "Get next move";
+    ritualCreate.textContent = "Show me";
     ritualCreate.classList.remove("is-complete");
   }, selectedHelp === "local" ? 1700 : 2200);
 }
@@ -1322,10 +1332,7 @@ if (
 
 if (ritualIntent && ritualBoundary && ritualCreate) {
   try {
-    const savedRitual = JSON.parse(localStorage.getItem("activeMirrorFirstUse") || "null");
-    if (savedRitual?.intent) ritualIntent.value = savedRitual.intent;
-    if (savedRitual?.boundary && boundaryCopy[savedRitual.boundary]) ritualBoundary.value = savedRitual.boundary;
-    if (Number.isFinite(savedRitual?.turn)) ritualTurn = savedRitual.turn;
+    localStorage.removeItem("activeMirrorFirstUse");
   } catch {
     localStorage.removeItem("activeMirrorFirstUse");
   }
@@ -1445,7 +1452,7 @@ if (ritualIntent && ritualBoundary && ritualCreate) {
       if (homeModelMode) homeModelMode.value = "local";
       resetHomeApproval();
       setActiveHomeLane("decision");
-      if (ritualStatus) ritualStatus.textContent = "Reflects first";
+      if (ritualStatus) ritualStatus.textContent = "Ready";
       receiptLines.forEach((line, index) => line.classList.toggle("is-open", index === 0));
       renderRitual();
       renderHomeSurface("plan", "decision");
