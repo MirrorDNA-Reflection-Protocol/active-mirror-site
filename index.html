@@ -8,6 +8,12 @@
       content="Active Mirror turns one messy workflow into a clear next move and a receipt you can inspect before anything is saved or shared."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
     <title>Active Mirror | Start with one real thing</title>
   </head>
   <body class="home-genui">
@@ -206,6 +212,38 @@
               <span>Memory</span>
               <strong id="receipt-memory">Nothing promoted until you accept the receipt.</strong>
             </button>
+          </section>
+
+          <section class="receipt-ledger" id="receipt-ledger" data-stage="empty" aria-label="Inspectable receipt ledger" aria-live="polite">
+            <div class="ledger-empty" id="ledger-empty">
+              <span class="ledger-empty-mark" aria-hidden="true">▦</span>
+              <strong>Your receipt appears here.</strong>
+              <p>Run one real thing on the left. You'll get a next move <em>and</em> the receipt behind it — what was used, what was kept out, and a hash you can verify. Nothing is saved until you accept it.</p>
+            </div>
+            <div class="ledger-result" id="ledger-result" hidden>
+              <div class="ledger-head">
+                <span class="ledger-seal">● Receipt</span>
+                <span class="ledger-sp"></span>
+                <span class="ledger-time" id="ledger-time"></span>
+              </div>
+              <div class="ledger-rows">
+                <div class="ledger-row"><span class="lk">Mode</span><span class="lv" id="ledger-mode"></span></div>
+                <div class="ledger-row"><span class="lk">Used</span><span class="lv" id="ledger-used"></span></div>
+                <div class="ledger-row"><span class="lk">Kept out</span><span class="lv kept" id="ledger-kept"></span></div>
+                <div class="ledger-row"><span class="lk">Prev</span><span class="lv hash" id="ledger-prev"></span></div>
+                <div class="ledger-chainlink">chained to this request</div>
+                <div class="ledger-row"><span class="lk">This hash</span><span class="lv hash" id="ledger-hash"></span></div>
+                <div class="ledger-row"><span class="lk">Protocol</span><span class="lv">SCD Protocol &middot; <a id="rDoi" href="https://doi.org/10.5281/zenodo.17787618" target="_blank" rel="noopener">DOI 10.5281/zenodo.17787618</a></span></div>
+              </div>
+              <div class="ledger-verify">
+                <button class="ledger-verify-btn" id="ledger-verify" type="button">Verify hash</button>
+                <span class="ledger-verstate" id="ledger-verstate">Recompute the hash from the fields above — it should match.</span>
+              </div>
+              <div class="ledger-accept">
+                <button class="button primary small" id="ledger-accept" type="button">Accept &amp; save receipt</button>
+                <span class="ledger-note" id="ledger-note"></span>
+              </div>
+            </div>
           </section>
         </div>
 

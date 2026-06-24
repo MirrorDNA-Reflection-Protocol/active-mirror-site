@@ -201,6 +201,26 @@ const homeStateMode = document.querySelector("#home-state-mode");
 const homeStateRoute = document.querySelector("#home-state-route");
 const homeStateBoundary = document.querySelector("#home-state-boundary");
 const homeStateReceipt = document.querySelector("#home-state-receipt");
+
+// --- Inspectable receipt ledger (SCD Protocol) ---
+const SCD_RECEIPT_CHAIN_KEY = "activeMirrorReceiptChain";
+const SCD_RECEIPT_GENESIS = "genesis";
+const receiptLedger = document.querySelector("#receipt-ledger");
+const ledgerEmpty = document.querySelector("#ledger-empty");
+const ledgerResult = document.querySelector("#ledger-result");
+const ledgerMode = document.querySelector("#ledger-mode");
+const ledgerUsed = document.querySelector("#ledger-used");
+const ledgerKept = document.querySelector("#ledger-kept");
+const ledgerPrev = document.querySelector("#ledger-prev");
+const ledgerHash = document.querySelector("#ledger-hash");
+const ledgerTime = document.querySelector("#ledger-time");
+const ledgerVerify = document.querySelector("#ledger-verify");
+const ledgerVerstate = document.querySelector("#ledger-verstate");
+const ledgerAccept = document.querySelector("#ledger-accept");
+const ledgerNote = document.querySelector("#ledger-note");
+let pendingReceipt = null;
+ledgerVerify?.addEventListener("click", verifyReceiptLedger);
+ledgerAccept?.addEventListener("click", acceptReceiptLedger);
 const homeChatSummary = document.querySelector("#home-chat-summary");
 const homeChatNext = document.querySelector("#home-chat-next");
 const homeChatBoundary = document.querySelector("#home-chat-boundary");
@@ -940,6 +960,130 @@ function applyHomeRemoteReceipt(payload) {
   if (receiptExcluded) receiptExcluded.textContent = receipt.context_excluded || boundaryCopy[ritualBoundary?.value || "personal"].excluded;
   if (receiptRoute) receiptRoute.textContent = receipt.route || homeProviderLabel(payload?.route);
   if (receiptMemory) receiptMemory.textContent = receipt.memory_decision || "Nothing is saved until you accept the receipt.";
+  populateReceiptLedger(payload);
+}
+
+function loadReceiptChain() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SCD_RECEIPT_CHAIN_KEY) || "[]");
+    return Array.isArray(raw) ? raw : [];
+  } catch {
+    return [];
+  }
+}
+
+function receiptChainHead() {
+  const chain = loadReceiptChain();
+  return chain.length ? chain[chain.length - 1].hash : SCD_RECEIPT_GENESIS;
+}
+
+async function sha256Hex(text) {
+  const buffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(buffer)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function shortReceiptHash(hash) {
+  if (!hash || hash === SCD_RECEIPT_GENESIS) return "genesis";
+  return hash.length > 28 ? `${hash.slice(0, 16)}…${hash.slice(-8)}` : hash;
+}
+
+// Deterministic field order so the hash is reproducible client-side for verification.
+function receiptCanonical(parts) {
+  return JSON.stringify({
+    mode: parts.mode,
+    used: parts.used,
+    kept: parts.kept,
+    receipt_id: parts.receiptId,
+    response: parts.response,
+    ts: parts.ts,
+    prev: parts.prev,
+  });
+}
+
+function resetLedgerVerify() {
+  if (!ledgerVerstate) return;
+  ledgerVerstate.textContent = "Recompute the hash from the fields above — it should match.";
+  ledgerVerstate.classList.remove("is-ok");
+}
+
+function showLedgerResult() {
+  if (!receiptLedger) return;
+  receiptLedger.dataset.stage = "result";
+  if (ledgerEmpty) ledgerEmpty.hidden = true;
+  if (ledgerResult) ledgerResult.hidden = false;
+}
+
+// Receipt fields populate from the gateway (MirrorBus) attestation; prev = the last
+// accepted chain head (genesis only when the browser chain is empty), and the receipt_id
+// is bound into the hash so "Verify" cryptographically reproduces it.
+async function populateReceiptLedger(payload) {
+  if (!receiptLedger || !payload?.receipt_id) return;
+  const mirror = payload.mirror || {};
+  const receipt = mirror.receipt || {};
+  const mode = homeStateMode?.textContent?.trim() || ritualBoundary?.value || "Decision";
+  const used = receipt.context_used || "Your sentence and the selected boundary.";
+  const kept = receipt.context_excluded || boundaryCopy[ritualBoundary?.value || "personal"].excluded;
+  const response = [mirror.artifact?.title, mirror.artifact?.summary, ...(Array.isArray(mirror.moves) ? mirror.moves : [])]
+    .filter(Boolean)
+    .join(" — ");
+  const ts = new Date().toISOString();
+  const prev = receiptChainHead();
+  const canonical = receiptCanonical({ mode, used, kept, receiptId: payload.receipt_id, response, ts, prev });
+  const hash = await sha256Hex(canonical);
+
+  pendingReceipt = { canonical, hash, prev, receiptId: payload.receipt_id, ts, accepted: false };
+
+  if (ledgerMode) ledgerMode.textContent = mode;
+  if (ledgerUsed) ledgerUsed.textContent = used;
+  if (ledgerKept) ledgerKept.textContent = kept;
+  if (ledgerPrev) ledgerPrev.textContent = shortReceiptHash(prev);
+  if (ledgerHash) ledgerHash.textContent = shortReceiptHash(hash);
+  if (ledgerTime) ledgerTime.textContent = new Date(ts).toLocaleString();
+  if (ledgerNote) ledgerNote.textContent = "";
+  if (ledgerAccept) {
+    ledgerAccept.disabled = false;
+    ledgerAccept.textContent = "Accept & save receipt";
+  }
+  resetLedgerVerify();
+  showLedgerResult();
+}
+
+async function verifyReceiptLedger() {
+  if (!pendingReceipt || !ledgerVerstate) return;
+  const recomputed = await sha256Hex(pendingReceipt.canonical);
+  if (recomputed === pendingReceipt.hash) {
+    ledgerVerstate.textContent = `Verified ✓ recomputed hash matches ${shortReceiptHash(recomputed)}`;
+    ledgerVerstate.classList.add("is-ok");
+  } else {
+    ledgerVerstate.textContent = "Mismatch — receipt does not verify.";
+    ledgerVerstate.classList.remove("is-ok");
+  }
+}
+
+// Commit to the browser receipt chain only on accept; otherwise nothing persists.
+function acceptReceiptLedger() {
+  if (!pendingReceipt || pendingReceipt.accepted) return;
+  const chain = loadReceiptChain();
+  chain.push({
+    hash: pendingReceipt.hash,
+    prev: pendingReceipt.prev,
+    receipt_id: pendingReceipt.receiptId,
+    ts: pendingReceipt.ts,
+  });
+  try {
+    localStorage.setItem(SCD_RECEIPT_CHAIN_KEY, JSON.stringify(chain.slice(-200)));
+    pendingReceipt.accepted = true;
+    if (ledgerNote) {
+      ledgerNote.textContent = `Saved to your browser chain. Hash ${shortReceiptHash(pendingReceipt.hash)} is now the prev for your next request.`;
+    }
+    if (ledgerAccept) {
+      ledgerAccept.disabled = true;
+      ledgerAccept.textContent = "Saved ✓";
+    }
+    trackSiteEvent("receipt_accept", { turn: ritualTurn });
+  } catch {
+    if (ledgerNote) ledgerNote.textContent = "Could not save to this browser. Nothing was persisted.";
+  }
 }
 
 async function runHomeGateway(routeKey) {
