@@ -10,6 +10,8 @@ implementation screenshot path:
 - `/tmp/active-mirror-canvas-mobile-final.png`
 - `/tmp/active-mirror-live-desktop-connected-8ccb573.png`
 - `/tmp/active-mirror-live-mobile-connected-8ccb573.png`
+- `/tmp/active-mirror-receipt-proof-desktop-final.png`
+- `/tmp/active-mirror-receipt-proof-mobile-final.png`
 
 viewport:
 - desktop: 1440 x 950
@@ -26,6 +28,9 @@ browser interaction evidence:
 - `Risk` appended a follow-up and regenerated the local turn
 - Live `Show me` called `https://gateway.activemirror.ai/v1/mirror/create`
 - Live gateway response was `200` with `fallback:false` and a receipt id
+- Receipt hash was generated from the visible turn state
+- `Verify` recomputed the hash successfully
+- `Accept receipt` saved the local browser chain head while keeping the displayed `Prev` as the prior hash
 - Browser console error count: 0 on desktop and mobile
 
 **Findings**
@@ -45,6 +50,7 @@ browser interaction evidence:
 - Replaced the right-side plan block with an interactive generated canvas
 - Connected the first-use canvas to the Active Mirror gateway by default
 - Added `Smaller`, `Risk`, and `Checklist` canvas refinements
+- Added visible receipt hash, previous hash, verify, and local accept controls
 - Hid first-use proof console and surface tabs by default
 - Added mobile stacking rules for the generated canvas
 - Suppressed production telemetry sends on localhost

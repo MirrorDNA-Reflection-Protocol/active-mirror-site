@@ -206,6 +206,21 @@
               <span>Memory</span>
               <strong id="receipt-memory">Nothing promoted until you accept the receipt.</strong>
             </button>
+            <div class="receipt-proof" aria-live="polite">
+              <div>
+                <span>Hash</span>
+                <strong id="receipt-hash">Pending</strong>
+              </div>
+              <div>
+                <span>Prev</span>
+                <strong id="receipt-prev">Genesis</strong>
+              </div>
+              <div class="receipt-proof-actions">
+                <button class="button secondary small" id="receipt-verify" type="button">Verify</button>
+                <button class="button primary small" id="receipt-accept" type="button">Accept receipt</button>
+              </div>
+              <small id="receipt-verify-state">Receipt not accepted yet.</small>
+            </div>
           </section>
         </div>
 

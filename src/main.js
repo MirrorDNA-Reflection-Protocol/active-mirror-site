@@ -184,6 +184,11 @@ const receiptUsed = document.querySelector("#receipt-used");
 const receiptExcluded = document.querySelector("#receipt-excluded");
 const receiptRoute = document.querySelector("#receipt-route");
 const receiptMemory = document.querySelector("#receipt-memory");
+const receiptHash = document.querySelector("#receipt-hash");
+const receiptPrev = document.querySelector("#receipt-prev");
+const receiptVerify = document.querySelector("#receipt-verify");
+const receiptAccept = document.querySelector("#receipt-accept");
+const receiptVerifyState = document.querySelector("#receipt-verify-state");
 const receiptLines = Array.from(document.querySelectorAll(".receipt-line"));
 const openGeneratedMirror = document.querySelector("#open-generated-mirror");
 const homeModelMode = document.querySelector("#home-model-mode");
@@ -228,6 +233,9 @@ let homeRequestId = 0;
 let homeApprovedHelp = false;
 let pendingApprovedSurface = null;
 let pendingApprovedLane = null;
+let homeReceiptCanonical = "";
+let homeReceiptHash = "";
+let homeReceiptPrevHash = "genesis";
 
 const mobileModeNodes = {
   launching: ["Research", "Launch proof", "Prototype", "Receipt"],
@@ -942,6 +950,66 @@ function applyHomeRemoteReceipt(payload) {
   if (receiptMemory) receiptMemory.textContent = receipt.memory_decision || "Nothing is saved until you accept the receipt.";
 }
 
+function shortHash(value = "") {
+  const text = String(value || "");
+  if (!text || text === "genesis") return "Genesis";
+  return `${text.slice(0, 12)}...${text.slice(-8)}`;
+}
+
+function currentHomeReceiptBody(receiptId = "browser-local") {
+  const intent = (ritualIntent?.value || ritualInitialIntent).replace(/\s+/g, " ").trim();
+  return {
+    schema: "active-mirror-home-receipt-v1",
+    receipt_id: receiptId,
+    turn: ritualTurn,
+    intent,
+    next_move: homeSurfaceOutput?.querySelector(".canvas-card-main strong")?.textContent?.trim() || "",
+    why: receiptWhy?.textContent?.trim() || "",
+    used: receiptUsed?.textContent?.trim() || "",
+    kept_out: receiptExcluded?.textContent?.trim() || "",
+    route: receiptRoute?.textContent?.trim() || "",
+    memory: receiptMemory?.textContent?.trim() || "",
+    prev_hash: homeReceiptPrevHash,
+  };
+}
+
+async function updateHomeReceiptProof(receiptId = "browser-local") {
+  if (!receiptHash || !receiptPrev || !receiptVerifyState) return;
+  homeReceiptPrevHash = localStorage.getItem("activeMirrorHomeReceiptHead") || "genesis";
+  const body = currentHomeReceiptBody(receiptId);
+  homeReceiptCanonical = JSON.stringify(body);
+  homeReceiptHash = await sha256Text(homeReceiptCanonical);
+  receiptHash.textContent = shortHash(homeReceiptHash);
+  receiptPrev.textContent = shortHash(homeReceiptPrevHash);
+  receiptVerifyState.textContent = "Receipt not accepted yet.";
+  receiptVerifyState.classList.remove("is-ok", "is-warn");
+}
+
+async function verifyHomeReceipt() {
+  if (!receiptVerifyState || !homeReceiptCanonical || !homeReceiptHash) return;
+  const verified = (await sha256Text(homeReceiptCanonical)) === homeReceiptHash;
+  receiptVerifyState.textContent = verified ? `Verified: ${shortHash(homeReceiptHash)}` : "Receipt changed after it was hashed.";
+  receiptVerifyState.classList.toggle("is-ok", verified);
+  receiptVerifyState.classList.toggle("is-warn", !verified);
+}
+
+function acceptHomeReceipt() {
+  if (!receiptVerifyState || !homeReceiptHash) return;
+  localStorage.setItem("activeMirrorHomeReceiptHead", homeReceiptHash);
+  localStorage.setItem(
+    "activeMirrorHomeReceiptLast",
+    JSON.stringify({
+      accepted_at: new Date().toISOString(),
+      hash: homeReceiptHash,
+      prev_hash: homeReceiptPrevHash,
+      canonical: JSON.parse(homeReceiptCanonical || "{}"),
+    })
+  );
+  receiptVerifyState.textContent = `Accepted: ${shortHash(homeReceiptHash)}`;
+  receiptVerifyState.classList.add("is-ok");
+  receiptVerifyState.classList.remove("is-warn");
+}
+
 async function runHomeGateway(routeKey) {
   const intent = (ritualIntent?.value || ritualInitialIntent).replace(/\s+/g, " ").trim();
   if (intent.length < 12) throw new Error("intent_too_short");
@@ -1007,6 +1075,7 @@ function renderRitual(surfaceOverride = null, laneOverride = null) {
     });
   }
   renderHomeSurface(surfaceOverride || inferHomeSurface(intent), laneOverride);
+  void updateHomeReceiptProof(`browser-${modeKey}-${String(ritualTurn).padStart(3, "0")}`);
 
   try {
     localStorage.setItem(
@@ -1078,6 +1147,7 @@ async function markRitualGenerated(surfaceOverride = null, laneOverride = null) 
       homeRemotePayload = payload;
       applyHomeRemoteReceipt(payload);
       renderHomeSurface(surfaceKey, laneKey);
+      void updateHomeReceiptProof(payload.receipt_id ? `help-${payload.receipt_id}` : `help-${routeKey}-${ritualTurn}`);
       animateHomeReflection();
       if (ritualStatus) ritualStatus.textContent = payload.fallback ? "Backup receipt ready" : "Receipt ready";
       ritualCreate.textContent = payload.fallback ? "Done" : "Done";
@@ -1087,6 +1157,7 @@ async function markRitualGenerated(surfaceOverride = null, laneOverride = null) 
       if (ritualStatus) ritualStatus.textContent = "Browser fallback ready";
       if (receiptRoute) receiptRoute.textContent = "Extra help was unavailable, so the browser kept this turn local.";
       if (homeStateReceipt) homeStateReceipt.textContent = "Browser";
+      void updateHomeReceiptProof(`browser-${routeKey}-${String(ritualTurn).padStart(3, "0")}`);
       ritualCreate.textContent = "Done";
     } finally {
       if (requestId === homeRequestId) {
@@ -1421,8 +1492,11 @@ if (ritualIntent && ritualBoundary && ritualCreate) {
     button.addEventListener("click", () => {
       trackSiteEvent("surface_click", { lane: currentHomeLane, surface: button.dataset.surfaceTab, help: homeHelpMode() });
       renderHomeSurface(button.dataset.surfaceTab, currentHomeLane);
+      void updateHomeReceiptProof(homeRemotePayload?.receipt_id ? `help-${homeRemotePayload.receipt_id}` : `browser-${String(ritualTurn).padStart(3, "0")}`);
     });
   });
+  receiptVerify?.addEventListener("click", verifyHomeReceipt);
+  receiptAccept?.addEventListener("click", acceptHomeReceipt);
   ritualRefresh?.addEventListener("click", runSelectedHomeReflection);
   ritualExpand?.addEventListener("click", async () => {
     if (!mirrorDevice) return;
@@ -1447,13 +1521,14 @@ if (ritualIntent && ritualBoundary && ritualCreate) {
       ritualTurn = 1;
       ritualIntent.value = ritualInitialIntent;
       ritualBoundary.value = "personal";
-      if (homeModelMode) homeModelMode.value = "local";
+      if (homeModelMode) homeModelMode.value = "reflection";
       resetHomeApproval();
       setActiveHomeLane("decision");
       if (ritualStatus) ritualStatus.textContent = "Ready";
       receiptLines.forEach((line, index) => line.classList.toggle("is-open", index === 0));
       renderRitual();
       renderHomeSurface("plan", "decision");
+      void updateHomeReceiptProof("browser-reset");
     });
     animateRitualBoard();
   });
