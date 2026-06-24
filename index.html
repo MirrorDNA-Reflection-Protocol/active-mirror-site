@@ -9,8 +9,8 @@
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Active Mirror | Start with one real thing</title>
-    <script type="module" crossorigin src="/assets/main-BC-XrJVk.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/main-hqIwD52F.css">
+    <script type="module" crossorigin src="/assets/main-6NfKwy-9.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/main-DjcnCzyj.css">
   </head>
   <body class="home-genui">
     <header class="site-nav genui-nav" aria-label="Primary">
@@ -208,6 +208,21 @@
               <span>Memory</span>
               <strong id="receipt-memory">Nothing promoted until you accept the receipt.</strong>
             </button>
+            <div class="receipt-proof" aria-live="polite">
+              <div>
+                <span>Hash</span>
+                <strong id="receipt-hash">Pending</strong>
+              </div>
+              <div>
+                <span>Prev</span>
+                <strong id="receipt-prev">Genesis</strong>
+              </div>
+              <div class="receipt-proof-actions">
+                <button class="button secondary small" id="receipt-verify" type="button">Verify</button>
+                <button class="button primary small" id="receipt-accept" type="button">Accept receipt</button>
+              </div>
+              <small id="receipt-verify-state">Receipt not accepted yet.</small>
+            </div>
           </section>
         </div>
 
