@@ -913,7 +913,29 @@ function renderHomeSurface(surfaceKey = inferHomeSurface(ritualIntent?.value || 
     `,
   };
 
-  homeSurfaceOutput.innerHTML = templates[surfaceKey] || templates.plan;
+  const hasReflection = Boolean(mirror && typeof mirror.reflection === "string" && mirror.reflection.trim());
+  if (hasReflection) {
+    homeSurfaceOutput.innerHTML = `
+      <article class="surface-plan mirror-canvas surface-reflection">
+        <section class="canvas-card canvas-card-main reflection-see">
+          <span>What I see</span>
+          <strong>${escapeHtml(mirror.reflection)}</strong>
+        </section>
+        <section class="canvas-card canvas-card-watch reflection-ask">
+          <span>The question under your question</span>
+          <strong>${escapeHtml(mirror.question || "")}</strong>
+        </section>
+        <section class="canvas-card canvas-card-keep reflection-move">
+          <span>One small thing</span>
+          <strong>${escapeHtml(mirror.move || "")}</strong>
+        </section>
+        <p class="reflection-trust">Reflected from your words only. ${escapeHtml(mirror.receipt?.context_excluded || "Private context stayed out.")}</p>
+      </article>
+    `;
+    if (homeChatNext && mirror.question) homeChatNext.textContent = mirror.question;
+  } else {
+    homeSurfaceOutput.innerHTML = templates[surfaceKey] || templates.plan;
+  }
   const localPicker = homeSurfaceOutput.querySelector("[data-local-picker]");
   const fileState = homeSurfaceOutput.querySelector("[data-file-state]");
   localPicker?.addEventListener("change", () => {

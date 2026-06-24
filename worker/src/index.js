@@ -37,35 +37,15 @@ const BOUNDARIES = {
 const MIRROR_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["goals", "blockers", "moves", "artifact", "receipt"],
+  required: ["reflection", "question", "move", "receipt"],
   properties: {
-    goals: {
-      type: "array",
-      minItems: 3,
-      maxItems: 3,
-      items: { type: "string", minLength: 3, maxLength: 96 },
-    },
-    blockers: {
-      type: "array",
-      minItems: 3,
-      maxItems: 3,
-      items: { type: "string", minLength: 3, maxLength: 110 },
-    },
-    moves: {
-      type: "array",
-      minItems: 4,
-      maxItems: 4,
-      items: { type: "string", minLength: 3, maxLength: 120 },
-    },
-    artifact: {
-      type: "object",
-      additionalProperties: false,
-      required: ["title", "summary"],
-      properties: {
-        title: { type: "string", minLength: 3, maxLength: 72 },
-        summary: { type: "string", minLength: 8, maxLength: 140 },
-      },
-    },
+    // The honest mirror: name the real thing under their question — what they may be
+    // avoiding or not saying. Make them feel seen, not judged. Do not decide for them.
+    reflection: { type: "string", minLength: 20, maxLength: 360 },
+    // The sharper question that actually decides this — the one they have not asked themselves.
+    question: { type: "string", minLength: 12, maxLength: 170 },
+    // One small, concrete thing they could do or test. Not a plan. One thing.
+    move: { type: "string", minLength: 8, maxLength: 150 },
     receipt: {
       type: "object",
       additionalProperties: false,
@@ -84,20 +64,11 @@ const MIRROR_SCHEMA = {
 const PROVIDER_MIRROR_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["goals", "blockers", "moves", "artifact", "receipt"],
+  required: ["reflection", "question", "move", "receipt"],
   properties: {
-    goals: { type: "array", items: { type: "string" } },
-    blockers: { type: "array", items: { type: "string" } },
-    moves: { type: "array", items: { type: "string" } },
-    artifact: {
-      type: "object",
-      additionalProperties: false,
-      required: ["title", "summary"],
-      properties: {
-        title: { type: "string" },
-        summary: { type: "string" },
-      },
-    },
+    reflection: { type: "string" },
+    question: { type: "string" },
+    move: { type: "string" },
     receipt: {
       type: "object",
       additionalProperties: false,
@@ -171,7 +142,8 @@ export default {
       const route = selectRoute(input.intent, input.route);
       const prompt = buildPrompt(input, boundary, route);
       const result = await runRoute(route, prompt, env);
-      const mirror = normalizeMirror(result.mirror, input, boundary, route, result);
+      const normalized = normalizeMirror(result.mirror, input, boundary, route, result);
+      const { mirror, violations } = straitjacket(normalized);
       const receiptId = await receiptHash({ mirror, route, turn: input.turn });
 
       return json(
@@ -180,6 +152,7 @@ export default {
           fallback: result.fallback,
           receipt_id: receiptId,
           mirror,
+          straitjacket: violations,
           route: {
             capability: route.capability,
             label: publicRouteLabel(route.capability),
@@ -293,19 +266,21 @@ function mediaRoute() {
 
 function buildPrompt(input, boundary, route) {
   return [
-    "You are Active Mirror. Reflect before predicting.",
-    "Return only compact JSON matching the requested structure.",
-    "Use plain English ASCII text only.",
-    "No therapy claims. No personal-data collection. No hallucinated facts.",
-    "Create a first-use action board from the user's intent.",
-    "Each goal, blocker, and move must be a complete phrase under 12 words.",
-    "Do not return numbered labels, markdown, slogans, or partial sentences.",
+    "You are Active Mirror. You reflect a person back to themselves so they think for themselves.",
+    "You do NOT advise, decide, rank their options, or tell them what to do. You do NOT flatter, and you do NOT lecture.",
+    "Someone brought one thing they are stuck on. Reflect it honestly. Be warm but truthful.",
+    "Return only compact JSON matching the requested structure. Plain English ASCII only. No markdown, no numbered labels, no slogans.",
+    "No therapy claims, no diagnosis, no personal-data collection, no invented facts.",
+    "reflection: 2 to 3 sentences. Name the real thing underneath their question — what they may be avoiding, or the reason under their reason. Make them feel seen and understood, never judged or scolded. Do not answer the question they asked; reflect the person who asked it.",
+    "question: the single sharper question that actually decides this for them — the one they have not asked themselves. End it with a question mark.",
+    "move: one small, concrete thing they could do or test soon. Not a plan, not a list. One thing.",
+    "receipt: {why, context_used, context_excluded, route, memory_decision}, short and plain.",
     `Capability route: ${route.capability}.`,
     `Boundary: ${input.boundary}.`,
     `Context excluded: ${boundary.excluded}`,
     `Memory decision rule: ${boundary.memory}`,
     "",
-    `Intent: ${input.intent}`,
+    `What they are stuck on: ${input.intent}`,
   ].join("\n");
 }
 
@@ -530,11 +505,9 @@ function isMirrorShape(value) {
   return (
     value &&
     typeof value === "object" &&
-    Array.isArray(value.goals) &&
-    Array.isArray(value.blockers) &&
-    Array.isArray(value.moves) &&
-    value.artifact &&
-    typeof value.artifact === "object" &&
+    typeof value.reflection === "string" &&
+    typeof value.question === "string" &&
+    typeof value.move === "string" &&
     value.receipt &&
     typeof value.receipt === "object"
   );
@@ -548,13 +521,9 @@ function normalizeMirror(candidate, input, boundary, route, result) {
     : publicRouteReceipt(route.capability);
 
   return {
-    goals: normalizeList(candidate.goals, fallback.goals, 3, 72),
-    blockers: normalizeList(candidate.blockers, fallback.blockers, 3, 84),
-    moves: normalizeList(candidate.moves, fallback.moves, 4, 84),
-    artifact: {
-      title: cleanText(candidate.artifact?.title, fallback.artifact.title, 72),
-      summary: cleanText(candidate.artifact?.summary, fallback.artifact.summary, 140),
-    },
+    reflection: cleanText(candidate.reflection, fallback.reflection, 360),
+    question: cleanText(candidate.question, fallback.question, 170),
+    move: cleanText(candidate.move, fallback.move, 150),
     receipt: {
       why: cleanText(candidate.receipt?.why, fallback.receipt.why, 220),
       context_used: cleanText(candidate.receipt?.context_used, fallback.receipt.context_used, 220),
@@ -562,6 +531,57 @@ function normalizeMirror(candidate, input, boundary, route, result) {
       route: routeText,
       memory_decision: cleanText(candidate.receipt?.memory_decision, fallback.receipt.memory_decision, 220),
     },
+  };
+}
+
+// --- Straitjacket: deterministic gates so the reflection can't wriggle into flattery,
+// a list, or a non-question. Code checking code — not an AI judging an AI. ---
+const FLATTERY_RE = /\b(you(?:'| a)?re (?:absolutely |so |totally |completely )?right|brilliant|genius|amazing|fantastic|incredible|great (?:idea|question|point|job|call)|love (?:it|this)|nailed it|excellent|impressive|well done|good for you|spot on|you've got this)\b/i;
+const FLATTERY_RE_G = new RegExp(FLATTERY_RE.source, "gi");
+
+function deflatter(text) {
+  return String(text || "")
+    .replace(FLATTERY_RE_G, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([.,;!?])/g, "$1")
+    .replace(/^[\s,;.!-]+/, "")
+    .trim();
+}
+
+function oneThing(text) {
+  let first = String(text || "").split(/\n|;|•/)[0];
+  first = first.replace(/^\s*(?:\d+[.)]|[-*])\s*/, ""); // strip a list marker
+  const sentence = first.match(/^[^.!?]*[.!?]/);
+  return (sentence ? sentence[0] : first).trim();
+}
+
+function straitjacket(mirror) {
+  const violations = [];
+  const reflectionRaw = String(mirror.reflection || "");
+  const questionRaw = String(mirror.question || "");
+  const moveRaw = String(mirror.move || "");
+
+  if (FLATTERY_RE.test(reflectionRaw) || FLATTERY_RE.test(questionRaw) || FLATTERY_RE.test(moveRaw)) {
+    violations.push("flattery_removed");
+  }
+
+  const reflection = deflatter(reflectionRaw);
+
+  let question = deflatter(questionRaw);
+  const qMark = question.indexOf("?");
+  if (qMark === -1) {
+    question = question.replace(/[.!]+$/, "").trim() + "?";
+    violations.push("question_forced");
+  } else {
+    question = question.slice(0, qMark + 1).trim(); // keep to the first question only
+  }
+
+  const move = oneThing(deflatter(moveRaw));
+  if (move && move !== moveRaw.trim()) violations.push("move_made_singular");
+
+  return {
+    mirror: { ...mirror, reflection, question, move: move || moveRaw.trim() },
+    violations,
   };
 }
 
@@ -595,48 +615,15 @@ function repairTextArtifacts(value) {
 }
 
 function deterministicMirror(input, boundary, route, result) {
-  const value = input.intent.toLowerCase();
-  const isRestart = /\b(restart|stuck|return|overwhelm|scattered)\b/.test(value);
-  const isResearch = /\b(research|source|study|memo|claim)\b/.test(value);
-  const isCareer = /\b(career|job|offer|portfolio)\b/.test(value);
-
-  const base = isCareer
-    ? {
-        goals: ["Extract repeatable strengths", "Package a clear offer", "Ship one portfolio proof"],
-        blockers: ["Story is too broad", "Past work is under-leveraged", "No proof sprint selected"],
-        moves: ["Name three strengths", "Map each strength to evidence", "Build one proof artifact", "Track response signals"],
-        artifact: { title: "Offer proof map", summary: "Strength, evidence, offer, and proof sprint." },
-        why: "The turn needs a bridge from lived work to visible proof and commercial motion.",
-      }
-    : isResearch
-      ? {
-          goals: ["Turn findings into decisions", "Expose assumptions", "Attach source receipts"],
-          blockers: ["Claims are mixed with guesses", "Contradictions are hidden", "Sources are not ranked"],
-          moves: ["Cluster claims", "Mark evidence strength", "List contradictions", "Generate the decision memo"],
-          artifact: { title: "Research synthesis memo", summary: "Claim, source, contradiction, and decision." },
-          why: "The research needs a structured view with receipts, not a longer chat answer.",
-        }
-      : isRestart
-        ? {
-            goals: ["Recover useful past work", "Lower the restart load", "Create one proof of motion"],
-            blockers: ["Old context is scattered", "Restart friction is high", "Progress is hard to see"],
-            moves: ["Sort open loops", "Retire stale threads", "Choose a 48-hour win", "Save the momentum receipt"],
-            artifact: { title: "Return path board", summary: "What still matters, what can go, and what moves first." },
-            why: "The work needs continuity without reliving every detail.",
-          }
-        : {
-            goals: ["Define the audience promise", "Choose the first visible proof", "Ship a testable launch page"],
-            blockers: ["Scattered notes", "Too many possible angles", "No receipt trail for claims"],
-            moves: ["Extract the strongest promise", "Pick three proof assets", "Write the user-test script", "Promote only validated copy"],
-            artifact: { title: "Launch clarity memo", summary: "Audience, promise, proof, and next test." },
-            why: "The work needs a visible product story and a next action, not more brainstorming.",
-          };
-
+  // Safe, honest reflection when no model is available — generic by necessity, but never a board.
   return {
-    ...base,
+    reflection:
+      "You named one real thing instead of circling it, and that is already the part most people avoid. Worth noticing: what you reached for first in that sentence, and what you quietly left out.",
+    question: "What is the one thing that, if you let yourself be honest about it, would make this clear?",
+    move: "Write that one honest sentence down, for yourself, before you do anything else.",
     receipt: {
-      why: base.why,
-      context_used: `Intent summary plus the selected ${input.boundary} boundary.`,
+      why: "Reflection is running in the browser right now, so this is a general mirror rather than one tuned to your specifics.",
+      context_used: `Only your sentence and the selected ${input.boundary} boundary.`,
       context_excluded: boundary.excluded,
       route: result.fallback
         ? `Browser fallback because ${publicFallbackReason(result.fallbackReason)}.`
