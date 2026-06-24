@@ -3,6 +3,7 @@ import { gsap } from "gsap";
 
 const canAnimate = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const MIRROR_GATEWAY_URL = "https://gateway.activemirror.ai";
+const REMOTE_SITE_EVENTS_ENABLED = false;
 
 const heroModes = {
   launching: {
@@ -444,7 +445,7 @@ function safeEventDetail(detail = {}) {
 
 function canSendSiteEvent() {
   const isProductionHost = window.location.hostname === "activemirror.ai" || window.location.hostname === "www.activemirror.ai";
-  return isProductionHost && navigator.globalPrivacyControl !== true && navigator.doNotTrack !== "1" && navigator.doNotTrack !== "yes";
+  return REMOTE_SITE_EVENTS_ENABLED && isProductionHost && navigator.globalPrivacyControl !== true && navigator.doNotTrack !== "1" && navigator.doNotTrack !== "yes";
 }
 
 function trackSiteEvent(name, detail = {}) {
