@@ -4,6 +4,7 @@ import { gsap } from "gsap";
 const canAnimate = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const MIRROR_GATEWAY_URL = "https://gateway.activemirror.ai";
 const REMOTE_SITE_EVENTS_ENABLED = false;
+const HOME_GATEWAY_REQUIRES_REVIEW = false;
 
 const heroModes = {
   launching: {
@@ -569,11 +570,11 @@ function homeRouteFromMode(laneKey = currentHomeLane) {
 
 function homeHelpLabel(mode = homeHelpMode()) {
   return {
-    local: "Browser first",
-    reflection: "Deep reflection",
-    chat: "Critique",
-    media: "Visual creation",
-  }[mode] || "Browser first";
+    local: "Browser fallback",
+    reflection: "Active Mirror help",
+    chat: "Critique help",
+    media: "Creative help",
+  }[mode] || "Active Mirror help";
 }
 
 function homeProviderLabel(route) {
@@ -591,7 +592,7 @@ function resetHomeApproval() {
 function renderApprovedHelpReview(surfaceKey = activeHomeSurfaceKey(), laneKey = currentHomeLane) {
   if (!approvedHelpReview) return;
   const help = homeHelpMode();
-  const needsApproval = help !== "local";
+  const needsApproval = HOME_GATEWAY_REQUIRES_REVIEW && help !== "local";
   approvedHelpReview.hidden = !needsApproval;
   if (!needsApproval) return;
   const boundary = boundaryCopy[ritualBoundary?.value || "personal"] || boundaryCopy.personal;
@@ -762,9 +763,7 @@ function renderHomeSurface(surfaceKey = inferHomeSurface(ritualIntent?.value || 
       : "Ready"
     : helpMode === "local"
       ? lane.receipt
-      : homeApprovedHelp
-        ? "Approved"
-        : "Review";
+      : "Ready";
   const surfaceLabels = {
     plan: ["Your canvas", "Private"],
     document: laneKey === "memory" ? ["Continuity note", "Memory"] : ["Note", "Draft"],
@@ -944,7 +943,7 @@ function applyHomeRemoteReceipt(payload) {
 }
 
 async function runHomeGateway(routeKey) {
-  const intent = ritualIntent?.value.replace(/\s+/g, " ").trim() || "";
+  const intent = (ritualIntent?.value || ritualInitialIntent).replace(/\s+/g, " ").trim();
   if (intent.length < 12) throw new Error("intent_too_short");
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 26000);
@@ -1035,7 +1034,7 @@ async function markRitualGenerated(surfaceOverride = null, laneOverride = null) 
     help: selectedHelp,
     boundary: ritualBoundary?.value || "personal",
   });
-  if (selectedHelp !== "local" && !homeApprovedHelp) {
+  if (HOME_GATEWAY_REQUIRES_REVIEW && selectedHelp !== "local" && !homeApprovedHelp) {
     requestHomeApproval(surfaceKey, laneKey);
     return;
   }

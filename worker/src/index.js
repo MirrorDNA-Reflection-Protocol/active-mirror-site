@@ -4,6 +4,8 @@ const ALLOWED_ORIGINS = new Set([
   "https://mirrordna-reflection-protocol.github.io",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
+  "http://localhost:5180",
+  "http://127.0.0.1:5180",
   "http://localhost:4173",
   "http://127.0.0.1:4173",
   "http://localhost:8976",
@@ -296,6 +298,8 @@ function buildPrompt(input, boundary, route) {
     "Use plain English ASCII text only.",
     "No therapy claims. No personal-data collection. No hallucinated facts.",
     "Create a first-use action board from the user's intent.",
+    "Each goal, blocker, and move must be a complete phrase under 12 words.",
+    "Do not return numbered labels, markdown, slogans, or partial sentences.",
     `Capability route: ${route.capability}.`,
     `Boundary: ${input.boundary}.`,
     `Context excluded: ${boundary.excluded}`,
@@ -544,9 +548,9 @@ function normalizeMirror(candidate, input, boundary, route, result) {
     : publicRouteReceipt(route.capability);
 
   return {
-    goals: normalizeList(candidate.goals, fallback.goals, 3),
-    blockers: normalizeList(candidate.blockers, fallback.blockers, 3),
-    moves: normalizeList(candidate.moves, fallback.moves, 4),
+    goals: normalizeList(candidate.goals, fallback.goals, 3, 72),
+    blockers: normalizeList(candidate.blockers, fallback.blockers, 3, 84),
+    moves: normalizeList(candidate.moves, fallback.moves, 4, 84),
     artifact: {
       title: cleanText(candidate.artifact?.title, fallback.artifact.title, 72),
       summary: cleanText(candidate.artifact?.summary, fallback.artifact.summary, 140),
@@ -561,8 +565,8 @@ function normalizeMirror(candidate, input, boundary, route, result) {
   };
 }
 
-function normalizeList(value, fallback, size) {
-  const list = Array.isArray(value) ? value.map((item) => cleanText(item, "", 120)).filter(Boolean) : [];
+function normalizeList(value, fallback, size, maxLength = 84) {
+  const list = Array.isArray(value) ? value.map((item) => cleanText(item, "", maxLength)).filter(Boolean) : [];
   return [...list, ...fallback].slice(0, size);
 }
 
@@ -582,6 +586,7 @@ function cleanText(value, fallback, maxLength) {
 
 function repairTextArtifacts(value) {
   return value
+    .replace(/\b([A-Za-z])\d+([A-Za-z])\b/g, "$1$2")
     .replace(/\b([A-Za-z]{2,})\d+([A-Za-z]{1,})\b/g, "$1$2")
     .replace(/\b([A-Za-z]{2,})\d+\b/g, "$1")
     .replace(/,\s*\d+\s*,?\s*$/g, "")
@@ -650,7 +655,7 @@ function publicRouteLabel(capability) {
 }
 
 function publicRouteReceipt(capability) {
-  return `${publicRouteLabel(capability)} used after boundary review; output normalized by Active Mirror.`;
+  return `Active Mirror help used with the selected boundary; output normalized by receipt rules.`;
 }
 
 function publicFallbackReason(reason) {
