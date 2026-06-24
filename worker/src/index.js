@@ -549,10 +549,12 @@ function deflatter(text) {
 }
 
 function oneThing(text) {
-  let first = String(text || "").split(/\n|;|•/)[0];
-  first = first.replace(/^\s*(?:\d+[.)]|[-*])\s*/, ""); // strip a list marker
-  const sentence = first.match(/^[^.!?]*[.!?]/);
-  return (sentence ? sentence[0] : first).trim();
+  let s = String(text || "").trim();
+  s = s.replace(/^\s*(?:\d+[.)]|[-*•])\s*/, ""); // strip a leading list marker
+  // A move is "multiple" only on explicit list structure: a newline, a bullet,
+  // or a numbered continuation. Never split on sentence punctuation — a single
+  // instruction can legitimately contain a period, an ellipsis, or quoted text.
+  return s.split(/\n+|\s+•\s+|\s+\d+[.)]\s+/)[0].trim();
 }
 
 function straitjacket(mirror) {
