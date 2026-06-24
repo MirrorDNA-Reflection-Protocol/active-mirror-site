@@ -259,7 +259,7 @@ function withViewTransition(callback) {
 }
 
 const ritualInitialIntent =
-  "Restarting a product launch: notes, positioning, screenshots, and next steps are scattered.";
+  "I don't really know what to do.\nLots of notes everywhere.\nScreenshots of ideas. Half-built landing page.\nNeed a product story that feels real.\nWho is it for? What problem do we actually solve?\nI'm stuck.";
 
 const boundaryCopy = {
   personal: {
@@ -479,6 +479,7 @@ function trackSiteEvent(name, detail = {}) {
 
 function currentRitualMode(text) {
   const value = text.toLowerCase();
+  if (value.includes("launch") || value.includes("product") || value.includes("site") || value.includes("homepage")) return "launch";
   if (value.includes("career") || value.includes("job") || value.includes("offer") || value.includes("portfolio")) return "career";
   if (value.includes("research") || value.includes("source") || value.includes("study") || value.includes("memo")) return "research";
   if (value.includes("restart") || value.includes("stuck") || value.includes("return") || value.includes("overwhelm")) return "restart";
@@ -515,8 +516,8 @@ function homeLaneCopy(laneKey = currentHomeLane) {
       route: "Browser first",
       boundary: "Private",
       receipt: "Ready",
-      output: "Plan",
-      outputCopy: "A useful next step, not a long answer.",
+      output: "Next move",
+      outputCopy: "A useful move, not a long answer.",
     },
     files: {
       mode: "Files",
@@ -649,7 +650,8 @@ function animateHomeReflection() {
   const stage = document.querySelector(".genui-stage");
   const surface = document.querySelector(".home-surface");
   const receipt = document.querySelector(".receipt-card");
-  const highlighted = [surface, receipt].filter(Boolean);
+  const consolePanel = document.querySelector(".proof-console");
+  const highlighted = [surface, consolePanel, receipt].filter(Boolean);
 
   stage?.classList.add("is-reflecting");
   highlighted.forEach((element) => element.classList.add("is-updated"));
@@ -764,7 +766,7 @@ function renderHomeSurface(surfaceKey = inferHomeSurface(ritualIntent?.value || 
         ? "Approved"
         : "Review";
   const surfaceLabels = {
-    plan: ["Plan", "Next move"],
+    plan: ["Next move", "Private first"],
     document: laneKey === "memory" ? ["Continuity note", "Memory"] : ["Note", "Draft"],
     table: ["File plan", "Local context"],
     browser: ["Web check", "Research"],
@@ -805,19 +807,20 @@ function renderHomeSurface(surfaceKey = inferHomeSurface(ritualIntent?.value || 
   const templates = {
     plan: `
       <article class="surface-plan">
-        <strong>${escapeHtml(artifactTitle)}</strong>
+        <span class="surface-kicker">Start here</span>
+        <strong>${escapeHtml(moves[0] || artifactTitle)}</strong>
         <p>${escapeHtml(receipt.why || mode.why)}</p>
         <div class="surface-proof-grid">
           <section>
-            <span>Decision</span>
+            <span>Promise</span>
             <b>${escapeHtml(goals[0] || "Choose the next move")}</b>
           </section>
           <section>
-            <span>Blind spot</span>
+            <span>Watch</span>
             <b>${escapeHtml(blockers[0] || "The weak assumption stays visible")}</b>
           </section>
           <section>
-            <span>Next 24h</span>
+            <span>Do next</span>
             <b>${escapeHtml(moves[0] || "Create one visible proof")}</b>
           </section>
         </div>

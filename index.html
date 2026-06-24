@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Active Mirror is a private AI workspace that reflects before it acts, turns messy context into clear next moves, and shows receipts you can inspect."
+      content="Active Mirror turns one messy workflow into a clear next move and a receipt you can inspect before anything is saved or shared."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>Active Mirror | Welcome</title>
+    <title>Active Mirror | Start with one real thing</title>
   </head>
   <body class="home-genui">
     <header class="site-nav genui-nav" aria-label="Primary">
@@ -22,6 +22,7 @@
         <span>Active Mirror</span>
       </a>
       <nav class="nav-links" aria-label="Sections">
+        <a href="#first-use">Try it</a>
         <a href="/trust/">Trust</a>
       </nav>
       <div class="nav-actions">
@@ -34,39 +35,56 @@
       <section class="genui-workspace" id="first-use" aria-label="Active Mirror reflective workspace">
         <div class="genui-panel">
           <div class="genui-copy">
-            <h1>Start with one<br />thing.</h1>
-            <p>
-              Get a next move. See the receipt first.
-            </p>
-            <ul class="front-trust" aria-label="Active Mirror basics">
-              <li>Private first</li>
-              <li>Sharing needs approval</li>
-              <li>Memory is your choice</li>
-            </ul>
+            <h1>Bring one messy thing.</h1>
           </div>
 
-          <section class="glass-state-strip" aria-label="Current mirror state">
-            <div>
-              <span>Mode</span>
-              <strong id="home-state-mode">Decision</strong>
-            </div>
-            <div>
-              <span>Help</span>
-              <strong id="home-state-route">Browser first</strong>
-            </div>
-            <div>
-              <span>Boundary</span>
-              <strong id="home-state-boundary">Private</strong>
-            </div>
-            <div>
-              <span>Receipt</span>
-              <strong id="home-state-receipt">Ready</strong>
-            </div>
+          <section class="work-lanes" aria-label="Ways to start">
+            <button
+              type="button"
+              class="home-work-lane is-active"
+              data-work-lane="decision"
+              data-surface="plan"
+              data-boundary="personal"
+              data-intent="Help me make one good decision from messy context, weak assumptions, and competing next steps."
+            >
+              <span aria-hidden="true">01</span>
+              <strong>Decide</strong>
+              <small>Pick the move.</small>
+            </button>
+            <button
+              type="button"
+              class="home-work-lane"
+              data-work-lane="files"
+              data-surface="table"
+              data-boundary="drafts"
+              data-intent="Work on local files and turn them into a clear summary, action list, and receipt without sharing private context."
+            >
+              <span aria-hidden="true">02</span>
+              <strong>Files</strong>
+              <small>Use context.</small>
+            </button>
+            <button
+              type="button"
+              class="home-work-lane"
+              data-work-lane="research"
+              data-surface="browser"
+              data-boundary="client"
+              data-intent="Research this question online, separate evidence from opinion, and show what should stay out of the request."
+            >
+              <span aria-hidden="true">03</span>
+              <strong>Research</strong>
+              <small>Check sources.</small>
+            </button>
           </section>
 
           <form class="reflection-composer chat-composer" aria-label="Start a reflection">
-            <label for="ritual-intent">Start with one real thing.</label>
-            <textarea id="ritual-intent" rows="5" maxlength="1000">Restarting a product launch: notes, positioning, screenshots, and next steps are scattered.</textarea>
+            <label for="ritual-intent">What needs to move?</label>
+            <textarea id="ritual-intent" rows="7" maxlength="1000">I don't really know what to do.
+Lots of notes everywhere.
+Screenshots of ideas. Half-built landing page.
+Need a product story that feels real.
+Who is it for? What problem do we actually solve?
+I'm stuck.</textarea>
             <div class="composer-row">
               <select id="ritual-boundary" aria-label="Reflection boundary">
                 <option value="personal">No personal</option>
@@ -81,7 +99,7 @@
               </select>
               <button class="button primary ritual-button" id="ritual-create" type="button">Get next move</button>
             </div>
-            <small><strong id="ritual-count">91</strong> / 1000 - private first, approval before sharing</small>
+            <small><strong id="ritual-count">176</strong> / 1000 - private first, approval before sharing</small>
           </form>
 
           <section class="approved-help-review" id="approved-help-review" aria-label="Extra help approval" hidden>
@@ -118,197 +136,19 @@
             <div class="followup-row" id="home-followups" aria-label="Follow-up questions"></div>
           </section>
 
-          <section class="work-lanes" aria-label="Ways to start">
-            <button
-              type="button"
-              class="home-work-lane is-active"
-              data-work-lane="decision"
-              data-surface="plan"
-              data-boundary="personal"
-              data-intent="Help me make one good decision from messy context, weak assumptions, and competing next steps."
-            >
-              <span aria-hidden="true">01</span>
-              <strong>Decide</strong>
-              <small>Get a clear next move.</small>
-            </button>
-            <button
-              type="button"
-              class="home-work-lane"
-              data-work-lane="files"
-              data-surface="table"
-              data-boundary="drafts"
-              data-intent="Work on local files and turn them into a clear summary, action list, and receipt without sharing private context."
-            >
-              <span aria-hidden="true">02</span>
-              <strong>Files</strong>
-              <small>Use local context.</small>
-            </button>
-            <button
-              type="button"
-              class="home-work-lane"
-              data-work-lane="research"
-              data-surface="browser"
-              data-boundary="client"
-              data-intent="Research this question online, separate evidence from opinion, and show what should stay out of the request."
-            >
-              <span aria-hidden="true">03</span>
-              <strong>Research</strong>
-              <small>Check sources.</small>
-            </button>
-          </section>
+          <ul class="front-trust" aria-label="Active Mirror basics">
+            <li>Private first</li>
+            <li>Approval before sharing</li>
+            <li>You choose memory</li>
+          </ul>
 
         </div>
 
         <div class="genui-stage" aria-label="Active Mirror workspace">
-          <div class="live-map mirror-architecture" aria-label="Active Mirror workspace map">
-            <div class="edge-badge" aria-label="Edge privacy default">
-              <span aria-hidden="true">
-                <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
-                  <path d="M12 3.2 19 6.4v5.2c0 4.5-2.8 7.5-7 9.2-4.2-1.7-7-4.7-7-9.2V6.4l7-3.2Z" />
-                  <path d="M9.4 12.1 11.1 14l3.8-4" />
-                </svg>
-              </span>
-              <strong>Edge privacy default</strong>
-            </div>
-
-            <button
-              type="button"
-              class="map-card arch-node device-card"
-              data-work-lane="files"
-              data-surface="table"
-              data-boundary="drafts"
-              data-intent="Work from my laptop, phone, and tablet context without sending private files unless I approve it."
-            >
-              <span class="node-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
-                  <path d="M4 6.5h11.5v7H4z" />
-                  <path d="M2.8 16.5h14" />
-                  <path d="M18 8h2.8v7.5H18z" />
-                </svg>
-              </span>
-              <span class="node-label">Your devices</span>
-              <strong>Your context</strong>
-              <p id="home-context-copy">Stays local first.</p>
-            </button>
-            <button
-              type="button"
-              class="map-card arch-node local-card"
-              data-work-lane="memory"
-              data-surface="document"
-              data-boundary="secrets"
-              data-intent="Use a local helper first and keep sensitive context inside the browser unless I approve a route."
-            >
-              <span class="node-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
-                  <path d="M7 8.2 12 5l5 3.2v7.6L12 19l-5-3.2z" />
-                  <path d="M7.4 8.4 12 11l4.6-2.6" />
-                  <path d="M12 11v7.6" />
-                </svg>
-              </span>
-              <span class="node-label">Private reflection</span>
-              <strong>Private reflection</strong>
-              <p>Organizes before extra help.</p>
-            </button>
-
-            <article class="mirror-core-live arch-core">
-              <span>Active Mirror</span>
-              <strong id="ritual-status">Reflects first</strong>
-              <div aria-hidden="true">
-                <i>Consent</i>
-                <i>Receipt</i>
-                <i>Boundaries</i>
-              </div>
-            </article>
-
-            <button
-              type="button"
-              class="map-card arch-node route-card-live"
-              data-work-lane="decision"
-              data-surface="plan"
-              data-boundary="personal"
-              data-intent="Route this decision to extra help only after the browser has removed what should not be shared."
-            >
-              <span class="node-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
-                  <path d="M7.2 17h10.4a3.6 3.6 0 0 0 .4-7.2 5.3 5.3 0 0 0-10.1-1.6A4.5 4.5 0 0 0 7.2 17Z" />
-                </svg>
-              </span>
-              <span class="node-label">AI help</span>
-              <strong id="home-route-title">Browser first</strong>
-              <p id="home-route-copy">Extra help only when chosen.</p>
-            </button>
-            <button
-              type="button"
-              class="map-card arch-node files-card-live"
-              data-work-lane="files"
-              data-surface="table"
-              data-boundary="drafts"
-              data-intent="Work on files in the browser and produce a scoped summary, checklist, and receipt."
-            >
-              <span class="node-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
-                  <path d="M6.5 4.5h7l4 4V19H6.5z" />
-                  <path d="M13.5 4.5v4h4" />
-                  <path d="M9 12h6" />
-                  <path d="M9 15h5" />
-                </svg>
-              </span>
-              <span class="node-label">Files and context</span>
-              <strong>Files</strong>
-              <p>Selected in this browser.</p>
-            </button>
-            <button
-              type="button"
-              class="map-card arch-node output-card-live"
-              data-work-lane="images"
-              data-surface="media"
-              data-boundary="client"
-              data-intent="Generate approved text, image, video, audio, or code assets from public-safe context."
-            >
-              <span class="node-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
-                  <path d="M5 6h14v12H5z" />
-                  <path d="m8.5 15 2.8-3 2.1 2.2 1.4-1.4 2.7 2.2" />
-                  <path d="M9 9.5h.1" />
-                </svg>
-              </span>
-              <span class="node-label">Make and output</span>
-              <strong id="home-output-title">Output</strong>
-              <p id="home-output-copy">A useful next step, not a long answer.</p>
-            </button>
-            <button
-              type="button"
-              class="map-card arch-node receipts-card-live"
-              data-work-lane="memory"
-              data-surface="document"
-              data-boundary="personal"
-              data-intent="Create a receipt that shows source scope, route, approvals, output lineage, and the next step for tomorrow."
-            >
-              <span class="node-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
-                  <path d="M8 4.5h8l2 2V20l-3-1.5-3 1.5-3-1.5L6 20V6.5z" />
-                  <path d="M9 10h6" />
-                  <path d="M9 13h6" />
-                </svg>
-              </span>
-              <span class="node-label">Receipts and continuity</span>
-              <strong>Receipt</strong>
-              <p>Used, left out, why, memory.</p>
-            </button>
-          </div>
-
-          <section class="privacy-rail" aria-label="Privacy by design">
-            <strong>Private by default</strong>
-            <span>Your context</span>
-            <span>Explicit consent</span>
-            <span>No training</span>
-            <span>Receipts</span>
-          </section>
-
           <section class="home-surface" aria-label="Generated working surface">
             <div class="panel-head split">
-              <strong id="home-surface-title">Working surface</strong>
-              <span id="home-surface-type">Plan</span>
+              <strong id="home-surface-title">Next move</strong>
+              <span id="home-surface-type">Private first</span>
             </div>
             <div class="surface-tabs" aria-label="Ways to view this turn">
               <button type="button" class="is-active" data-surface-tab="plan">Plan</button>
@@ -318,6 +158,33 @@
               <button type="button" data-surface-tab="media">Visual</button>
             </div>
             <div id="home-surface-output" class="surface-output"></div>
+          </section>
+
+          <section class="proof-console glass-state-strip" aria-label="Proof console">
+            <div>
+              <span>Mode</span>
+              <strong id="home-state-mode">Decision</strong>
+            </div>
+            <div>
+              <span>Help</span>
+              <strong id="home-state-route">Browser first</strong>
+            </div>
+            <div>
+              <span>Boundary</span>
+              <strong id="home-state-boundary">Private</strong>
+            </div>
+            <div>
+              <span>Status</span>
+              <strong id="home-state-receipt">Ready</strong>
+            </div>
+            <div>
+              <span>Checks</span>
+              <strong id="ritual-status">Private. Scoped. Unsaved.</strong>
+            </div>
+            <div>
+              <span>Memory</span>
+              <strong>Only after approval</strong>
+            </div>
           </section>
 
           <section class="ritual-receipt receipt-card" id="receipts" aria-label="Reflection receipt">
@@ -338,7 +205,7 @@
               <strong id="receipt-excluded">Secrets, personal details, and unapproved memory.</strong>
             </button>
             <button class="receipt-line" type="button">
-              <span>How it ran</span>
+              <span>Path</span>
               <strong id="receipt-route">Browser reflection first. Extra help only after approval.</strong>
             </button>
             <button class="receipt-line" type="button">
@@ -349,9 +216,9 @@
         </div>
 
         <div class="genui-bottom-bar">
-          <p>Bring one workflow. Active Mirror reflects it, shapes the work, and shows what happened.</p>
+          <p>Get the move first. Save or share only after the receipt makes sense.</p>
           <div>
-            <a class="button secondary small" id="open-generated-mirror" href="#first-use">Keep working here</a>
+            <a class="button secondary small" id="open-generated-mirror" href="#first-use">Run it again</a>
             <button class="button primary small" id="proof-sprint-open" type="button">Start proof sprint</button>
             <button class="button secondary small" id="ritual-reset" type="button">Reset</button>
           </div>
