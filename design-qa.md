@@ -8,6 +8,8 @@ source visual truth path:
 implementation screenshot path:
 - `/tmp/active-mirror-canvas-desktop-final.png`
 - `/tmp/active-mirror-canvas-mobile-final.png`
+- `/tmp/active-mirror-live-desktop-connected-8ccb573.png`
+- `/tmp/active-mirror-live-mobile-connected-8ccb573.png`
 
 viewport:
 - desktop: 1440 x 950
@@ -22,6 +24,8 @@ browser interaction evidence:
 - Desktop and mobile loaded without horizontal overflow
 - `Show me` generated the canvas state
 - `Risk` appended a follow-up and regenerated the local turn
+- Live `Show me` called `https://gateway.activemirror.ai/v1/mirror/create`
+- Live gateway response was `200` with `fallback:false` and a receipt id
 - Browser console error count: 0 on desktop and mobile
 
 **Findings**
@@ -39,9 +43,11 @@ browser interaction evidence:
 - Simplified starter choices to `Decision`, `Messy notes`, and `Research`
 - Changed the primary action to `Show me`
 - Replaced the right-side plan block with an interactive generated canvas
+- Connected the first-use canvas to the Active Mirror gateway by default
 - Added `Smaller`, `Risk`, and `Checklist` canvas refinements
 - Hid first-use proof console and surface tabs by default
 - Added mobile stacking rules for the generated canvas
 - Suppressed production telemetry sends on localhost
+- Added local dev CORS for the gateway route
 
 final result: passed
