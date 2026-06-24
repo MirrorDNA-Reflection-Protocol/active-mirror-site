@@ -464,15 +464,13 @@ function trackSiteEvent(name, detail = {}) {
   }
   if (!canSendSiteEvent()) return;
   try {
-    const payload = new Blob([JSON.stringify(event)], { type: "application/json" });
-    if (!navigator.sendBeacon?.(`${MIRROR_GATEWAY_URL}/v1/site/event`, payload)) {
-      fetch(`${MIRROR_GATEWAY_URL}/v1/site/event`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(event),
-        keepalive: true,
-      }).catch(() => {});
-    }
+    fetch(`${MIRROR_GATEWAY_URL}/v1/site/event`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(event),
+      keepalive: true,
+      credentials: "omit",
+    }).catch(() => {});
   } catch {
     // Site measurement must never block the product surface.
   }
