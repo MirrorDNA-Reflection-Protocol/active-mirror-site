@@ -1,4 +1,5 @@
 import "./style.css";
+import { seedSummary, signWithSeed, verifyWithSeed, getSeedPublicKey } from "./mirror-seed.js";
 import { gsap } from "gsap";
 
 const canAnimate = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -213,6 +214,7 @@ const ledgerUsed = document.querySelector("#ledger-used");
 const ledgerKept = document.querySelector("#ledger-kept");
 const ledgerPrev = document.querySelector("#ledger-prev");
 const ledgerHash = document.querySelector("#ledger-hash");
+const ledgerSig = document.querySelector("#ledger-sig");
 const ledgerTime = document.querySelector("#ledger-time");
 const ledgerVerify = document.querySelector("#ledger-verify");
 const ledgerVerstate = document.querySelector("#ledger-verstate");
@@ -1030,14 +1032,16 @@ async function populateReceiptLedger(payload) {
   const prev = receiptChainHead();
   const canonical = receiptCanonical({ mode, used, kept, receiptId: payload.receipt_id, response, ts, prev });
   const hash = await sha256Hex(canonical);
+  const signed = await signWithSeed(canonical); // sign with the Mirror Seed's key (if one is minted)
 
-  pendingReceipt = { canonical, hash, prev, receiptId: payload.receipt_id, ts, accepted: false };
+  pendingReceipt = { canonical, hash, prev, receiptId: payload.receipt_id, ts, accepted: false, sig: signed?.sig || null, keyId: signed?.keyId || null };
 
   if (ledgerMode) ledgerMode.textContent = mode;
   if (ledgerUsed) ledgerUsed.textContent = used;
   if (ledgerKept) ledgerKept.textContent = kept;
   if (ledgerPrev) ledgerPrev.textContent = shortReceiptHash(prev);
   if (ledgerHash) ledgerHash.textContent = shortReceiptHash(hash);
+  if (ledgerSig) ledgerSig.textContent = signed?.sig ? `${shortReceiptHash(signed.sig)} · your Mirror Seed` : "unsigned — mint a Seed to sign";
   if (ledgerTime) ledgerTime.textContent = new Date(ts).toLocaleString();
   if (ledgerNote) ledgerNote.textContent = "";
   if (ledgerAccept) {
@@ -1051,9 +1055,20 @@ async function populateReceiptLedger(payload) {
 async function verifyReceiptLedger() {
   if (!pendingReceipt || !ledgerVerstate) return;
   const recomputed = await sha256Hex(pendingReceipt.canonical);
-  if (recomputed === pendingReceipt.hash) {
-    ledgerVerstate.textContent = `Verified ✓ recomputed hash matches ${shortReceiptHash(recomputed)}`;
+  const hashOk = recomputed === pendingReceipt.hash;
+  let sigOk = null;
+  if (pendingReceipt.sig) {
+    sigOk = await verifyWithSeed(pendingReceipt.canonical, pendingReceipt.sig, getSeedPublicKey());
+  }
+  if (hashOk && sigOk === true) {
+    ledgerVerstate.textContent = "Verified ✓ hash matches and the signature is valid — signed by your Mirror Seed.";
     ledgerVerstate.classList.add("is-ok");
+  } else if (hashOk && sigOk === null) {
+    ledgerVerstate.textContent = `Verified ✓ recomputed hash matches ${shortReceiptHash(recomputed)} (unsigned).`;
+    ledgerVerstate.classList.add("is-ok");
+  } else if (hashOk && sigOk === false) {
+    ledgerVerstate.textContent = "Hash matches, but the signature does NOT verify.";
+    ledgerVerstate.classList.remove("is-ok");
   } else {
     ledgerVerstate.textContent = "Mismatch — receipt does not verify.";
     ledgerVerstate.classList.remove("is-ok");
@@ -1087,8 +1102,12 @@ function acceptReceiptLedger() {
 }
 
 async function runHomeGateway(routeKey) {
-  const intent = (ritualIntent?.value || ritualInitialIntent).replace(/\s+/g, " ").trim();
-  if (intent.length < 12) throw new Error("intent_too_short");
+  const baseIntent = (ritualIntent?.value || ritualInitialIntent).replace(/\s+/g, " ").trim();
+  if (baseIntent.length < 12) throw new Error("intent_too_short");
+  // Inject the public-safe Mirror Seed boot packet (identity + accepted contracts) so the
+  // reflection is personalized. User words go first so they survive the gateway's 1000-char trim.
+  const seedCtx = seedSummary();
+  const intent = seedCtx ? `${baseIntent}\n\n[Mirror Seed — ${seedCtx}]` : baseIntent;
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 26000);
   try {
