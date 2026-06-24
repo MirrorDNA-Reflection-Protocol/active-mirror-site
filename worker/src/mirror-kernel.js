@@ -155,6 +155,12 @@ export function parseProviderMirror(text, provider) {
 export function cleanText(value, fallback, maxLength) {
   const text = repairTextArtifacts(
     String(value || "")
+      // Fold common Unicode punctuation to ASCII so models that emit smart quotes,
+      // em-dashes, or ellipses don't get letters eaten by the ASCII-only strip below.
+      .replace(/[‘’‚′]/g, "'")
+      .replace(/[“”„″]/g, '"')
+      .replace(/[–—−]/g, "-")
+      .replace(/…/g, "...")
       .replace(/[^\x09\x0a\x0d\x20-\x7e]/g, "")
       .replace(/\s+/g, " ")
       .trim(),
