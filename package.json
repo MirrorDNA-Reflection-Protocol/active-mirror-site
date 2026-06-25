@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && cp dist/app/index.html dist/404.html",
     "copy:audit": "node scripts/public-copy-audit.mjs",
     "preview": "vite preview",
     "worker:dev": "npx wrangler dev --config worker/wrangler.jsonc",
