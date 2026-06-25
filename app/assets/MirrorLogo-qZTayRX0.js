@@ -1,1 +1,0 @@
-import{j as i}from"./index-DrtcRPN2.js";function t({className:r="w-8 h-8",alt:o="Active Mirror"}){return i.jsx("img",{src:"/assets/active-mirror-icon.png",alt:o,className:`${r} object-contain`,loading:"eager"})}export{t as M};
