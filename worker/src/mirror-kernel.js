@@ -43,7 +43,7 @@ export const BOUNDARIES = {
 export const MIRROR_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["reflection", "question", "move", "receipt"],
+  required: ["reflection", "question", "move", "receipt", "visual"],
   properties: {
     // The honest mirror: name the real thing under their question — what they may be
     // avoiding or not saying. Make them feel seen, not judged. Do not decide for them.
@@ -64,6 +64,19 @@ export const MIRROR_SCHEMA = {
         memory_decision: { type: "string", minLength: 12, maxLength: 220 },
       },
     },
+    // GenUI: ONE optional visual from a fixed registry. The model fills it every turn
+    // (kind "none" when nothing helps); the straitjacket gates it and fails closed.
+    visual: {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "left", "right", "note"],
+      properties: {
+        kind: { type: "string", enum: ["none", "reframe", "axes", "spectrum"] },
+        left: { type: "string", maxLength: 120 },
+        right: { type: "string", maxLength: 120 },
+        note: { type: "string", maxLength: 120 },
+      },
+    },
   },
 };
 
@@ -71,7 +84,7 @@ export const MIRROR_SCHEMA = {
 export const PROVIDER_MIRROR_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["reflection", "question", "move", "receipt"],
+  required: ["reflection", "question", "move", "receipt", "visual"],
   properties: {
     reflection: { type: "string" },
     question: { type: "string" },
@@ -86,6 +99,17 @@ export const PROVIDER_MIRROR_SCHEMA = {
         context_excluded: { type: "string" },
         route: { type: "string" },
         memory_decision: { type: "string" },
+      },
+    },
+    visual: {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "left", "right", "note"],
+      properties: {
+        kind: { type: "string", enum: ["none", "reframe", "axes", "spectrum"] },
+        left: { type: "string" },
+        right: { type: "string" },
+        note: { type: "string" },
       },
     },
   },
@@ -106,7 +130,8 @@ export function containsSecret(value) {
 export function buildPrompt({ intent, boundary }, boundaryDef, capability = "reflection") {
   return [
     "You are Active Mirror. You reflect a person back to themselves so they think for themselves.",
-    "You do NOT advise, decide, rank their options, or tell them what to do. You do NOT flatter, and you do NOT lecture.",
+    "You are their honest adviser, not their friend or their fan: hold your own ground and say what is true, even when it is not what they want to hear.",
+    "You do NOT decide for them, rank their options, or tell them what to do. You do NOT flatter, and you do NOT lecture.",
     "Someone brought one thing they are stuck on. Reflect it honestly. Be warm but truthful.",
     "Return only compact JSON matching the requested structure. Plain English ASCII only. No markdown, no numbered labels, no slogans.",
     "No therapy claims, no diagnosis, no personal-data collection, no invented facts.",
@@ -114,6 +139,7 @@ export function buildPrompt({ intent, boundary }, boundaryDef, capability = "ref
     "question: the single sharper question that actually decides this for them — the one they have not asked themselves. End it with a question mark.",
     "move: one small, concrete thing they could do or test soon. Not a plan, not a list. One thing.",
     "receipt: {why, context_used, context_excluded, route, memory_decision}, short and plain.",
+    "visual: ONE picture of your reasoning, or none. kind 'reframe' (left = their framing, right = the realer question), kind 'axes' (left/right = the two forces in tension), kind 'spectrum' (left/right = the two poles of a false either/or), or kind 'none' with empty left/right/note. Plain ASCII in the slots, no markdown. Pick one only when it truly clarifies; most turns are 'reframe' or 'none'.",
     `Capability route: ${capability}.`,
     `Boundary: ${boundary}.`,
     `Context excluded: ${boundaryDef.excluded}`,
@@ -236,6 +262,33 @@ export function straitjacket(mirror) {
   };
 }
 
+// --- GenUI gate: the model picks ONE visual from a fixed registry; this drops
+// anything off-registry or with empty slots, and strips markdown from the props.
+// Same fail-closed discipline as the straitjacket. ---
+const VISUAL_KINDS = new Set(["reframe", "axes", "spectrum"]);
+
+function cleanVisualText(value) {
+  return String(value || "")
+    .replace(/[*_`#>~]/g, "") // strip markdown the model sometimes leaks into props
+    .replace(/[‘’‚′]/g, "'")
+    .replace(/[“”„″]/g, '"')
+    .replace(/[–—−]/g, "-")
+    .replace(/…/g, "...")
+    .replace(/[^\x09\x0a\x0d\x20-\x7e]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 120);
+}
+
+export function gateVisual(visual) {
+  if (!visual || typeof visual !== "object") return null;
+  if (!VISUAL_KINDS.has(visual.kind)) return null; // "none" or off-registry -> dropped
+  const left = cleanVisualText(visual.left);
+  const right = cleanVisualText(visual.right);
+  if (!left || !right) return null; // missing required slots -> dropped
+  return { kind: visual.kind, left, right, note: cleanVisualText(visual.note) };
+}
+
 // --- Normalize a model's mirror, falling back to a safe deterministic one ---
 export function deterministicMirror({ intent, boundary }, boundaryDef, routeText) {
   // Safe, honest reflection when no model is available — generic by necessity, never a board.
@@ -323,6 +376,13 @@ export async function reflect({ intent, boundary = "personal", turn = 1, capabil
   // 4. Normalize, then the straitjacket — the honesty floor the model can't cross.
   const normalized = normalizeMirror(hasModelMirror ? res.mirror : null, { intent, boundary }, boundaryDef, routeText);
   const { mirror, violations } = straitjacket(normalized);
+
+  // GenUI: gate the model's chosen visual against the fixed registry. Fails closed.
+  const rawVisual = hasModelMirror ? res.mirror.visual : null;
+  mirror.visual = gateVisual(rawVisual);
+  if (rawVisual && rawVisual.kind && rawVisual.kind !== "none" && !mirror.visual) {
+    violations.push("visual_dropped");
+  }
 
   // 5. Receipt — a content hash of exactly what reached the user.
   const receipt_id = await receiptHash({ mirror, turn });

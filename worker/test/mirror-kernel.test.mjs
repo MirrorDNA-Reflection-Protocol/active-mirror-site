@@ -4,7 +4,7 @@ import assert from "node:assert";
 import { webcrypto } from "node:crypto";
 if (!globalThis.crypto) globalThis.crypto = webcrypto; // kernel uses Web Crypto for the receipt
 
-import { reflect, straitjacket, containsSecret } from "../src/mirror-kernel.js";
+import { reflect, straitjacket, containsSecret, gateVisual } from "../src/mirror-kernel.js";
 
 let pass = 0;
 let fail = 0;
@@ -97,6 +97,35 @@ await check("receipt hash is deterministic for identical output", async () => {
   const a = await reflect({ intent: "Same question asked twice here for the test.", turn: 1, callModel: model });
   const b = await reflect({ intent: "Same question asked twice here for the test.", turn: 1, callModel: model });
   assert.strictEqual(a.receipt_id, b.receipt_id, "identical output produced different receipts");
+});
+
+// 7. GenUI gate fails closed (the visual cage).
+await check("gateVisual keeps a valid visual, drops everything else", () => {
+  assert.ok(gateVisual({ kind: "reframe", left: "their framing", right: "the real question", note: "" }), "valid reframe dropped");
+  assert.strictEqual(gateVisual({ kind: "barchart", left: "a", right: "b", note: "" }), null, "off-registry kept");
+  assert.strictEqual(gateVisual({ kind: "axes", left: "a", right: "", note: "" }), null, "empty slot kept");
+  assert.strictEqual(gateVisual({ kind: "none", left: "", right: "", note: "" }), null, "none kept");
+  assert.strictEqual(gateVisual(null), null, "null kept");
+  // strips markdown the model leaks into props (the real defect the proof caught)
+  assert.strictEqual(gateVisual({ kind: "reframe", left: "**bold**", right: "x", note: "" }).left, "bold", "markdown not stripped");
+});
+
+// 8. reflect() attaches a gated visual end to end.
+await check("reflect() attaches a gated visual from the model", async () => {
+  const model = async () => ({
+    mirror: {
+      reflection: "A steady honest reflection that names the real thing here.",
+      question: "What is true?",
+      move: "Write it down.",
+      receipt: RECEIPT,
+      visual: { kind: "reframe", left: "I must be perfect", right: "what am I avoiding by perfecting", note: "" },
+    },
+    fallback: false,
+    routeText: "mock",
+  });
+  const out = await reflect({ intent: "I keep polishing instead of shipping.", callModel: model });
+  assert.ok(out.mirror.visual, "no visual attached");
+  assert.strictEqual(out.mirror.visual.kind, "reframe");
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);
