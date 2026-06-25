@@ -1,1 +1,0 @@
-const t="2026-03-14T06:15:05.539747+05:30";const s="System online",o={up:0,down:0},n=88,c=0,e=!0,i=0,p={dirty:9,unpushed:0},a=0,u=0,l=0,m={timestamp:t,alive:!0,uptime_label:s,services:o,disk_pct:n,memory_pct:c,domains_up:e,ships_today:i,git:p,upcoming_events:a,open_loops:u,fact_violations:l};export{m as p};
