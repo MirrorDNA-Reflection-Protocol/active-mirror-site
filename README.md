@@ -1,11 +1,28 @@
 # Active Mirror Site
 
-Canonical source repo for the Active Mirror public and commercial web surface.
+Legacy/migration source for the Active Mirror public and commercial web surface.
+
+## Canonicalization Notice
+
+New Active Mirror product/front-door work now starts in:
+
+```text
+/Users/mirror-pro/repos/activemirror-journey
+```
+
+This repo remains useful for:
+
+- Vite public-site history;
+- Worker gateway deployment notes and live deployment bridge;
+- copy audit scripts and public-copy precedent;
+- migration of specific homepage/trust/docs work into the canonical repo.
+
+Do not start new homepage, BrainScan, Mirror Seed, or consumer chat work here unless Paul explicitly reopens this lane.
 
 ## Status
 
-- Edit this repo for the public site.
-- Build artifacts are generated from this repo.
+- Treat this repo as a migration source unless explicitly instructed otherwise.
+- Port useful product changes into `/Users/mirror-pro/repos/activemirror-journey`.
 - Do not use `/Users/mirror-pro/Documents/Active Mirror/commercial-site` as the source of truth going forward.
 - Do not edit `MirrorDNA-Reflection-Protocol/activemirror-pages` as source after cutover; treat it as legacy deployment history.
 

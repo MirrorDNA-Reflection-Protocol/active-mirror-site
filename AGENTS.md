@@ -1,11 +1,22 @@
 # Active Mirror Site Agent Guard
 
+## Canonicalization Notice
+
+This repo is no longer the starting point for new Active Mirror product/front-door work.
+
+- New canonical product/front-door repo: `/Users/mirror-pro/repos/activemirror-journey`
+- This repo status: live/deploy and Worker gateway bridge, plus migration source for prior Vite public-site work.
+
+Before editing here, ask whether the change should be ported into the canonical repo instead.
+Do not start new homepage, BrainScan, Mirror Seed, or consumer chat work here.
+
 ## Active Lane
 
-This repository is the canonical Active Mirror public site and browser workspace.
+This repository was the canonical Active Mirror public site and browser workspace before the 2026-06-25 consolidation.
 
 - Lane: Active Mirror
-- Canonical repo: `/Users/mirror-pro/Documents/active-mirror-site`
+- Canonical product/front-door repo for new work: `/Users/mirror-pro/repos/activemirror-journey`
+- Legacy/migration source: `/Users/mirror-pro/repos/active-mirror-site`
 - Primary surface: `activemirror.ai` and `/mirror/`
 
 ## Pre-Action Lane Gate
