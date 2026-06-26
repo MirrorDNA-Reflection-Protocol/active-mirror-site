@@ -84,6 +84,42 @@ When `status` is `needs_checking`, `straitjacket` includes
 `"truth_state_needs_sources"`. The UI should render this quietly as a trust signal,
 not as a large workflow.
 
+### `POST /v1/mirror/source-check`
+
+Runs a bounded source-backed check for a turn already marked `needs_checking`.
+Provider keys stay in the Worker. The browser sends only the current intent,
+question, and next move.
+
+**Request body**:
+
+```json
+{
+  "intent": "What are the latest GenUI competitors today, and who is winning?",
+  "question": "Which current sources define the GenUI competitor set?",
+  "move": "Check current sources before using this claim.",
+  "boundary": "personal"
+}
+```
+
+**Success response** `200`:
+
+```json
+{
+  "ok": true,
+  "receipt_id": "24-hex",
+  "truth_state": { "status": "checked", "checked": true, "label": "Source checked." },
+  "research": {
+    "answer": "short answer",
+    "changes": "what this changes for the next move",
+    "sources": [{ "title": "source title", "url": "https://..." }]
+  }
+}
+```
+
+The endpoint returns `checked` only when at least one `http(s)` source URL survives
+cleaning. Otherwise it returns a non-`200` response and the UI keeps the turn in
+`needs_checking`.
+
 ### `mirror.visual` — the governed GenUI object
 
 `visual` is **`null`** OR an object the UI renders inline. It is gated: off-registry kinds,

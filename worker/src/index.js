@@ -13,7 +13,9 @@ import {
   BOUNDARIES,
   MIRROR_SCHEMA,
   PROVIDER_MIRROR_SCHEMA,
+  containsSecret,
   parseProviderMirror,
+  receiptHash,
   reflect,
 } from "./mirror-kernel.js";
 
@@ -31,7 +33,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-06-26-truth-state-v1";
+const WORKER_VERSION = "2026-06-26-source-check-v1";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
@@ -80,6 +82,29 @@ const EVENT_FIELDS = new Set([
   "label",
 ]);
 
+const SOURCE_CHECK_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["answer", "changes", "sources"],
+  properties: {
+    answer: { type: "string" },
+    changes: { type: "string" },
+    sources: {
+      type: "array",
+      maxItems: 5,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["title", "url"],
+        properties: {
+          title: { type: "string" },
+          url: { type: "string" },
+        },
+      },
+    },
+  },
+};
+
 export default {
   async fetch(request, env, ctx) {
     const origin = request.headers.get("Origin") || "";
@@ -115,6 +140,10 @@ export default {
 
     if (request.method === "POST" && url.pathname === "/v1/events") {
       return handleEvent(request, env, ctx, corsHeaders);
+    }
+
+    if (request.method === "POST" && url.pathname === "/v1/mirror/source-check") {
+      return handleSourceCheck(request, env, ctx, corsHeaders);
     }
 
     if (request.method !== "POST" || url.pathname !== "/v1/mirror/create") {
@@ -177,6 +206,72 @@ export default {
     }
   },
 };
+
+async function handleSourceCheck(request, env, ctx, corsHeaders) {
+  try {
+    const body = await readJsonBody(request, maxMirrorRequestBytes(env));
+    const input = sanitizeSourceCheckInput(body);
+    const budget = await enforceMirrorBudget(request, env, ctx, { capability: "source_check" });
+    if (!budget.allowed) {
+      return rateLimitedResponse(budget, corsHeaders);
+    }
+
+    if (containsSecret(`${input.intent} ${input.question} ${input.move}`)) {
+      return json(
+        {
+          ok: false,
+          error: "boundary_violation",
+          receipt: {
+            why: "The source check appeared to contain a secret or credential.",
+            context_used: "Only the boundary class and violation type were used.",
+            context_excluded: "The sensitive text was not routed to any model or search tool.",
+            route: "Blocked at the Active Mirror boundary gate.",
+            memory_decision: "Nothing was saved or promoted.",
+          },
+        },
+        400,
+        corsHeaders,
+      );
+    }
+
+    const research = await runSourceCheck(input, env);
+    const checked = research.sources.length > 0;
+    const truth_state = checked
+      ? {
+          status: "checked",
+          checked: true,
+          label: "Source checked.",
+          reason: "The source check returned cited web evidence for this turn.",
+          signals: ["source_check_completed"],
+        }
+      : {
+          status: "needs_checking",
+          checked: false,
+          label: "Needs sources before you rely on it.",
+          reason: "No cited web evidence was returned.",
+          signals: ["source_check_incomplete"],
+        };
+    const receipt_id = await receiptHash({ research, truth_state, intent: input.intent, question: input.question });
+
+    return json(
+      {
+        ok: checked,
+        fallback: research.fallback,
+        receipt_id,
+        truth_state,
+        research,
+      },
+      checked ? 200 : 502,
+      corsHeaders,
+    );
+  } catch (error) {
+    if (error?.status) {
+      return json({ ok: false, error: error.code || "bad_request" }, error.status, corsHeaders);
+    }
+    logSafe(ctx, { type: "active_mirror_gateway_error", surface: "source_check", reason: safeError(error) });
+    return json({ ok: false, error: "source_check_error" }, 500, corsHeaders);
+  }
+}
 
 function cors(origin) {
   const allowedOrigin = ALLOWED_ORIGINS.has(origin) ? origin : "https://activemirror.ai";
@@ -453,6 +548,29 @@ function sanitizeInput(body) {
   };
 }
 
+function sanitizeSourceCheckInput(body) {
+  const intent = cleanSourceText(body?.intent, 1000);
+  const question = cleanSourceText(body?.question, 240);
+  const move = cleanSourceText(body?.move, 240);
+  const boundary = String(body?.boundary || "personal").toLowerCase();
+  const target = question || intent;
+  if (target.length < 12) throw httpError(400, "source_question_required");
+  return {
+    intent,
+    question: target,
+    move,
+    boundary: BOUNDARIES[boundary] ? boundary : "personal",
+  };
+}
+
+function cleanSourceText(value, maxLength) {
+  return String(value || "")
+    .replace(/[^\x09\x0a\x0d\x20-\x7e]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
+}
+
 function normalizeRoute(value) {
   const route = String(value || "auto").toLowerCase();
   return ["reflection", "chat", "media"].includes(route) ? route : "auto";
@@ -601,6 +719,135 @@ async function callGemini(prompt, route, env) {
   return { fallback: false, model, mirror: parseProviderMirror(text, "gemini") };
 }
 
+async function runSourceCheck(input, env) {
+  if (!env.OPENAI_API_KEY) {
+    return {
+      fallback: true,
+      answer: "Source checking is not available right now.",
+      changes: "Do not rely on this claim until a source-backed check is run.",
+      sources: [],
+    };
+  }
+
+  return callOpenAISourceCheck(input, env);
+}
+
+async function callOpenAISourceCheck(input, env) {
+  const model = env.OPENAI_RESEARCH_MODEL || env.OPENAI_FAST_MODEL || env.OPENAI_REFLECTION_MODEL || "gpt-5.4-mini";
+  const prompt = [
+    "You are Active Mirror's source checker.",
+    "Use web search for current or external factual claims. Do not answer from memory.",
+    "Return compact JSON only: answer, changes, sources.",
+    "answer: one short answer with uncertainty if the evidence is mixed.",
+    "changes: one sentence saying what this changes for the user's next move.",
+    "sources: 2 to 5 web sources you actually used, each with title and url.",
+    "Do not include private facts, personal history, or unsupported rankings.",
+    "",
+    `Original user intent: ${input.intent}`,
+    `Mirror question to check: ${input.question}`,
+    `Mirror next move: ${input.move || "not provided"}`,
+  ].join("\n");
+  const configuredTool = cleanProviderCode(env.OPENAI_WEB_SEARCH_TOOL || "");
+  const toolTypes = [...new Set([configuredTool, "web_search_preview", "web_search"].filter(Boolean))];
+  let lastError = null;
+
+  for (const toolType of toolTypes) {
+    try {
+      const response = await fetchWithTimeout(
+        "https://api.openai.com/v1/responses",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model,
+            input: prompt,
+            store: false,
+            tools: [{ type: toolType, search_context_size: "medium" }],
+            tool_choice: "auto",
+            text: { format: { type: "json_schema", name: "active_mirror_source_check", strict: true, schema: SOURCE_CHECK_SCHEMA } },
+            max_output_tokens: 1200,
+          }),
+        },
+        "openai",
+        env,
+      );
+      const data = await readProviderResponse(response, "openai");
+      const payload = parseSourceCheckPayload(extractOpenAIText(data));
+      return normalizeSourceCheck(payload, extractSourceAnnotations(data));
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error("openai_source_check_failed");
+}
+
+function parseSourceCheckPayload(text) {
+  const value = String(text || "").trim();
+  if (!value) return {};
+  const jsonText = value.startsWith("```") ? value.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim() : value;
+  try {
+    return JSON.parse(jsonText);
+  } catch {
+    return { answer: value, changes: "Treat this as unchecked until sources are reviewed.", sources: [] };
+  }
+}
+
+function normalizeSourceCheck(payload, annotations = []) {
+  const payloadSources = Array.isArray(payload?.sources) ? payload.sources : [];
+  const sources = uniqueSources([...payloadSources, ...annotations]).slice(0, 5);
+  return {
+    fallback: false,
+    answer: cleanResearchText(payload?.answer, "The evidence needs a narrower check before relying on the claim.", 520),
+    changes: cleanResearchText(payload?.changes, "Use this as a check on the next move, not as a final answer.", 260),
+    sources,
+  };
+}
+
+function cleanResearchText(value, fallback, maxLength) {
+  const clean = String(value || "")
+    .replace(/[^\x09\x0a\x0d\x20-\x7e]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return (clean || fallback).slice(0, maxLength);
+}
+
+function extractSourceAnnotations(data) {
+  const found = [];
+  const visit = (value) => {
+    if (!value || typeof value !== "object") return;
+    if (typeof value.url === "string" && /^https?:\/\//i.test(value.url)) {
+      found.push({ title: value.title || value.url, url: value.url });
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item);
+      return;
+    }
+    for (const item of Object.values(value)) visit(item);
+  };
+  visit(data?.output);
+  return uniqueSources(found);
+}
+
+function uniqueSources(items) {
+  const seen = new Set();
+  const sources = [];
+  for (const item of items || []) {
+    const url = String(item?.url || "").trim();
+    if (!/^https?:\/\//i.test(url) || seen.has(url)) continue;
+    seen.add(url);
+    let fallbackTitle = url;
+    try {
+      fallbackTitle = new URL(url).hostname;
+    } catch {}
+    sources.push({
+      title: cleanResearchText(item?.title, fallbackTitle, 140),
+      url,
+    });
+  }
+  return sources;
+}
+
 async function readProviderResponse(response, provider) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -733,6 +980,11 @@ function publicRoutes(env) {
       status: env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY ? "available" : "browser fallback",
       purpose: "images, video, multimodal understanding, and media assets",
     },
+    source_check: {
+      label: "source check",
+      status: env.OPENAI_API_KEY ? "available" : "unavailable",
+      purpose: "source-backed checks for current or external factual claims",
+    },
   };
 }
 
@@ -744,6 +996,7 @@ function publicGuardrails(env) {
     daily_budget: "deferred",
     event_policy: "no-prompt-content",
     truth_state: "enabled",
+    source_check: env.OPENAI_API_KEY ? "enabled" : "not_configured",
   };
 }
 

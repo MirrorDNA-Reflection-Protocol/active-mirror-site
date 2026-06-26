@@ -3,7 +3,7 @@
 const SITE = process.env.ACTIVE_MIRROR_SITE || "https://activemirror.ai";
 const GATEWAY = process.env.ACTIVE_MIRROR_GATEWAY || "https://gateway.activemirror.ai";
 const RUN_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-const TIMEOUT_MS = Number(process.env.ACTIVE_MIRROR_CANARY_TIMEOUT_MS || 18000);
+const TIMEOUT_MS = Number(process.env.ACTIVE_MIRROR_CANARY_TIMEOUT_MS || 30000);
 
 const checks = [];
 
@@ -41,6 +41,7 @@ async function main() {
     assert(String(data.version || "").startsWith("2026-06-26-"), "unexpected gateway version");
     assert(data.guardrails?.event_policy === "no-prompt-content", "event policy missing");
     assert(data.guardrails?.truth_state === "enabled", "truth-state guardrail missing");
+    assert(data.guardrails?.source_check === "enabled", "source-check guardrail missing");
     assert(data.guardrails?.mirror_rate_limit === "enabled", "mirror rate limit not enabled");
     assert(data.guardrails?.event_rate_limit === "enabled", "event rate limit not enabled");
     assert(typeof data.guardrails?.daily_budget === "string", "daily budget status missing");
@@ -104,6 +105,28 @@ async function main() {
     assert(response.ok, `mirror status ${response.status} ${data.error || ""}`.trim());
     assert(data.ok === true, "mirror ok was not true");
     assert(data.truth_state?.status === "needs_checking", `expected needs_checking, got ${data.truth_state?.status || "missing"}`);
+  });
+
+  await check("source check returns cited evidence", async () => {
+    const response = await fetchWithTimeout(`${GATEWAY}/v1/mirror/source-check`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Active-Mirror-Session": `canary-${RUN_ID}`,
+      },
+      body: JSON.stringify({
+        intent: "What are the latest GenUI competitors today, and who is winning?",
+        question: "Which current sources define the GenUI competitor set?",
+        move: "Check current sources before using this claim.",
+        boundary: "personal",
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    assert(response.ok, `source-check status ${response.status} ${data.error || ""}`.trim());
+    assert(data.ok === true, "source check ok was not true");
+    assert(data.truth_state?.status === "checked", `expected checked, got ${data.truth_state?.status || "missing"}`);
+    assert(Array.isArray(data.research?.sources) && data.research.sources.length > 0, "sources missing");
+    assert(/^https?:\/\//.test(data.research.sources[0].url || ""), "first source url missing");
   });
 
   const failed = checks.filter((item) => item.status === "FAIL");
