@@ -806,8 +806,12 @@ function normalizeSourceCheck(payload, annotations = []) {
 
 function cleanResearchText(value, fallback, maxLength) {
   const clean = String(value || "")
+    .replace(/\[([^\]]{1,160})\]\(https?:\/\/[^\s)]+\)/g, "$1")
+    .replace(/https?:\/\/\S+/g, "")
     .replace(/[^\x09\x0a\x0d\x20-\x7e]/g, "")
     .replace(/\s+/g, " ")
+    .replace(/\s+\)/g, ")")
+    .replace(/\(\s*\)/g, "")
     .trim();
   return (clean || fallback).slice(0, maxLength);
 }
