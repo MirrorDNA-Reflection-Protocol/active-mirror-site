@@ -14,6 +14,24 @@
   "observability": {
     "enabled": true
   },
+  "ratelimits": [
+    {
+      "name": "MIRROR_SESSION_RATE_LIMITER",
+      "namespace_id": "26062601",
+      "simple": {
+        "limit": 12,
+        "period": 60
+      }
+    },
+    {
+      "name": "MIRROR_NETWORK_RATE_LIMITER",
+      "namespace_id": "26062602",
+      "simple": {
+        "limit": 36,
+        "period": 60
+      }
+    }
+  ],
   "vars": {
     "OPENAI_REFLECTION_MODEL": "gpt-5.5",
     "OPENAI_FAST_MODEL": "gpt-5.4-mini",

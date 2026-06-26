@@ -31,7 +31,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-06-26-guardrails-events-v1";
+const WORKER_VERSION = "2026-06-26-rate-canary-v1";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
@@ -73,7 +73,13 @@ export default {
 
     if (request.method === "GET" && url.pathname === "/health") {
       return json(
-        { ok: true, service: "active-mirror-site-gateway", version: WORKER_VERSION, routes: publicRoutes(env) },
+        {
+          ok: true,
+          service: "active-mirror-site-gateway",
+          version: WORKER_VERSION,
+          routes: publicRoutes(env),
+          guardrails: publicGuardrails(env),
+        },
         200,
         corsHeaders,
       );
@@ -99,6 +105,10 @@ export default {
       const body = await readJsonBody(request, maxMirrorRequestBytes(env));
       const input = sanitizeInput(body);
       const route = selectRoute(input.intent, input.route);
+      const budget = await enforceMirrorBudget(request, env, ctx, route);
+      if (!budget.allowed) {
+        return rateLimitedResponse(budget, corsHeaders);
+      }
 
       // The only thing the runtime injects into the kernel: how to call a model.
       let lastFallbackReason = null;
@@ -151,7 +161,7 @@ function cors(origin) {
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, X-Active-Mirror-Session",
     "Access-Control-Max-Age": "86400",
     "Cache-Control": "no-store",
     "Content-Type": "application/json; charset=utf-8",
@@ -161,6 +171,20 @@ function cors(origin) {
 
 function json(payload, status, headers) {
   return new Response(JSON.stringify(payload), { status, headers });
+}
+
+function rateLimitedResponse(limit, headers) {
+  return json(
+    {
+      ok: false,
+      error: "rate_limited",
+      scope: limit.scope,
+      retry_after: limit.retryAfter,
+      message: "The mirror route is cooling down. Try again in a moment.",
+    },
+    429,
+    { ...headers, "Retry-After": String(limit.retryAfter) },
+  );
 }
 
 async function handleEvent(request, env, ctx, headers) {
@@ -248,6 +272,71 @@ function cleanEventValue(value, maxLength) {
     .replace(/_+/g, "_")
     .replace(/^_|_$/g, "")
     .slice(0, maxLength);
+}
+
+async function enforceMirrorBudget(request, env, ctx, route) {
+  const actor = requestActor(request);
+  const capability = cleanActorKey(route.capability, "reflection", 32);
+  const sessionMinuteKey = `session:${actor.session}:${capability}`;
+  const networkMinuteKey = `network:${actor.network}:${capability}`;
+
+  const minuteChecks = [
+    { scope: "session", limiter: env.MIRROR_SESSION_RATE_LIMITER, key: sessionMinuteKey, retryAfter: 60 },
+    { scope: "network", limiter: env.MIRROR_NETWORK_RATE_LIMITER, key: networkMinuteKey, retryAfter: 60 },
+  ];
+
+  for (const check of minuteChecks) {
+    const outcome = await safeRateLimit(check.limiter, check.key, check.scope, ctx, capability);
+    if (!outcome.allowed) {
+      logSafe(ctx, { type: "active_mirror_rate_limited", scope: check.scope, capability, window: "minute" });
+      return { allowed: false, scope: check.scope, retryAfter: check.retryAfter };
+    }
+  }
+
+  return { allowed: true };
+}
+
+async function safeRateLimit(limiter, key, scope, ctx, capability) {
+  if (!limiter?.limit) return { allowed: true, configured: false };
+
+  try {
+    const result = await limiter.limit({ key });
+    return { allowed: result?.success !== false, configured: true };
+  } catch (error) {
+    logSafe(ctx, {
+      type: "active_mirror_guardrail_degraded",
+      surface: "rate_limit",
+      scope,
+      capability,
+      reason: cleanProviderCode(error?.message || "rate_limit_error"),
+    });
+    return { allowed: true, configured: true, degraded: true };
+  }
+}
+
+function requestActor(request) {
+  const session = cleanActorKey(request.headers.get("X-Active-Mirror-Session"), "anonymous", 96);
+  const forwarded = request.headers.get("CF-Connecting-IP") || request.headers.get("X-Forwarded-For")?.split(",")[0] || "";
+  const network = cleanActorKey(forwarded, "unknown", 96);
+  return { session, network };
+}
+
+function cleanActorKey(value, fallback, maxLength) {
+  const clean = String(value || "")
+    .replace(/[^a-zA-Z0-9_.:-]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "")
+    .slice(0, maxLength);
+  return clean || fallback;
+}
+
+function logSafe(ctx, payload) {
+  const line = JSON.stringify({ ...payload, ts: new Date().toISOString() });
+  if (ctx?.waitUntil) {
+    ctx.waitUntil(Promise.resolve().then(() => console.log(line)));
+    return;
+  }
+  console.log(line);
 }
 
 function sanitizeInput(body) {
@@ -512,6 +601,14 @@ function publicRoutes(env) {
       status: env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY ? "available" : "browser fallback",
       purpose: "images, video, multimodal understanding, and media assets",
     },
+  };
+}
+
+function publicGuardrails(env) {
+  return {
+    mirror_rate_limit: env.MIRROR_SESSION_RATE_LIMITER || env.MIRROR_NETWORK_RATE_LIMITER ? "enabled" : "not_configured",
+    daily_budget: "deferred",
+    event_policy: "no-prompt-content",
   };
 }
 

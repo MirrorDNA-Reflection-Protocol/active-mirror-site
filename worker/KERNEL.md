@@ -5,7 +5,7 @@ model and the user and is the only thing that decides what reaches them. Build t
 UI against *this contract*, not against the source — the interface below is frozen.
 
 - Source: `worker/src/mirror-kernel.js` (pure, model-agnostic, Web-Crypto only).
-- Runtime adapter (calls OpenAI GPT-5.5): `worker/src/index.js`.
+- Runtime adapter (calls the configured hosted reflection/media routes): `worker/src/index.js`.
 - Live endpoint: **`https://gateway.activemirror.ai`** (Cloudflare Worker).
 - Tests (must stay green): `worker/test/mirror-kernel.test.mjs` (8/8).
 
@@ -23,6 +23,12 @@ UI against *this contract*, not against the source — the interface below is fr
 | `boundary` | string | no | `"personal"` (default) · `"client"` · `"secrets"` · `"drafts"`. Controls what's declared excluded. |
 | `route` | string | no | `"reflection"` (use this) · `"chat"` · `"media"` · `"auto"` (default). |
 | `turn` | integer | no | 1–9999, default 1. Increment per turn in a session. |
+
+**Request header** (recommended):
+
+| header | notes |
+|---|---|
+| `X-Active-Mirror-Session` | Browser-session random id, not user identity. Used only for public gateway budget/rate protection. |
 
 **Success response** `200`:
 
@@ -91,6 +97,11 @@ If `visual` is `null`, render nothing — most turns have no visual.
   The model is **never called** when a secret is detected. UI copy: hold the turn, send nothing.
 - **`intent` < 12 chars or malformed body** → `500 { "ok": false, "error": "mirror_gateway_error" }`.
   Prevent this client-side (require ≥12 chars before POST).
+- **Rate/budget guardrail** → `429`:
+  ```json
+  { "ok": false, "error": "rate_limited", "scope": "session", "retry_after": 60 }
+  ```
+  UI copy: say the mirror route is cooling down and invite the user to try again shortly.
 
 ### CORS — allowed origins
 
@@ -98,6 +109,7 @@ If `visual` is `null`, render nothing — most turns have no visual.
 `https://mirrordna-reflection-protocol.github.io`,
 and for local dev: `localhost`/`127.0.0.1` on ports **5173, 5180, 4173, 8976**.
 Use one of those ports locally or the gateway will reject the call.
+Allowed request headers: `Content-Type`, `X-Active-Mirror-Session`.
 
 ### `POST /v1/events`
 
@@ -130,7 +142,7 @@ The model is the brain you plug in; these guarantees are the kernel's, not the m
 
 ---
 
-## Real example (verified live, GPT-5.5)
+## Real example (verified live, hosted route)
 
 Request:
 ```json
