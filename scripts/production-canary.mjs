@@ -25,12 +25,23 @@ async function main() {
     assert(/assets\/index-[A-Za-z0-9_-]+\.js/.test(text), "app index does not reference a hashed bundle");
   });
 
+  await check("app shell is browser-hardened", async () => {
+    const response = await fetchWithTimeout(`${SITE}/app/index.html`);
+    const text = await response.text();
+    assert(response.ok, `app status ${response.status}`);
+    assert(text.includes("Content-Security-Policy"), "CSP meta tag missing");
+    assert(text.includes("frame-ancestors 'none'"), "frame ancestor policy missing");
+    assert(text.includes('referrer" content="strict-origin-when-cross-origin"'), "referrer policy missing");
+    assert(!/serviceWorker\\.getRegistrations\\(\\)/.test(text), "inline service-worker cleanup still present");
+  });
+
   await check("gateway health is current", async () => {
     const data = await readJson(`${GATEWAY}/health`);
     assert(data.ok === true, "health ok was not true");
     assert(String(data.version || "").startsWith("2026-06-26-"), "unexpected gateway version");
     assert(data.guardrails?.event_policy === "no-prompt-content", "event policy missing");
     assert(data.guardrails?.mirror_rate_limit === "enabled", "mirror rate limit not enabled");
+    assert(data.guardrails?.event_rate_limit === "enabled", "event rate limit not enabled");
     assert(typeof data.guardrails?.daily_budget === "string", "daily budget status missing");
   });
 

@@ -31,13 +31,16 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-06-26-first-turn-cards-v1";
+const WORKER_VERSION = "2026-06-26-hardened-events-v1";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
 const DEFAULT_RATE_WINDOW_SECONDS = 60;
 const DEFAULT_SESSION_WINDOW_LIMIT = 12;
 const DEFAULT_NETWORK_WINDOW_LIMIT = 36;
+const DEFAULT_EVENT_WINDOW_SECONDS = 60;
+const DEFAULT_EVENT_SESSION_WINDOW_LIMIT = 90;
+const DEFAULT_EVENT_NETWORK_WINDOW_LIMIT = 240;
 
 const EVENT_NAMES = new Set([
   "home_view",
@@ -168,7 +171,8 @@ export default {
       if (error?.status) {
         return json({ ok: false, error: error.code || "bad_request" }, error.status, corsHeaders);
       }
-      return json({ ok: false, error: "mirror_gateway_error", message: safeError(error) }, 500, corsHeaders);
+      logSafe(ctx, { type: "active_mirror_gateway_error", surface: "mirror_create", reason: safeError(error) });
+      return json({ ok: false, error: "mirror_gateway_error" }, 500, corsHeaders);
     }
   },
 };
@@ -206,6 +210,11 @@ function rateLimitedResponse(limit, headers) {
 
 async function handleEvent(request, env, ctx, headers) {
   try {
+    const budget = await enforceEventBudget(request, env, ctx);
+    if (!budget.allowed) {
+      return rateLimitedResponse(budget, headers);
+    }
+
     const body = await readJsonBody(request, maxEventRequestBytes(env), { allowTextPlain: true });
     const event = sanitizeEvent(body);
     if (!event) return json({ ok: false, error: "event_not_allowed" }, 400, headers);
@@ -321,6 +330,25 @@ async function enforceMirrorBudget(request, env, ctx, route) {
     if (!outcome.allowed) {
       logSafe(ctx, { type: "active_mirror_rate_limited", scope: check.scope, capability, window: "minute" });
       return { allowed: false, scope: check.scope, retryAfter: check.retryAfter };
+    }
+  }
+
+  return { allowed: true };
+}
+
+async function enforceEventBudget(request, env, ctx) {
+  const actor = requestActor(request);
+  const windowSeconds = eventWindowSeconds(env);
+  const checks = [
+    { scope: "event_session", key: `edge:event:session:${actor.session}`, limit: eventSessionWindowLimit(env), retryAfter: windowSeconds },
+    { scope: "event_network", key: `edge:event:network:${actor.network}`, limit: eventNetworkWindowLimit(env), retryAfter: windowSeconds },
+  ];
+
+  for (const check of checks) {
+    const outcome = await safeEdgeWindowLimit(check.key, check.limit, windowSeconds, check.scope, ctx, "events");
+    if (!outcome.allowed) {
+      logSafe(ctx, { type: "active_mirror_rate_limited", scope: check.scope, capability: "events", window: "edge_cache" });
+      return { allowed: false, scope: check.scope, retryAfter: outcome.retryAfter || check.retryAfter };
     }
   }
 
@@ -628,6 +656,18 @@ function networkWindowLimit(env) {
   return clampNumber(env.MIRROR_NETWORK_WINDOW_LIMIT, 1, 5000, DEFAULT_NETWORK_WINDOW_LIMIT);
 }
 
+function eventWindowSeconds(env) {
+  return clampNumber(env.EVENT_RATE_WINDOW_SECONDS, 10, 300, DEFAULT_EVENT_WINDOW_SECONDS);
+}
+
+function eventSessionWindowLimit(env) {
+  return clampNumber(env.EVENT_SESSION_WINDOW_LIMIT, 10, 2000, DEFAULT_EVENT_SESSION_WINDOW_LIMIT);
+}
+
+function eventNetworkWindowLimit(env) {
+  return clampNumber(env.EVENT_NETWORK_WINDOW_LIMIT, 20, 10000, DEFAULT_EVENT_NETWORK_WINDOW_LIMIT);
+}
+
 function clampNumber(value, min, max, fallback) {
   const configured = Number(value);
   if (!Number.isFinite(configured)) return fallback;
@@ -698,6 +738,7 @@ function publicRoutes(env) {
 function publicGuardrails(env) {
   return {
     mirror_rate_limit: "enabled",
+    event_rate_limit: "enabled",
     platform_rate_limit: env.MIRROR_SESSION_RATE_LIMITER || env.MIRROR_NETWORK_RATE_LIMITER ? "enabled" : "not_configured",
     daily_budget: "deferred",
     event_policy: "no-prompt-content",

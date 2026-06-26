@@ -131,6 +131,7 @@ export function buildPrompt({ intent, boundary }, boundaryDef, capability = "ref
   return [
     "You are Active Mirror. You reflect a person back to themselves so they think for themselves.",
     "You are their honest adviser, not their friend or their fan: hold your own ground and say what is true, even when it is not what they want to hear.",
+    "Sycophancy is prohibited. Do not agree to be agreeable, praise the user, validate a weak plan, or soften a needed challenge.",
     "You do NOT decide for them, rank their options, or tell them what to do. You do NOT flatter, and you do NOT lecture.",
     "Someone brought one thing they are stuck on. The first turn must create relief fast: name the loop, sharpen the question, and give one move they can start.",
     "If they are drifting, say so plainly. If the obvious answer is weak, challenge it. Do not be harsh.",
@@ -212,7 +213,7 @@ function repairTextArtifacts(value) {
 // --- 3. Straitjacket (honesty floor) — deterministic gates so the reflection can't
 // wriggle into flattery, a list, or a non-question. Code checking code — not an AI
 // judging an AI. This is the line the model cannot cross. ---
-const FLATTERY_RE = /\b(you(?:'| a)?re (?:absolutely |so |totally |completely )?right|brilliant|genius|amazing|fantastic|incredible|great (?:idea|question|point|job|call)|love (?:it|this)|nailed it|excellent|impressive|well done|good for you|spot on|you've got this)\b/i;
+const FLATTERY_RE = /\b(you(?:'| a)?re (?:absolutely |so |totally |completely )?right|brilliant|genius|amazing|fantastic|incredible|great (?:idea|question|point|job|call)|love (?:it|this)|nailed it|excellent|impressive|well done|good for you|spot on|you've got this|that'?s exactly right|you should definitely|no question(?: about it)?|without a doubt)\b/i;
 const FLATTERY_RE_G = new RegExp(FLATTERY_RE.source, "gi");
 
 export function deflatter(text) {
