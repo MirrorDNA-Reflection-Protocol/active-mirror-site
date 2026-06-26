@@ -26,6 +26,9 @@ the generated bundle.
 - Public UI must not name private provider/model routing unless Paul approves it.
 - Frontend events must not include prompt text, file names, notes, receipts, or
   private user content.
+- Remote frontend event sending is disabled in the app unless
+  `VITE_ACTIVE_MIRROR_REMOTE_EVENTS=true` is set during the app build and the
+  Worker `/v1/events` endpoint is live.
 - Gateway secrets stay in Cloudflare Worker secrets, not in source or config.
 - The current hard cost guardrails are bounded payloads, allowed origins, route
   validation, provider timeouts, and no-store responses. True per-user rate
