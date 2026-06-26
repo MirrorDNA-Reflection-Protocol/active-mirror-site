@@ -31,7 +31,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-06-26-events-actions-v1";
+const WORKER_VERSION = "2026-06-26-feedback-events-v1";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
@@ -42,10 +42,13 @@ const DEFAULT_NETWORK_WINDOW_LIMIT = 36;
 const EVENT_NAMES = new Set([
   "home_view",
   "mirror_view",
+  "reflection_started",
+  "device_phone_chat_view",
   "starter_clicked",
   "followup_clicked",
   "mirror_submit",
   "mirror_result",
+  "mirror_feedback",
   "gateway_error",
   "ecosystem_result",
   "cta_clicked",
