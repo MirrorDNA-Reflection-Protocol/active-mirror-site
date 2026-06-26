@@ -26,9 +26,9 @@ the generated bundle.
 - Public UI must not name private provider/model routing unless Paul approves it.
 - Frontend events must not include prompt text, file names, notes, receipts, or
   private user content.
-- Remote frontend event sending is disabled in the app unless
-  `VITE_ACTIVE_MIRROR_REMOTE_EVENTS=true` is set during the app build and the
-  Worker `/v1/events` endpoint is live.
+- Remote frontend event sending is enabled only in the production app bundle
+  built by `/Users/mirror-pro/repos/activemirror-journey` with
+  `npm run build:deploy`. The Worker `/v1/events` endpoint must be live first.
 - Gateway secrets stay in Cloudflare Worker secrets, not in source or config.
 - The current hard cost guardrails are bounded payloads, allowed origins, route
   validation, provider timeouts, and no-store responses. True per-user rate
@@ -50,3 +50,7 @@ Run Worker checks before gateway deploys:
 node worker/test/mirror-kernel.test.mjs
 npx wrangler deploy --dry-run --config worker/wrangler.jsonc
 ```
+
+Use `npm run worker:deploy` for the live gateway deploy. The script deliberately
+unsets stale Cloudflare token environment variables so Wrangler uses the current
+OAuth login with Workers write permission.
