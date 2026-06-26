@@ -125,6 +125,7 @@ async function main() {
     assert(response.ok, `source-check status ${response.status} ${data.error || ""}`.trim());
     assert(data.ok === true, "source check ok was not true");
     assert(data.truth_state?.status === "checked", `expected checked, got ${data.truth_state?.status || "missing"}`);
+    assert(["supported", "mixed", "not_enough"].includes(data.research?.verdict), "source verdict missing");
     assert(Array.isArray(data.research?.sources) && data.research.sources.length > 0, "sources missing");
     assert(/^https?:\/\//.test(data.research.sources[0].url || ""), "first source url missing");
   });

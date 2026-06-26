@@ -109,6 +109,7 @@ question, and next move.
   "receipt_id": "24-hex",
   "truth_state": { "status": "checked", "checked": true, "label": "Source checked." },
   "research": {
+    "verdict": "supported",
     "answer": "short answer",
     "changes": "what this changes for the next move",
     "sources": [{ "title": "source title", "url": "https://..." }]
@@ -119,6 +120,14 @@ question, and next move.
 The endpoint returns `checked` only when at least one `http(s)` source URL survives
 cleaning. Otherwise it returns a non-`200` response and the UI keeps the turn in
 `needs_checking`.
+
+`research.verdict` is one of:
+
+| verdict | meaning |
+|---|---|
+| `supported` | sources directly support the narrow claim being checked |
+| `mixed` | sources exist, but the evidence is ambiguous, incomplete, or split |
+| `not_enough` | the check found sources, but not enough reliable evidence to rely on the claim |
 
 ### `mirror.visual` — the governed GenUI object
 

@@ -85,8 +85,9 @@ const EVENT_FIELDS = new Set([
 const SOURCE_CHECK_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["answer", "changes", "sources"],
+  required: ["verdict", "answer", "changes", "sources"],
   properties: {
+    verdict: { type: "string", enum: ["supported", "mixed", "not_enough"] },
     answer: { type: "string" },
     changes: { type: "string" },
     sources: {
@@ -236,13 +237,18 @@ async function handleSourceCheck(request, env, ctx, corsHeaders) {
 
     const research = await runSourceCheck(input, env);
     const checked = research.sources.length > 0;
+    const checkedLabel = {
+      supported: "Source checked.",
+      mixed: "Evidence mixed.",
+      not_enough: "Not enough evidence.",
+    }[research.verdict] || "Source checked.";
     const truth_state = checked
       ? {
           status: "checked",
           checked: true,
-          label: "Source checked.",
+          label: checkedLabel,
           reason: "The source check returned cited web evidence for this turn.",
-          signals: ["source_check_completed"],
+          signals: [`source_check_${research.verdict || "completed"}`],
         }
       : {
           status: "needs_checking",
@@ -737,7 +743,11 @@ async function callOpenAISourceCheck(input, env) {
   const prompt = [
     "You are Active Mirror's source checker.",
     "Use web search for current or external factual claims. Do not answer from memory.",
-    "Return compact JSON only: answer, changes, sources.",
+    "Return compact JSON only: verdict, answer, changes, sources.",
+    "verdict: supported, mixed, or not_enough.",
+    "Use supported only when sources directly support the narrow claim.",
+    "Use mixed when the evidence is real but ambiguous, incomplete, or split.",
+    "Use not_enough when you cannot find enough reliable current evidence.",
     "answer: one short answer with uncertainty if the evidence is mixed.",
     "changes: one sentence saying what this changes for the user's next move.",
     "sources: 2 to 5 web sources you actually used, each with title and url.",
@@ -796,12 +806,31 @@ function parseSourceCheckPayload(text) {
 function normalizeSourceCheck(payload, annotations = []) {
   const payloadSources = Array.isArray(payload?.sources) ? payload.sources : [];
   const sources = uniqueSources([...payloadSources, ...annotations]).slice(0, 5);
+  const answer = cleanResearchText(payload?.answer, "The evidence needs a narrower check before relying on the claim.", 520);
+  const changes = cleanResearchText(payload?.changes, "Use this as a check on the next move, not as a final answer.", 260);
+  const verdict = normalizeSourceVerdict(payload?.verdict, answer, sources);
   return {
     fallback: false,
-    answer: cleanResearchText(payload?.answer, "The evidence needs a narrower check before relying on the claim.", 520),
-    changes: cleanResearchText(payload?.changes, "Use this as a check on the next move, not as a final answer.", 260),
+    verdict,
+    answer,
+    changes,
     sources,
   };
+}
+
+function normalizeSourceVerdict(value, answer, sources) {
+  const verdict = String(value || "").toLowerCase().replace(/[^a-z_]/g, "");
+  if (["supported", "mixed", "not_enough"].includes(verdict)) return verdict;
+  if (!sources.length) return "not_enough";
+
+  const text = String(answer || "").toLowerCase();
+  if (/\b(not enough|insufficient|cannot verify|can't verify|could not verify|no reliable|no authoritative|no clear source|no source|not found)\b/.test(text)) {
+    return "not_enough";
+  }
+  if (/\b(mixed|ambiguous|split|unclear|not clear|no single|not a clear|depends|insufficient to rank)\b/.test(text)) {
+    return "mixed";
+  }
+  return sources.length >= 2 ? "supported" : "mixed";
 }
 
 function cleanResearchText(value, fallback, maxLength) {
