@@ -805,7 +805,7 @@ function parseSourceCheckPayload(text) {
 
 function normalizeSourceCheck(payload, annotations = []) {
   const payloadSources = Array.isArray(payload?.sources) ? payload.sources : [];
-  const sources = uniqueSources([...payloadSources, ...annotations]).slice(0, 5);
+  const sources = rankSourcesByQuality(uniqueSources([...payloadSources, ...annotations])).slice(0, 5);
   const answer = cleanResearchText(payload?.answer, "The evidence needs a narrower check before relying on the claim.", 520);
   const changes = cleanResearchText(payload?.changes, "Use this as a check on the next move, not as a final answer.", 260);
   const verdict = normalizeSourceVerdict(payload?.verdict, answer, sources);
@@ -887,6 +887,10 @@ function uniqueSources(items) {
     });
   }
   return sources;
+}
+
+function rankSourcesByQuality(sources = []) {
+  return [...sources].sort((a, b) => Number(b.quality_score || 0) - Number(a.quality_score || 0));
 }
 
 function classifySource(url, title = "") {

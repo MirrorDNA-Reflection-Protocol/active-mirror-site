@@ -148,6 +148,9 @@ Each source also carries a deterministic quality tier:
 | `listicle_or_vendor` | 55 | review, comparison, alternatives, or vendor-adjacent page |
 | `weak_source` | 35 | social, forum, or personal publishing source |
 
+Sources are returned in descending `quality_score` order before the five-source
+cap is applied. Equal-score sources keep provider order.
+
 ### `mirror.visual` — the governed GenUI object
 
 `visual` is **`null`** OR an object the UI renders inline. It is gated: off-registry kinds,

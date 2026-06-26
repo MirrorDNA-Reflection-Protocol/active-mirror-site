@@ -130,6 +130,8 @@ async function main() {
     assert(/^https?:\/\//.test(data.research.sources[0].url || ""), "first source url missing");
     assert(typeof data.research.sources[0].quality === "string", "source quality missing");
     assert(typeof data.research.sources[0].quality_score === "number", "source quality score missing");
+    const scores = data.research.sources.map((source) => Number(source.quality_score || 0));
+    assert(scores.every((score, index) => index === 0 || score <= scores[index - 1]), "sources are not ranked by quality");
     assert(typeof data.research?.source_quality?.best_score === "number", "source quality summary missing");
   });
 
