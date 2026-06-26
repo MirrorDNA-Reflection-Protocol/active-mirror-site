@@ -31,7 +31,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-06-26-rate-canary-v2";
+const WORKER_VERSION = "2026-06-26-events-actions-v1";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
@@ -49,6 +49,13 @@ const EVENT_NAMES = new Set([
   "gateway_error",
   "ecosystem_result",
   "cta_clicked",
+  "file_added",
+  "sendable_created",
+  "draft_copied",
+  "draft_downloaded",
+  "draft_shared",
+  "mirror_default_saved",
+  "phone_thread_cleared",
 ]);
 
 const EVENT_FIELDS = new Set([
@@ -61,6 +68,10 @@ const EVENT_FIELDS = new Set([
   "visualKind",
   "turn",
   "target",
+  "count",
+  "totalBytes",
+  "types",
+  "label",
 ]);
 
 export default {
