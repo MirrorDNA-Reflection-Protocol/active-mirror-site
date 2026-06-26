@@ -99,6 +99,20 @@ If `visual` is `null`, render nothing — most turns have no visual.
 and for local dev: `localhost`/`127.0.0.1` on ports **5173, 5180, 4173, 8976**.
 Use one of those ports locally or the gateway will reject the call.
 
+### `POST /v1/events`
+
+Privacy-safe frontend event rail. This endpoint is for coarse product health only.
+It accepts allowlisted event names and route/status metadata, then rejects arbitrary
+content fields. **Never send prompt text, file names, user notes, or receipt bodies.**
+
+Allowed event names: `home_view`, `mirror_view`, `starter_clicked`,
+`followup_clicked`, `mirror_submit`, `mirror_result`, `gateway_error`,
+`ecosystem_result`, `cta_clicked`.
+
+Allowed metadata fields: `page`, `surface`, `source`, `route`, `status`,
+`fallback`, `visualKind`, `turn`, `target`, plus the generated session id and
+timestamp. Event payloads are capped at 2 KB by default.
+
 ---
 
 ## Guarantees (deterministic — do not weaken)

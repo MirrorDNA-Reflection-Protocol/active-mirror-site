@@ -31,11 +31,37 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-06-24-kernel-extracted-v4";
+const WORKER_VERSION = "2026-06-26-guardrails-events-v1";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
+const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
+const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
+
+const EVENT_NAMES = new Set([
+  "home_view",
+  "mirror_view",
+  "starter_clicked",
+  "followup_clicked",
+  "mirror_submit",
+  "mirror_result",
+  "gateway_error",
+  "ecosystem_result",
+  "cta_clicked",
+]);
+
+const EVENT_FIELDS = new Set([
+  "page",
+  "surface",
+  "source",
+  "route",
+  "status",
+  "fallback",
+  "visualKind",
+  "turn",
+  "target",
+]);
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const origin = request.headers.get("Origin") || "";
     const corsHeaders = cors(origin);
 
@@ -57,12 +83,20 @@ export default {
       return json({ ok: true, routes: publicRoutes(env) }, 200, corsHeaders);
     }
 
+    if (request.method === "POST" && origin && !ALLOWED_ORIGINS.has(origin)) {
+      return json({ ok: false, error: "origin_not_allowed" }, 403, corsHeaders);
+    }
+
+    if (request.method === "POST" && url.pathname === "/v1/events") {
+      return handleEvent(request, env, ctx, corsHeaders);
+    }
+
     if (request.method !== "POST" || url.pathname !== "/v1/mirror/create") {
       return json({ ok: false, error: "not_found" }, 404, corsHeaders);
     }
 
     try {
-      const body = await request.json();
+      const body = await readJsonBody(request, maxMirrorRequestBytes(env));
       const input = sanitizeInput(body);
       const route = selectRoute(input.intent, input.route);
 
@@ -104,6 +138,9 @@ export default {
         corsHeaders,
       );
     } catch (error) {
+      if (error?.status) {
+        return json({ ok: false, error: error.code || "bad_request" }, error.status, corsHeaders);
+      }
       return json({ ok: false, error: "mirror_gateway_error", message: safeError(error) }, 500, corsHeaders);
     }
   },
@@ -124,6 +161,93 @@ function cors(origin) {
 
 function json(payload, status, headers) {
   return new Response(JSON.stringify(payload), { status, headers });
+}
+
+async function handleEvent(request, env, ctx, headers) {
+  try {
+    const body = await readJsonBody(request, maxEventRequestBytes(env), { allowTextPlain: true });
+    const event = sanitizeEvent(body);
+    if (!event) return json({ ok: false, error: "event_not_allowed" }, 400, headers);
+
+    const logEvent = {
+      type: "active_mirror_privacy_event",
+      ...event,
+    };
+
+    if (ctx?.waitUntil) {
+      ctx.waitUntil(Promise.resolve().then(() => console.log(JSON.stringify(logEvent))));
+    } else {
+      console.log(JSON.stringify(logEvent));
+    }
+
+    return json({ ok: true }, 202, {
+      ...headers,
+      "X-Active-Mirror-Event-Policy": "no-prompt-content",
+    });
+  } catch (error) {
+    if (error?.status) {
+      return json({ ok: false, error: error.code || "bad_event" }, error.status, headers);
+    }
+    return json({ ok: false, error: "event_gateway_error" }, 500, headers);
+  }
+}
+
+async function readJsonBody(request, maxBytes, options = {}) {
+  const contentType = request.headers.get("Content-Type") || "";
+  const normalizedType = contentType.toLowerCase();
+  const isJson = normalizedType.includes("application/json");
+  const isPlain = normalizedType.includes("text/plain");
+  if (!isJson && !(options.allowTextPlain && isPlain)) {
+    throw httpError(415, "json_required");
+  }
+
+  const contentLength = Number(request.headers.get("Content-Length") || 0);
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw httpError(413, "payload_too_large");
+  }
+
+  const text = await request.text();
+  if (text.length > maxBytes) throw httpError(413, "payload_too_large");
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw httpError(400, "invalid_json");
+  }
+}
+
+function httpError(status, code) {
+  const error = new Error(code);
+  error.status = status;
+  error.code = code;
+  return error;
+}
+
+function sanitizeEvent(body) {
+  const eventName = cleanEventValue(body?.event, 48);
+  if (!EVENT_NAMES.has(eventName)) return null;
+
+  const event = {
+    event: eventName,
+    session: cleanEventValue(body?.session, 36),
+    ts: cleanEventValue(body?.ts, 32),
+  };
+
+  for (const [key, value] of Object.entries(body || {})) {
+    if (!EVENT_FIELDS.has(key)) continue;
+    const clean = typeof value === "boolean" ? value : cleanEventValue(value, 80);
+    if (clean !== "" && clean !== undefined) event[key] = clean;
+  }
+
+  return event;
+}
+
+function cleanEventValue(value, maxLength) {
+  return String(value || "")
+    .replace(/[^a-zA-Z0-9_./:-]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "")
+    .slice(0, maxLength);
 }
 
 function sanitizeInput(body) {
@@ -316,6 +440,18 @@ function providerTimeoutMs(env) {
   const configured = Number(env.PROVIDER_TIMEOUT_MS || DEFAULT_PROVIDER_TIMEOUT_MS);
   if (!Number.isFinite(configured)) return DEFAULT_PROVIDER_TIMEOUT_MS;
   return Math.max(5000, Math.min(25000, Math.trunc(configured)));
+}
+
+function maxMirrorRequestBytes(env) {
+  const configured = Number(env.MAX_MIRROR_REQUEST_BYTES || DEFAULT_MIRROR_REQUEST_BYTES);
+  if (!Number.isFinite(configured)) return DEFAULT_MIRROR_REQUEST_BYTES;
+  return Math.max(2048, Math.min(64 * 1024, Math.trunc(configured)));
+}
+
+function maxEventRequestBytes(env) {
+  const configured = Number(env.MAX_EVENT_REQUEST_BYTES || DEFAULT_EVENT_REQUEST_BYTES);
+  if (!Number.isFinite(configured)) return DEFAULT_EVENT_REQUEST_BYTES;
+  return Math.max(512, Math.min(8 * 1024, Math.trunc(configured)));
 }
 
 function providerFailureReason(provider, error) {
