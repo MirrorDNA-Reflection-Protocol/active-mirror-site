@@ -31,10 +31,13 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-06-26-rate-canary-v1";
+const WORKER_VERSION = "2026-06-26-rate-canary-v2";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
+const DEFAULT_RATE_WINDOW_SECONDS = 60;
+const DEFAULT_SESSION_WINDOW_LIMIT = 12;
+const DEFAULT_NETWORK_WINDOW_LIMIT = 36;
 
 const EVENT_NAMES = new Set([
   "home_view",
@@ -279,6 +282,20 @@ async function enforceMirrorBudget(request, env, ctx, route) {
   const capability = cleanActorKey(route.capability, "reflection", 32);
   const sessionMinuteKey = `session:${actor.session}:${capability}`;
   const networkMinuteKey = `network:${actor.network}:${capability}`;
+  const windowSeconds = rateWindowSeconds(env);
+
+  const edgeChecks = [
+    { scope: "session", key: `edge:${sessionMinuteKey}`, limit: sessionWindowLimit(env), retryAfter: windowSeconds },
+    { scope: "network", key: `edge:${networkMinuteKey}`, limit: networkWindowLimit(env), retryAfter: windowSeconds },
+  ];
+
+  for (const check of edgeChecks) {
+    const outcome = await safeEdgeWindowLimit(check.key, check.limit, windowSeconds, check.scope, ctx, capability);
+    if (!outcome.allowed) {
+      logSafe(ctx, { type: "active_mirror_rate_limited", scope: check.scope, capability, window: "edge_cache" });
+      return { allowed: false, scope: check.scope, retryAfter: outcome.retryAfter || check.retryAfter };
+    }
+  }
 
   const minuteChecks = [
     { scope: "session", limiter: env.MIRROR_SESSION_RATE_LIMITER, key: sessionMinuteKey, retryAfter: 60 },
@@ -294,6 +311,48 @@ async function enforceMirrorBudget(request, env, ctx, route) {
   }
 
   return { allowed: true };
+}
+
+async function safeEdgeWindowLimit(key, limit, windowSeconds, scope, ctx, capability) {
+  if (!globalThis.caches?.default) return { allowed: true, configured: false };
+
+  try {
+    const cacheKey = new Request(`https://active-mirror-rate.local/${encodeURIComponent(key)}`);
+    const cached = await caches.default.match(cacheKey);
+    const now = Date.now();
+    const record = cached ? await cached.json().catch(() => null) : null;
+    const resetAt = Number(record?.reset_at || 0);
+    const count = resetAt > now ? Number(record?.count || 0) : 0;
+
+    if (count >= limit) {
+      return {
+        allowed: false,
+        configured: true,
+        retryAfter: Math.max(1, Math.ceil((resetAt - now) / 1000)),
+      };
+    }
+
+    const nextResetAt = resetAt > now ? resetAt : now + windowSeconds * 1000;
+    await caches.default.put(
+      cacheKey,
+      new Response(JSON.stringify({ count: count + 1, reset_at: nextResetAt }), {
+        headers: {
+          "Cache-Control": `max-age=${windowSeconds}`,
+          "Content-Type": "application/json; charset=utf-8",
+        },
+      }),
+    );
+    return { allowed: true, configured: true };
+  } catch (error) {
+    logSafe(ctx, {
+      type: "active_mirror_guardrail_degraded",
+      surface: "edge_cache_window",
+      scope,
+      capability,
+      reason: cleanProviderCode(error?.message || "edge_window_error"),
+    });
+    return { allowed: true, configured: true, degraded: true };
+  }
 }
 
 async function safeRateLimit(limiter, key, scope, ctx, capability) {
@@ -543,6 +602,24 @@ function maxEventRequestBytes(env) {
   return Math.max(512, Math.min(8 * 1024, Math.trunc(configured)));
 }
 
+function rateWindowSeconds(env) {
+  return clampNumber(env.MIRROR_RATE_WINDOW_SECONDS, 10, 300, DEFAULT_RATE_WINDOW_SECONDS);
+}
+
+function sessionWindowLimit(env) {
+  return clampNumber(env.MIRROR_SESSION_WINDOW_LIMIT, 1, 1000, DEFAULT_SESSION_WINDOW_LIMIT);
+}
+
+function networkWindowLimit(env) {
+  return clampNumber(env.MIRROR_NETWORK_WINDOW_LIMIT, 1, 5000, DEFAULT_NETWORK_WINDOW_LIMIT);
+}
+
+function clampNumber(value, min, max, fallback) {
+  const configured = Number(value);
+  if (!Number.isFinite(configured)) return fallback;
+  return Math.max(min, Math.min(max, Math.trunc(configured)));
+}
+
 function providerFailureReason(provider, error) {
   const message = String(error?.message || "");
   if (message.startsWith(`${provider}_`)) return message.slice(0, 120);
@@ -606,7 +683,8 @@ function publicRoutes(env) {
 
 function publicGuardrails(env) {
   return {
-    mirror_rate_limit: env.MIRROR_SESSION_RATE_LIMITER || env.MIRROR_NETWORK_RATE_LIMITER ? "enabled" : "not_configured",
+    mirror_rate_limit: "enabled",
+    platform_rate_limit: env.MIRROR_SESSION_RATE_LIMITER || env.MIRROR_NETWORK_RATE_LIMITER ? "enabled" : "not_configured",
     daily_budget: "deferred",
     event_policy: "no-prompt-content",
   };

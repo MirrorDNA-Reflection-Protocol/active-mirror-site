@@ -31,8 +31,9 @@ the generated bundle.
   `npm run build:deploy`. The Worker `/v1/events` endpoint must be live first.
 - Gateway secrets stay in Cloudflare Worker secrets, not in source or config.
 - The current hard cost guardrails are bounded payloads, allowed origins, route
-  validation, provider timeouts, no-store responses, and Worker rate-limit
-  bindings for the public mirror route.
+  validation, provider timeouts, no-store responses, an edge fixed-window counter
+  through the Worker Cache API, and Worker rate-limit bindings for the public
+  mirror route.
 - A sharded Durable Object daily budget ledger is the planned next hardening
   layer, but live deploy is blocked until the Cloudflare account's `workers.dev`
   subdomain is initialized. Do not claim the daily ledger is live before the
