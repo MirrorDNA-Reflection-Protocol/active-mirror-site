@@ -19,6 +19,7 @@ const appRoutes = [
   'confessions',
   'dashgen',
   'demo',
+  'device',
   'docs',
   'docs/api',
   'docs/architecture',
