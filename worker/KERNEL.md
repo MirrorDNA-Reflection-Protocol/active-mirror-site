@@ -112,7 +112,15 @@ question, and next move.
     "verdict": "supported",
     "answer": "short answer",
     "changes": "what this changes for the next move",
-    "sources": [{ "title": "source title", "url": "https://..." }]
+    "source_quality": { "best_score": 95, "high_quality_count": 1, "weak_count": 0, "count": 2 },
+    "sources": [{
+      "title": "source title",
+      "url": "https://...",
+      "quality": "primary_docs",
+      "quality_label": "Primary docs",
+      "quality_score": 95,
+      "quality_reason": "Official developer or documentation source."
+    }]
   }
 }
 ```
@@ -128,6 +136,17 @@ cleaning. Otherwise it returns a non-`200` response and the UI keeps the turn in
 | `supported` | sources directly support the narrow claim being checked |
 | `mixed` | sources exist, but the evidence is ambiguous, incomplete, or split |
 | `not_enough` | the check found sources, but not enough reliable evidence to rely on the claim |
+
+Each source also carries a deterministic quality tier:
+
+| quality | score band | meaning |
+|---|---:|---|
+| `primary_docs` | 95 | official developer, docs, API, or reference source |
+| `official_source` | 90 | official product or company source |
+| `credible_analysis` | 82 | research, standards, academic, or public institution source |
+| `secondary_source` | 65 | general web context, not primary proof |
+| `listicle_or_vendor` | 55 | review, comparison, alternatives, or vendor-adjacent page |
+| `weak_source` | 35 | social, forum, or personal publishing source |
 
 ### `mirror.visual` — the governed GenUI object
 

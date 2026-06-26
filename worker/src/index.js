@@ -809,18 +809,20 @@ function normalizeSourceCheck(payload, annotations = []) {
   const answer = cleanResearchText(payload?.answer, "The evidence needs a narrower check before relying on the claim.", 520);
   const changes = cleanResearchText(payload?.changes, "Use this as a check on the next move, not as a final answer.", 260);
   const verdict = normalizeSourceVerdict(payload?.verdict, answer, sources);
+  const source_quality = summarizeSourceQuality(sources);
   return {
     fallback: false,
     verdict,
     answer,
     changes,
+    source_quality,
     sources,
   };
 }
 
 function normalizeSourceVerdict(value, answer, sources) {
   const verdict = String(value || "").toLowerCase().replace(/[^a-z_]/g, "");
-  if (["supported", "mixed", "not_enough"].includes(verdict)) return verdict;
+  if (verdict === "not_enough") return "not_enough";
   if (!sources.length) return "not_enough";
 
   const text = String(answer || "").toLowerCase();
@@ -830,7 +832,12 @@ function normalizeSourceVerdict(value, answer, sources) {
   if (/\b(mixed|ambiguous|split|unclear|not clear|no single|not a clear|depends|insufficient to rank)\b/.test(text)) {
     return "mixed";
   }
-  return sources.length >= 2 ? "supported" : "mixed";
+  const strongSources = sources.filter((source) => Number(source.quality_score || 0) >= 80).length;
+  if (verdict === "supported" && strongSources < 1) return "mixed";
+  if (verdict === "supported") return "supported";
+  if (verdict === "mixed") return "mixed";
+  if (sources.length >= 2 && strongSources >= 1) return "supported";
+  return "mixed";
 }
 
 function cleanResearchText(value, fallback, maxLength) {
@@ -876,9 +883,88 @@ function uniqueSources(items) {
     sources.push({
       title: cleanResearchText(item?.title, fallbackTitle, 140),
       url,
+      ...classifySource(url, item?.title),
     });
   }
   return sources;
+}
+
+function classifySource(url, title = "") {
+  let host = "";
+  let path = "";
+  try {
+    const parsed = new URL(url);
+    host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+    path = parsed.pathname.toLowerCase();
+  } catch {}
+
+  const labelText = `${title || ""} ${url}`.toLowerCase();
+  const officialVendorHost =
+    /(^|\.)openai\.com$|(^|\.)anthropic\.com$|(^|\.)google\.com$|(^|\.)googleblog\.com$|(^|\.)microsoft\.com$|(^|\.)apple\.com$|(^|\.)cloudflare\.com$|(^|\.)huggingface\.co$|(^|\.)vercel\.com$|(^|\.)figma\.com$|(^|\.)replit\.com$|(^|\.)lovable\.dev$|(^|\.)uizard\.io$|(^|\.)flutterflow\.io$/.test(host);
+  const docsOrDeveloper = /(^docs\.|^developer\.|^developers\.|^platform\.)/.test(host) || /\/(docs|developers?|reference|api|guides?|blog\/developer|engineering)\b/.test(path);
+  const researchHost = /(^|\.)arxiv\.org$|(^|\.)acm\.org$|(^|\.)ieee\.org$|(^|\.)nature\.com$|(^|\.)science\.org$|(^|\.)edu$|(^|\.)gov$/.test(host);
+  const listicle = /\b(best|top|alternatives?|vs\.?|versus|pricing|review|reviews|compared?|comparison|i tested|tools for)\b/.test(labelText) || /\b\d+\s+(?:best|top)\b/.test(labelText);
+  const weakHost = /(^|\.)medium\.com$|(^|\.)substack\.com$|(^|\.)reddit\.com$|(^|\.)quora\.com$|(^|\.)x\.com$|(^|\.)twitter\.com$|(^|\.)linkedin\.com$/.test(host);
+
+  if (officialVendorHost && docsOrDeveloper) {
+    return {
+      quality: "primary_docs",
+      quality_label: "Primary docs",
+      quality_score: 95,
+      quality_reason: "Official developer or documentation source.",
+    };
+  }
+  if (officialVendorHost) {
+    return {
+      quality: "official_source",
+      quality_label: "Official source",
+      quality_score: 90,
+      quality_reason: "Official product or company source.",
+    };
+  }
+  if (researchHost) {
+    return {
+      quality: "credible_analysis",
+      quality_label: "Research",
+      quality_score: 82,
+      quality_reason: "Research, standards, academic, or public institution source.",
+    };
+  }
+  if (weakHost) {
+    return {
+      quality: "weak_source",
+      quality_label: "Weak source",
+      quality_score: 35,
+      quality_reason: "Social, forum, or personal publishing source.",
+    };
+  }
+  if (listicle) {
+    return {
+      quality: "listicle_or_vendor",
+      quality_label: "Secondary list",
+      quality_score: 55,
+      quality_reason: "Listicle, comparison, review, or vendor-adjacent page.",
+    };
+  }
+  return {
+    quality: "secondary_source",
+    quality_label: "Secondary source",
+    quality_score: 65,
+    quality_reason: "General web source; useful context but not primary proof.",
+  };
+}
+
+function summarizeSourceQuality(sources = []) {
+  const scores = sources.map((source) => Number(source.quality_score || 0));
+  const best_score = scores.length ? Math.max(...scores) : 0;
+  const high_quality_count = sources.filter((source) => Number(source.quality_score || 0) >= 80).length;
+  const weak_count = sources.filter((source) => Number(source.quality_score || 0) < 60).length;
+  return {
+    best_score,
+    high_quality_count,
+    weak_count,
+    count: sources.length,
+  };
 }
 
 async function readProviderResponse(response, provider) {

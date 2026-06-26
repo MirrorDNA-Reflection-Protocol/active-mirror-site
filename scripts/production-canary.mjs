@@ -128,6 +128,9 @@ async function main() {
     assert(["supported", "mixed", "not_enough"].includes(data.research?.verdict), "source verdict missing");
     assert(Array.isArray(data.research?.sources) && data.research.sources.length > 0, "sources missing");
     assert(/^https?:\/\//.test(data.research.sources[0].url || ""), "first source url missing");
+    assert(typeof data.research.sources[0].quality === "string", "source quality missing");
+    assert(typeof data.research.sources[0].quality_score === "number", "source quality score missing");
+    assert(typeof data.research?.source_quality?.best_score === "number", "source quality summary missing");
   });
 
   const failed = checks.filter((item) => item.status === "FAIL");
