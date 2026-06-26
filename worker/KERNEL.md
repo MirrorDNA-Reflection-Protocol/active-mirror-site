@@ -7,7 +7,7 @@ UI against *this contract*, not against the source — the interface below is fr
 - Source: `worker/src/mirror-kernel.js` (pure, model-agnostic, Web-Crypto only).
 - Runtime adapter (calls the configured hosted reflection/media routes): `worker/src/index.js`.
 - Live endpoint: **`https://gateway.activemirror.ai`** (Cloudflare Worker).
-- Tests (must stay green): `worker/test/mirror-kernel.test.mjs` (8/8).
+- Tests (must stay green): `worker/test/mirror-kernel.test.mjs` (11/11).
 
 ---
 
@@ -50,16 +50,39 @@ UI against *this contract*, not against the source — the interface below is fr
       "memory_decision": "string"
     }
   },
+  "truth_state": {
+    "status": "reflective",
+    "checked": false,
+    "label": "Reflective, not source-checked.",
+    "reason": "No current or external factual claim was detected in the visible mirror.",
+    "signals": []
+  },
   "straitjacket": [],
   "route": { "capability": "reflection", "label": "reflection help", "fallback": null }
 }
 ```
 
-- `receipt_id` — 24 hex chars (SHA-256 of the returned mirror + turn).
+- `receipt_id` — 24 hex chars (SHA-256 of the returned mirror + truth marker + turn).
 - `fallback` — `true` if a backup route/model was used (still a valid mirror).
+- `truth_state` — deterministic source-sensitivity marker. It does not fact-check; it tells the UI whether the turn is reflective only or needs sources before reliance.
 - `straitjacket` — array of deterministic corrections applied this turn. Possible values:
-  `"flattery_removed"`, `"question_forced"`, `"move_made_singular"`, `"visual_dropped"`.
+  `"flattery_removed"`, `"question_forced"`, `"move_made_singular"`, `"visual_dropped"`, `"truth_state_needs_sources"`.
   (Empty array = the model stayed inside the cage on its own.)
+
+### `truth_state` — the hallucination rail
+
+The kernel marks source-sensitive language after the model is caged and before the
+receipt is minted. This is not a substitute for web research or citations.
+
+| `status` | meaning | UI copy |
+|---|---|---|
+| `reflective` | no current or external factual claim was detected in the visible mirror | `Reflective, not source-checked.` |
+| `needs_checking` | current, external, numeric, or high-certainty factual language was detected | `Needs sources before you rely on it.` |
+| `checked` | reserved for a future route that supplies source verification | `Source checked.` |
+
+When `status` is `needs_checking`, `straitjacket` includes
+`"truth_state_needs_sources"`. The UI should render this quietly as a trust signal,
+not as a large workflow.
 
 ### `mirror.visual` — the governed GenUI object
 
@@ -134,8 +157,9 @@ timestamp. Event payloads are capped at 2 KB by default.
 2. **Honesty floor** — flattery phrases stripped; `question` always ends with `?`; `move`
    is one thing (lists collapsed to the first item).
 3. **Privacy** — secrets in `intent` are blocked before any model runs.
-4. **Record** — `receipt_id` is a content hash of exactly what was returned.
-5. **GenUI cage** — `visual` is whitelisted (`reframe`/`axes`/`spectrum` only), markdown-stripped,
+4. **Source honesty** — source-sensitive claims are marked `needs_checking` unless a route explicitly verifies them.
+5. **Record** — `receipt_id` is a content hash of exactly what was returned.
+6. **GenUI cage** — `visual` is whitelisted (`reframe`/`axes`/`spectrum` only), markdown-stripped,
    non-empty slots, or it's dropped to `null`.
 
 The model is the brain you plug in; these guarantees are the kernel's, not the model's.
@@ -168,7 +192,7 @@ Response `mirror`:
 import { reflect } from "./mirror-kernel.js";
 // callModel(prompt, schema) => { mirror, fallback, routeText }  (mirror may be null)
 const out = await reflect({ intent, boundary: "personal", turn: 1, callModel });
-// out = { ok, fallback, receipt_id, mirror, straitjacket }
+// out = { ok, fallback, receipt_id, mirror, truth_state, straitjacket }
 ```
 Web Crypto (`crypto.subtle`) must be global (it is in Workers, browsers, Node 18+).
 
@@ -176,7 +200,8 @@ Web Crypto (`crypto.subtle`) must be global (it is in Workers, browsers, Node 18
 
 ## Stability
 
-This is the v1 contract. The shape (`mirror.{reflection,question,move,visual,receipt}`,
-`straitjacket[]`, the visual registry) is **frozen** — build against it. Adding a new
-`visual.kind` is the only expected forward change, and the UI must ignore unknown kinds
-(render nothing) rather than break.
+This is the v1 contract with one additive `truth_state` field. The shape
+(`mirror.{reflection,question,move,visual,receipt}`, `truth_state`, `straitjacket[]`,
+the visual registry) is **frozen** — build against it. Adding a new `visual.kind` or
+`truth_state.status` is the only expected forward change, and the UI must ignore
+unknown kinds/statuses rather than break.

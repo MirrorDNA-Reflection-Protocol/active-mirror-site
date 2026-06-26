@@ -31,7 +31,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-06-26-hardened-events-v1";
+const WORKER_VERSION = "2026-06-26-truth-state-v1";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
@@ -157,6 +157,7 @@ export default {
           fallback: result.fallback,
           receipt_id: result.receipt_id,
           mirror: result.mirror,
+          truth_state: result.truth_state,
           straitjacket: result.straitjacket,
           route: {
             capability: route.capability,
@@ -742,6 +743,7 @@ function publicGuardrails(env) {
     platform_rate_limit: env.MIRROR_SESSION_RATE_LIMITER || env.MIRROR_NETWORK_RATE_LIMITER ? "enabled" : "not_configured",
     daily_budget: "deferred",
     event_policy: "no-prompt-content",
+    truth_state: "enabled",
   };
 }
 

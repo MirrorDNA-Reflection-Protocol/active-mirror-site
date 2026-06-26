@@ -7,7 +7,8 @@
 //   1. boundary gate  (privacy line)   — secrets never reach the model
 //   2. prompt + schema (shape line)    — the model can only return a reflection
 //   3. straitjacket    (honesty floor) — strips flattery, forces one move + a real question
-//   4. receipt         (record line)   — a content hash of exactly what was produced
+//   4. truth gate      (source line)   — marks source-sensitive claims as unchecked
+//   5. receipt         (record line)   — a content hash of exactly what was produced
 //
 // Inject ANY model as:
 //   callModel(prompt, schema) => Promise<{ mirror, fallback, routeText } | null>
@@ -291,6 +292,65 @@ export function gateVisual(visual) {
   return { kind: visual.kind, left, right, note: cleanVisualText(visual.note) };
 }
 
+// --- Truth gate: deterministic hallucination rail. It does not fact-check.
+// It marks current/external/factual claims before the UI renders them, so the
+// mirror cannot sound sourced when it has only reflected. ---
+const CURRENT_FACT_RE =
+  /\b(latest|today|current(?:ly)?|as of|state of|online|web|source|sources|cite|verify|fact[- ]?check|competitor|competitors|market|tam|pricing|price|research|paper|study|studies|report|benchmark|released|launched|funding|revenue|valuation|users|law|regulation|regulatory|ceo|president|openai|anthropic|gemini|hugging ?face|vercel|apple|nvidia|cloudflare|genui)\b|202[0-9]/i;
+const SPECIFIC_EXTERNAL_NUMBER_RE =
+  /(?:[$€£₹]\s?\d|\d+(?:\.\d+)?\s?(?:%|percent|million|billion|trillion|bn|m|users|customers|employees|tokens|parameters|dollars|usd|inr|gb|tb))/i;
+const OVERCLAIM_RE =
+  /\b(proves?|proven|guarantee[sd]?|certain(?:ly)?|undisputed|best|top|only|first|all|every|everyone|no one|nobody|always|never|without a doubt|no question about it|industry standard)\b/i;
+const EXTERNAL_NOUN_RE =
+  /\b(company|companies|market|competitor|competitors|model|models|research|paper|study|report|pricing|price|users|customers|revenue|funding|valuation|law|regulation|benchmark|release|platform|provider|industry)\b/i;
+
+function truthText(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function truthGate({ intent = "", mirror = {}, verified = false } = {}) {
+  const output = truthText(`${mirror.reflection || ""} ${mirror.question || ""} ${mirror.move || ""}`);
+  const input = truthText(intent);
+  const combined = `${input} ${output}`;
+  const signals = [];
+
+  if (CURRENT_FACT_RE.test(combined)) signals.push("current_or_external_claim");
+  if (SPECIFIC_EXTERNAL_NUMBER_RE.test(combined) && EXTERNAL_NOUN_RE.test(combined)) signals.push("specific_external_number");
+  if (OVERCLAIM_RE.test(output) && (CURRENT_FACT_RE.test(combined) || EXTERNAL_NOUN_RE.test(combined))) {
+    signals.push("unsupported_certainty");
+  }
+
+  if (verified) {
+    return {
+      status: "checked",
+      checked: true,
+      label: "Source checked.",
+      reason: "The route provided source verification for this turn.",
+      signals,
+    };
+  }
+
+  if (signals.length) {
+    return {
+      status: "needs_checking",
+      checked: false,
+      label: "Needs sources before you rely on it.",
+      reason: "The turn contains current, external, numeric, or high-certainty factual language.",
+      signals: [...new Set(signals)].slice(0, 4),
+    };
+  }
+
+  return {
+    status: "reflective",
+    checked: false,
+    label: "Reflective, not source-checked.",
+    reason: "No current or external factual claim was detected in the visible mirror.",
+    signals: [],
+  };
+}
+
 // --- Normalize a model's mirror, falling back to a safe deterministic one ---
 export function deterministicMirror({ intent, boundary }, boundaryDef, routeText) {
   // Safe, honest reflection when no model is available — generic by necessity, never a board.
@@ -386,8 +446,14 @@ export async function reflect({ intent, boundary = "personal", turn = 1, capabil
     violations.push("visual_dropped");
   }
 
-  // 5. Receipt — a content hash of exactly what reached the user.
-  const receipt_id = await receiptHash({ mirror, turn });
+  // 5. Truth gate — mark source-sensitive claims before the UI renders.
+  const truth_state = truthGate({ intent, mirror });
+  if (truth_state.status === "needs_checking") {
+    violations.push("truth_state_needs_sources");
+  }
 
-  return { ok: true, fallback, receipt_id, mirror, straitjacket: violations };
+  // 6. Receipt — a content hash of exactly what reached the user.
+  const receipt_id = await receiptHash({ mirror, truth_state, turn });
+
+  return { ok: true, fallback, receipt_id, mirror, truth_state, straitjacket: violations };
 }

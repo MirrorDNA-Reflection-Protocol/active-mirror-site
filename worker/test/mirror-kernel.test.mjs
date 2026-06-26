@@ -4,7 +4,7 @@ import assert from "node:assert";
 import { webcrypto } from "node:crypto";
 if (!globalThis.crypto) globalThis.crypto = webcrypto; // kernel uses Web Crypto for the receipt
 
-import { reflect, straitjacket, containsSecret, gateVisual } from "../src/mirror-kernel.js";
+import { reflect, straitjacket, containsSecret, gateVisual, truthGate } from "../src/mirror-kernel.js";
 
 let pass = 0;
 let fail = 0;
@@ -126,6 +126,53 @@ await check("reflect() attaches a gated visual from the model", async () => {
   const out = await reflect({ intent: "I keep polishing instead of shipping.", callModel: model });
   assert.ok(out.mirror.visual, "no visual attached");
   assert.strictEqual(out.mirror.visual.kind, "reframe");
+});
+
+// 9. Truth gate does not call reflection a fact check when no factual claim is present.
+await check("truthGate leaves personal reflection in reflective mode", () => {
+  const truth = truthGate({
+    intent: "I keep polishing instead of shipping.",
+    mirror: {
+      reflection: "You may be using polish to avoid the moment the work becomes testable.",
+      question: "What is the smallest version that would make this real?",
+      move: "Send one rough screenshot to one trusted person.",
+    },
+  });
+  assert.strictEqual(truth.status, "reflective");
+  assert.strictEqual(truth.checked, false);
+});
+
+// 10. Truth gate marks current/external claims as needing sources instead of sounding certain.
+await check("truthGate marks current competitor claims as needing sources", () => {
+  const truth = truthGate({
+    intent: "What are the latest GenUI competitors today?",
+    mirror: {
+      reflection: "The latest research proves one platform is the undisputed winner.",
+      question: "Which competitor actually solves the user's job better?",
+      move: "Compare the top three platforms by current pricing and release notes.",
+    },
+  });
+  assert.strictEqual(truth.status, "needs_checking");
+  assert.ok(truth.signals.includes("current_or_external_claim"), "current/external signal missing");
+});
+
+// 11. reflect() attaches truth_state end to end before the receipt is minted.
+await check("reflect() attaches truth_state end to end", async () => {
+  const model = async () => ({
+    mirror: {
+      reflection: "The latest market data proves every team is moving to browser-native AI.",
+      question: "What source would make that claim safe enough to use?",
+      move: "Check one current source before putting that line on the site.",
+      receipt: RECEIPT,
+      visual: { kind: "none", left: "", right: "", note: "" },
+    },
+    fallback: false,
+    routeText: "mock",
+  });
+  const out = await reflect({ intent: "Use the latest market claim today.", callModel: model });
+  assert.strictEqual(out.truth_state.status, "needs_checking");
+  assert.ok(out.straitjacket.includes("truth_state_needs_sources"), "truth-state violation missing");
+  assert.match(out.receipt_id, /^[0-9a-f]{24}$/, "receipt id is not a 24-hex hash");
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

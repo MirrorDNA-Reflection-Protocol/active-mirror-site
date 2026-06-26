@@ -40,6 +40,7 @@ async function main() {
     assert(data.ok === true, "health ok was not true");
     assert(String(data.version || "").startsWith("2026-06-26-"), "unexpected gateway version");
     assert(data.guardrails?.event_policy === "no-prompt-content", "event policy missing");
+    assert(data.guardrails?.truth_state === "enabled", "truth-state guardrail missing");
     assert(data.guardrails?.mirror_rate_limit === "enabled", "mirror rate limit not enabled");
     assert(data.guardrails?.event_rate_limit === "enabled", "event rate limit not enabled");
     assert(typeof data.guardrails?.daily_budget === "string", "daily budget status missing");
@@ -82,6 +83,27 @@ async function main() {
     assert(typeof data.mirror?.reflection === "string" && data.mirror.reflection.length > 20, "reflection missing");
     assert(String(data.mirror?.question || "").endsWith("?"), "question was not enforced");
     assert(typeof data.mirror?.move === "string" && data.mirror.move.length > 8, "move missing");
+    assert(["reflective", "needs_checking", "checked"].includes(data.truth_state?.status), "truth_state missing");
+  });
+
+  await check("source-sensitive turns are marked before reliance", async () => {
+    const response = await fetchWithTimeout(`${GATEWAY}/v1/mirror/create`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Active-Mirror-Session": `canary-${RUN_ID}`,
+      },
+      body: JSON.stringify({
+        intent: "What are the latest GenUI competitors today, and who is winning?",
+        boundary: "personal",
+        route: "reflection",
+        turn: 2,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    assert(response.ok, `mirror status ${response.status} ${data.error || ""}`.trim());
+    assert(data.ok === true, "mirror ok was not true");
+    assert(data.truth_state?.status === "needs_checking", `expected needs_checking, got ${data.truth_state?.status || "missing"}`);
   });
 
   const failed = checks.filter((item) => item.status === "FAIL");
