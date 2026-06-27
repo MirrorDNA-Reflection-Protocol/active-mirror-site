@@ -30,7 +30,9 @@ async function main() {
     const text = await response.text();
     assert(response.ok, `app status ${response.status}`);
     assert(text.includes("Content-Security-Policy"), "CSP meta tag missing");
-    assert(text.includes("frame-ancestors 'none'"), "frame ancestor policy missing");
+    assert(text.includes("base-uri 'self'"), "base-uri policy missing");
+    assert(text.includes("object-src 'none'"), "object-src policy missing");
+    assert(!text.includes("frame-ancestors"), "frame-ancestors cannot be enforced from meta CSP");
     assert(text.includes('referrer" content="strict-origin-when-cross-origin"'), "referrer policy missing");
     assert(!/serviceWorker\\.getRegistrations\\(\\)/.test(text), "inline service-worker cleanup still present");
   });
