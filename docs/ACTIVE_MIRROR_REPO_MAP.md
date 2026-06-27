@@ -36,6 +36,23 @@ This is the canonical map for public Active Mirror web work.
 - Do not revive old `activemirror.ai` CNAME claims from legacy repos.
 - If a legacy repo has useful design material, port the idea into the canonical source repo, then package through the deploy repo.
 
+## GitHub Pages Truth
+
+Checked on 2026-06-27:
+
+| Repo | Pages state |
+| --- | --- |
+| `active-mirror-site` | Built, custom domain `activemirror.ai`, source `gh-pages:/`. |
+| `active-mirror-identity` | Built, custom domain `id.activemirror.ai`, source `main:/`. |
+| `activemirror-journey` | No Pages site. Source-only. |
+| `activemirror-pages` | Built at GitHub Pages project URL only, no custom CNAME. |
+| `activemirror-site` | No Pages site. Legacy local checkout only. |
+| `activemirror-site-corrupted` | No Pages site. Legacy local checkout only. |
+
+The local repo audit may still warn about stale CNAME files in legacy checkouts.
+Those warnings are useful cleanup markers, not evidence that the public domain
+is currently served from those repos.
+
 ## Checks
 
 ```bash
