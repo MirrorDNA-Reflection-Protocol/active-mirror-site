@@ -48,7 +48,9 @@ function isIgnoredConsoleError(text) {
     && /Content Security Policy/i.test(text)
     // Production deploy bundles send allowlisted event metadata to the gateway.
     // Local preview origins are intentionally not CORS-allowed by the Worker.
-    || (isLocalPreview() && /Failed to load resource: the server responded with a status of 403/i.test(text));
+    || (isLocalPreview() && /Failed to load resource: the server responded with a status of 403/i.test(text))
+    || (isLocalPreview() && /gateway\.activemirror\.ai\/v1\/mirror\/create.*CORS policy/i.test(text))
+    || (isLocalPreview() && /Failed to load resource: net::ERR_FAILED/i.test(text));
 }
 
 async function visibleText(page) {
@@ -80,6 +82,14 @@ async function exerciseFirstInput(page) {
   await page.getByText("Next move", { exact: true }).waitFor({ timeout: 30000 });
   await page.getByText("Ask sharper", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("Make a draft", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByText("Was this useful?", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: /^Almost$/ }).first().click();
+  await page.getByText(/No message text was saved/i).waitFor({ timeout: 10000 });
+
+  const feedbackStore = await page.evaluate(() => localStorage.getItem("active_mirror_feedback_v1") || "");
+  if (feedbackStore.includes(testText)) {
+    fail("Feedback storage leaked prompt text.");
+  }
 }
 
 async function main() {
