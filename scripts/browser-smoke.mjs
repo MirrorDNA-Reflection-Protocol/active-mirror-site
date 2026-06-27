@@ -10,8 +10,18 @@ const routes = [
   {
     name: "home",
     path: "/",
-    mustSee: [/What do you want\?/i, /Active Mirror/i],
+    mustSee: [/What do you want\?/i, /one honest next move/i, /fake agreement/i],
     interact: true,
+  },
+  {
+    name: "start",
+    path: "/start",
+    mustSee: [/Make Active Mirror yours/i, /Quick setup/i, /saved on this browser/i],
+  },
+  {
+    name: "mirror",
+    path: "/mirror",
+    mustSee: [/What do you want help with\?/i, /honest feedback, not reassurance/i, /Make it yours/i],
   },
   {
     name: "privacy",
@@ -23,6 +33,15 @@ const routes = [
     path: "/terms",
     mustSee: [/Terms/i, /Not professional or emergency advice/i],
   },
+];
+
+const forbiddenVisibleText = [
+  /\bBrainScan\b/i,
+  /\bMirrorSeed\b/i,
+  /\blocal seed\b/i,
+  /\bcognitive assessment\b/i,
+  /\blocal signature\b/i,
+  /\bsovereign protocol\b/i,
 ];
 
 const viewports = [
@@ -143,6 +162,12 @@ async function main() {
         for (const pattern of route.mustSee) {
           if (!pattern.test(text)) {
             fail(`${viewport.name}/${route.name} missing expected text: ${pattern}`, text.slice(0, 1000));
+          }
+        }
+
+        for (const pattern of forbiddenVisibleText) {
+          if (pattern.test(text)) {
+            fail(`${viewport.name}/${route.name} leaked internal-facing copy: ${pattern}`, text.slice(0, 1200));
           }
         }
 
