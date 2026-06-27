@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ai.activemirror.mini-mirror-bridge</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>set -a; . /Users/mirror-admin/.activemirror/secrets/mini-mirror-bridge.env; set +a; exec /usr/bin/python3 /Users/mirror-admin/.activemirror/services/mini-mirror-bridge/mini-mirror-bridge.py</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/tmp/mini-mirror-bridge.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/mini-mirror-bridge.err</string>
+  <key>WorkingDirectory</key>
+  <string>/Users/mirror-admin/.activemirror/services/mini-mirror-bridge</string>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>Nice</key>
+  <integer>5</integer>
+</dict>
+</plist>

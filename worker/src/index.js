@@ -543,8 +543,8 @@ function logSafe(ctx, payload) {
 }
 
 function sanitizeInput(body) {
-  const intent = String(body?.intent || "").replace(/\s+/g, " ").trim().slice(0, 1000);
-  if (intent.length < 12) throw new Error("Intent must be at least 12 characters.");
+  const intent = String(body?.intent || body?.input || "").replace(/\s+/g, " ").trim().slice(0, 1000);
+  if (intent.length < 12) throw httpError(400, "intent_too_short");
   const boundary = String(body?.boundary || "personal").toLowerCase();
   return {
     intent,
@@ -599,11 +599,11 @@ function selectRoute(intent, selected = "auto") {
 }
 
 function reflectionRoute() {
-  return { capability: "reflection", primary: "openai", modelEnv: "OPENAI_REFLECTION_MODEL", defaultModel: "gpt-5.5" };
+  return { capability: "reflection", primary: "bridge", modelEnv: "MINI_REFLECTION_MODEL", defaultModel: "mini-mirror-bridge" };
 }
 
 function chatRoute() {
-  return { capability: "chat", primary: "openai", modelEnv: "OPENAI_REFLECTION_MODEL", defaultModel: "gpt-5.5" };
+  return { capability: "chat", primary: "bridge", modelEnv: "MINI_REFLECTION_MODEL", defaultModel: "mini-mirror-bridge" };
 }
 
 function mediaRoute() {
@@ -616,8 +616,14 @@ async function runRoute(route, prompt, env, attempted = []) {
   const nextAttempted = [...attempted, provider];
 
   try {
+    if (provider === "bridge" && env.MIRROR_BRIDGE_URL && env.MIRROR_BRIDGE_TOKEN) {
+      return await callBridge(prompt, route, env);
+    }
     if (provider === "openai" && env.OPENAI_API_KEY) {
       return await callOpenAI(prompt, route, env);
+    }
+    if (provider === "anthropic" && env.ANTHROPIC_API_KEY) {
+      return await callAnthropic(prompt, route, env);
     }
     if (provider === "gemini" && (env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY)) {
       return await callGemini(prompt, route, env);
@@ -648,6 +654,12 @@ async function fallbackResult(route, prompt, env, attempted, reason) {
 }
 
 function chooseFallbackRoute(route, env, attempted) {
+  if (!attempted.includes("bridge") && route.primary !== "bridge" && env.MIRROR_BRIDGE_URL && env.MIRROR_BRIDGE_TOKEN) {
+    return { ...route, primary: "bridge", modelEnv: "MINI_REFLECTION_MODEL", defaultModel: "mini-mirror-bridge" };
+  }
+  if (!attempted.includes("anthropic") && route.primary !== "anthropic" && env.ANTHROPIC_API_KEY) {
+    return { ...route, primary: "anthropic", modelEnv: "ANTHROPIC_REFLECTION_MODEL", defaultModel: "claude-sonnet-4-5" };
+  }
   if (!attempted.includes("openai") && route.primary !== "openai" && env.OPENAI_API_KEY) {
     return { ...route, primary: "openai", modelEnv: "OPENAI_REFLECTION_MODEL", defaultModel: "gpt-5.5" };
   }
@@ -655,6 +667,83 @@ function chooseFallbackRoute(route, env, attempted) {
     return { ...route, primary: "gemini", modelEnv: "GEMINI_MEDIA_MODEL", defaultModel: "gemini-3.5-flash" };
   }
   return null;
+}
+
+async function callBridge(prompt, route, env) {
+  const response = await fetchWithTimeout(
+    `${String(env.MIRROR_BRIDGE_URL).replace(/\/+$/, "")}/v1/mirror/reflect`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Active-Mirror-Bridge": env.MIRROR_BRIDGE_TOKEN,
+      },
+      body: JSON.stringify({ prompt, route: route.capability }),
+    },
+    "bridge",
+    env,
+  );
+
+  const data = await readProviderResponse(response, "bridge");
+  if (!data?.ok || !data?.mirror) throw new Error("bridge_invalid_mirror");
+  return { fallback: false, model: data.model || "mini-mirror-bridge", mirror: data.mirror };
+}
+
+async function callAnthropic(prompt, route, env) {
+  const preferredModel = env[route.modelEnv] || env.ANTHROPIC_REFLECTION_MODEL || "claude-sonnet-4-5";
+  const fallbackModels = String(env.ANTHROPIC_FALLBACK_MODELS || "claude-3-5-sonnet-20241022,claude-3-haiku-20240307")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const models = [...new Set([preferredModel, ...fallbackModels])];
+  let lastError;
+  for (const model of models) {
+    try {
+      return await callAnthropicModel(prompt, model, env);
+    } catch (error) {
+      lastError = error;
+      if (!shouldTryAnthropicFallback(error)) break;
+    }
+  }
+  throw lastError || new Error("anthropic_provider_error");
+}
+
+function shouldTryAnthropicFallback(error) {
+  const message = String(error?.message || "");
+  return (
+    message.startsWith("anthropic_provider_400") ||
+    message.startsWith("anthropic_provider_403") ||
+    message.startsWith("anthropic_provider_404") ||
+    message.startsWith("anthropic_provider_429") ||
+    message.startsWith("anthropic_provider_503") ||
+    message.startsWith("anthropic_timeout")
+  );
+}
+
+async function callAnthropicModel(prompt, model, env) {
+  const response = await fetchWithTimeout(
+    "https://api.anthropic.com/v1/messages",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": env.ANTHROPIC_API_KEY,
+        "anthropic-version": env.ANTHROPIC_VERSION || "2023-06-01",
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 1000,
+        temperature: 0.4,
+        system: "Return one compact Active Mirror reflection as valid JSON only. No markdown, no preamble, no prose outside JSON.",
+        messages: [{ role: "user", content: prompt }],
+      }),
+    },
+    "anthropic",
+    env,
+  );
+
+  const data = await readProviderResponse(response, "anthropic");
+  return { fallback: false, model, mirror: parseProviderMirror(extractAnthropicText(data), "anthropic") };
 }
 
 async function callOpenAI(prompt, route, env) {
@@ -1213,6 +1302,18 @@ function extractOpenAIText(data) {
   return data.output?.flatMap((item) => item.content || [])?.find((item) => item.type === "output_text")?.text || "";
 }
 
+function extractAnthropicText(data) {
+  const blocks = Array.isArray(data?.content) ? data.content : [];
+  return blocks
+    .map((block) => {
+      if (typeof block?.text === "string") return block.text;
+      if (block?.type === "tool_use" && block?.input) return JSON.stringify(block.input);
+      return "";
+    })
+    .join("")
+    .trim();
+}
+
 // --- Public route language (runtime owns route semantics; the kernel just prints what it's handed) ---
 function publicRouteLabel(capability) {
   return { reflection: "reflection help", chat: "critique help", media: "media help" }[capability] || "approved help";
@@ -1225,6 +1326,7 @@ function publicRouteReceipt(capability) {
 function publicFallbackReason(reason) {
   const value = String(reason || "the route was unavailable")
     .replace(/openai/gi, "primary")
+    .replace(/bridge/gi, "local")
     .replace(/gemini/gi, "media")
     .replace(/anthropic/gi, "provider")
     .replace(/claude/gi, "provider")
@@ -1239,12 +1341,12 @@ function publicRoutes(env) {
   return {
     reflection: {
       label: "reflection help",
-      status: env.OPENAI_API_KEY ? "available" : "browser fallback",
+      status: env.MIRROR_BRIDGE_URL || env.ANTHROPIC_API_KEY || env.OPENAI_API_KEY ? "available" : "browser fallback",
       purpose: "reflective reasoning and first-use mirror generation",
     },
     chat: {
       label: "critique help",
-      status: env.OPENAI_API_KEY ? "available" : "browser fallback",
+      status: env.MIRROR_BRIDGE_URL || env.ANTHROPIC_API_KEY || env.OPENAI_API_KEY ? "available" : "browser fallback",
       purpose: "chat polish, critique, rewrite, and receipt review",
     },
     media: {

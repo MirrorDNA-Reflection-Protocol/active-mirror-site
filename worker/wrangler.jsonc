@@ -33,6 +33,9 @@
     }
   ],
   "vars": {
+    "MIRROR_BRIDGE_URL": "https://mirror-admins-mac-mini.taildfee74.ts.net/am-bridge",
+    "PROVIDER_TIMEOUT_MS": "25000",
+    "ANTHROPIC_REFLECTION_MODEL": "claude-sonnet-4-5",
     "OPENAI_REFLECTION_MODEL": "gpt-5.5",
     "OPENAI_FAST_MODEL": "gpt-5.4-mini",
     "GEMINI_MEDIA_MODEL": "gemini-3.5-flash",
