@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ai.activemirror.gateway-monitor</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>cd /Users/mirror-admin/repos/active-mirror-site &amp;&amp; /opt/homebrew/bin/node scripts/gateway-monitor.mjs</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>ACTIVE_MIRROR_GATEWAY</key>
+    <string>https://gateway.activemirror.ai</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StartInterval</key>
+  <integer>300</integer>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/mirror-admin/repos/active-mirror-site</string>
+
+  <key>StandardOutPath</key>
+  <string>/Users/mirror-admin/.mirrordna/logs/active-mirror-gateway-monitor.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/mirror-admin/.mirrordna/logs/active-mirror-gateway-monitor.err.log</string>
+</dict>
+</plist>

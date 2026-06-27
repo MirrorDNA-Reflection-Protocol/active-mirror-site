@@ -51,4 +51,11 @@ Suggested cadence:
 cd /path/to/active-mirror-site && npm run monitor:gateway
 ```
 
+Install the Mini launchd monitor from the Mini checkout:
+
+```sh
+cd /Users/mirror-admin/repos/active-mirror-site
+ops/mini/install-gateway-monitor.sh
+```
+
 For continuous log watching, run the `wrangler tail` pipeline under the Mini's service manager or tmux chamber. Do not put provider secrets in logs, packets, or cron command lines.
