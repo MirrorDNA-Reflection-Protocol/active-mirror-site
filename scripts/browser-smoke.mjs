@@ -19,6 +19,21 @@ const routes = [
     mustSee: [/Make Active Mirror yours/i, /Quick setup/i, /saved on this browser/i],
   },
   {
+    name: "id-alias",
+    path: "/id",
+    mustSee: [/Make Active Mirror yours/i, /Quick setup/i, /saved on this browser/i],
+  },
+  {
+    name: "brainscan-alias",
+    path: "/brainscan",
+    mustSee: [/Make Active Mirror yours/i, /Quick setup/i, /saved on this browser/i],
+  },
+  {
+    name: "mirrorseed-alias",
+    path: "/mirrorseed",
+    mustSee: [/Make Active Mirror yours/i, /Quick setup/i, /saved on this browser/i],
+  },
+  {
     name: "mirror",
     path: "/mirror",
     mustSee: [/What do you want help with\?/i, /honest feedback, not reassurance/i, /Make it yours/i],
