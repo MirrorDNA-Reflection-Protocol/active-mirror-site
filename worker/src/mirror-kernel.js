@@ -134,13 +134,14 @@ export function buildPrompt({ intent, boundary }, boundaryDef, capability = "ref
     "You are their honest adviser, not their friend or their fan: hold your own ground and say what is true, even when it is not what they want to hear.",
     "Sycophancy is prohibited. Do not agree to be agreeable, praise the user, validate a weak plan, or soften a needed challenge.",
     "You do NOT decide for them, rank their options, or tell them what to do. You do NOT flatter, and you do NOT lecture.",
+    "Sound like a calm, sharp human adviser. Warmth comes from clarity and usefulness, not praise or emotional padding.",
     "Someone brought one thing they are stuck on. The first turn must create relief fast: name the loop, sharpen the question, and give one move they can start.",
-    "If they are drifting, say so plainly. If the obvious answer is weak, challenge it. Do not be harsh.",
+    "If they are drifting, say so plainly in one sentence. If the obvious answer is weak, challenge the premise with a test, not a verdict.",
     "Return only compact JSON matching the requested structure. Plain English ASCII only. No markdown, no numbered labels, no slogans.",
-    "No therapy claims, no diagnosis, no personal-data collection, no invented facts.",
-    "reflection: 1 to 2 short sentences. Name the real loop underneath their question. No praise, no setup, no generic validation. Make them feel seen, not judged.",
+    "No therapy claims, no diagnosis, no legal/medical/financial instruction, no personal-data collection, no invented facts.",
+    "reflection: 1 to 2 short sentences. Use at least one concrete noun from their wording when possible. Name the real loop underneath their question. No praise, no setup, no generic validation. Be accurate before warm.",
     "question: the single sharper question that actually decides this. Keep it plain and specific. End it with a question mark.",
-    "move: one small, concrete thing they could do or test in the next 10 minutes. Not a plan, not a list. One thing.",
+    "move: one small, observable, reversible thing they could do or test in the next 10 minutes. Not a plan, not a list. One thing.",
     "receipt: {why, context_used, context_excluded, route, memory_decision}, short and plain.",
     "visual: ONE picture of your reasoning, or none. kind 'reframe' (left = their framing, right = the realer question), kind 'axes' (left/right = the two forces in tension), kind 'spectrum' (left/right = the two poles of a false either/or), or kind 'none' with empty left/right/note. Plain ASCII in the slots, no markdown. Pick one only when it truly clarifies; most turns are 'reframe' or 'none'.",
     `Capability route: ${capability}.`,
@@ -178,6 +179,62 @@ export function parseProviderMirror(text, provider) {
     throw new Error(`${provider}_invalid_mirror`);
   }
   return mirror;
+}
+
+// --- Safety gate: deterministic, before any model sees crisis or harm requests. ---
+const SELF_HARM_RE =
+  /\b(kill myself|suicide|suicidal|end my life|want to die|hurt myself|self[- ]?harm|cut myself|can't go on|cannot go on|overdose)\b/i;
+const HARM_OTHER_RE =
+  /\b(kill|hurt|harm|attack|poison|stab|shoot|bomb|blackmail|revenge)\b.{0,80}\b(someone|them|people|person|boss|partner|ex|enemy|school|office)\b/i;
+const ABUSE_OR_CRIME_RE =
+  /\b(hide evidence|destroy evidence|commit fraud|launder money|phishing|malware|ransomware|steal credentials|bypass security|evade detection|forge documents)\b/i;
+
+function safetyGate(intent, boundary, boundaryDef, turn) {
+  const value = String(intent || "");
+  let mirror = null;
+  const route = "Active Mirror paused before model routing for safety.";
+
+  if (SELF_HARM_RE.test(value)) {
+    mirror = {
+      reflection: "This is bigger than a productivity problem. Do not handle this alone or keep it inside the chat.",
+      question: "Can you contact emergency help or a trusted person right now?",
+      move: "Move away from anything you could use to hurt yourself and call local emergency help or a trusted person now.",
+      receipt: {
+        why: "The turn suggested possible self-harm, so Active Mirror used a safety response before routing to a model.",
+        context_used: `Only the safety signal and selected ${boundary} boundary were used.`,
+        context_excluded: boundaryDef.excluded,
+        route,
+        memory_decision: "Nothing was saved or promoted.",
+      },
+      visual: null,
+    };
+  } else if (HARM_OTHER_RE.test(value) || ABUSE_OR_CRIME_RE.test(value)) {
+    mirror = {
+      reflection: "This crosses from reflection into possible harm or concealment. Active Mirror will not help plan that.",
+      question: "What is the safest lawful next step that reduces harm right now?",
+      move: "Stop the action path and contact an appropriate trusted person, professional, or authority before doing anything else.",
+      receipt: {
+        why: "The turn asked for harm, abuse, or concealment, so Active Mirror used a safety response before routing to a model.",
+        context_used: `Only the safety signal and selected ${boundary} boundary were used.`,
+        context_excluded: boundaryDef.excluded,
+        route,
+        memory_decision: "Nothing was saved or promoted.",
+      },
+      visual: null,
+    };
+  }
+
+  if (!mirror) return null;
+
+  const truth_state = {
+    status: "reflective",
+    checked: false,
+    label: "Safety redirect.",
+    reason: "The turn was redirected before model routing because it involved immediate safety or harm.",
+    signals: ["safety_redirect"],
+  };
+
+  return { mirror, truth_state, turn };
 }
 
 // --- Text hygiene ---
@@ -416,6 +473,19 @@ export async function reflect({ intent, boundary = "personal", turn = 1, capabil
         route: "Blocked at the Active Mirror boundary gate.",
         memory_decision: "Nothing was saved or promoted.",
       },
+    };
+  }
+
+  const safety = safetyGate(intent, boundary, boundaryDef, turn);
+  if (safety) {
+    const receipt_id = await receiptHash({ mirror: safety.mirror, truth_state: safety.truth_state, turn });
+    return {
+      ok: true,
+      fallback: false,
+      receipt_id,
+      mirror: safety.mirror,
+      truth_state: safety.truth_state,
+      straitjacket: ["safety_redirect"],
     };
   }
 
