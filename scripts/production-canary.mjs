@@ -1,9 +1,19 @@
 #!/usr/bin/env node
 
 const SITE = process.env.ACTIVE_MIRROR_SITE || "https://activemirror.ai";
+const IDENTITY_SITE = process.env.ACTIVE_MIRROR_IDENTITY_SITE || "https://id.activemirror.ai";
 const GATEWAY = process.env.ACTIVE_MIRROR_GATEWAY || "https://gateway.activemirror.ai";
 const RUN_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 const TIMEOUT_MS = Number(process.env.ACTIVE_MIRROR_CANARY_TIMEOUT_MS || 30000);
+const FORBIDDEN_PUBLIC_COPY = [
+  "BrainScan",
+  "MirrorSeed",
+  "Mirror Seed",
+  "local seed",
+  "cognitive assessment",
+  "local signature",
+  "sovereign protocol",
+];
 
 const checks = [];
 
@@ -35,6 +45,16 @@ async function main() {
     assert(!text.includes("frame-ancestors"), "frame-ancestors cannot be enforced from meta CSP");
     assert(text.includes('referrer" content="strict-origin-when-cross-origin"'), "referrer policy missing");
     assert(!/serviceWorker\\.getRegistrations\\(\\)/.test(text), "inline service-worker cleanup still present");
+  });
+
+  await check("identity redirect uses human setup copy", async () => {
+    const response = await fetchWithTimeout(`${IDENTITY_SITE}/?canary=${RUN_ID}`);
+    const text = await response.text();
+    assert(response.ok, `identity status ${response.status}`);
+    assert(text.includes("Make Active Mirror yours"), "identity setup headline missing");
+    assert(text.includes("Set up Active Mirror in the canonical app."), "identity setup body missing");
+    assert(text.includes(`${SITE}/app/start/`), "identity setup target missing");
+    assertNoForbiddenPublicCopy(text);
   });
 
   await check("gateway health is current", async () => {
@@ -240,6 +260,12 @@ async function fetchWithTimeout(url, init = {}) {
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+function assertNoForbiddenPublicCopy(text) {
+  for (const term of FORBIDDEN_PUBLIC_COPY) {
+    assert(!text.includes(term), `forbidden public copy leaked: ${term}`);
+  }
 }
 
 main().catch((error) => {
