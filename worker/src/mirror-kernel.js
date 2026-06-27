@@ -156,12 +156,63 @@ export const ACTIVE_MIRROR_BOOTLOAD = [
   "Never use Active Mirror internal token names in the user-facing reflection unless the user explicitly asks about the system.",
 ];
 
+function stripSeedContext(intent = "") {
+  const text = String(intent || "").replace(/\s+/g, " ").trim();
+  const userIntentMatch = text.match(/\bUser intent:\s*([\s\S]+)$/i);
+  return (userIntentMatch ? userIntentMatch[1] : text).trim();
+}
+
+function compactIntentPhrase(intent = "") {
+  return stripSeedContext(intent)
+    .replace(/[^\x20-\x7e]/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/^["'`]+|["'`.!?]+$/g, "")
+    .trim()
+    .slice(0, 150);
+}
+
+function classifyIntent(intent = "") {
+  const text = compactIntentPhrase(intent).toLowerCase();
+  if (/\b(models?|browser|ai apps?|apple|memory|genui)\b.*\bnow\b/.test(text)) {
+    return "source_check";
+  }
+  if (/\b(2026|this year|recently|right now|current|latest|today|online|web|source|sources|research|competitor|market|verify|check|paper|study|studies|report|pricing|released|launched|who is doing)\b/.test(text)) {
+    return "source_check";
+  }
+  if (!/\b(switch|whether|between|decid\w*|should i|should we|do i)\b/.test(text) && /\b(landing page|homepage|site|page)\b/.test(text) && /\b(brainscan|mirrorseed|enterprise|too much|first action|first screen|users?|button|copy|ads?)\b/.test(text)) {
+    return "launch_clarity";
+  }
+  if (/\b(decide|decision|choice|choos(?:e|ing)|between|whether|worth pursuing|pursue|do not know if|don't know if|should i|should we|should\b.*\bor\b|do i\b.*\bor\b|or switch|commit|quit|stay or leave|leave or stay)\b/.test(text)) {
+    return "decision";
+  }
+  if (/\b(leave my browser|leave the browser|personal details|personal history|privacy|private|sensitive|secret\w*|confidential|client|notes|send|sendable|shar\w*|expos\w*|reveal\w*|leak\w*|saved|swallow|safe|boundary)\b/.test(text)) {
+    return "private_output";
+  }
+  if (/\b(hallucinat\w*|overthink\w*|overwhelmed|scattered|spiral|too much|lost|anxious|panic|tired|drift|drifting)\b/.test(text) || /\b(i feel|i am|i'm|we are|we're)\b.*\b(confused|stuck|lost)\b/.test(text)) {
+    return "reset";
+  }
+  if (/\b(site|page|product|homepage|copy|marketing|sales|sell|ads?|launch|positioning|offer|user|customer|demo|public|proof|reflection|receipts?|systems?)\b/.test(text)) {
+    return "launch_clarity";
+  }
+  if (/\b(overwhelmed|scattered|confused|lost|stuck|spiral|loop|too much|drift|drifting|anxious|panic|tired)\b/.test(text)) {
+    return "reset";
+  }
+  if (/\b(draft|write|document|memo|email|pdf|deck|file|artifact|output|useful)\b/.test(text)) {
+    return "artifact";
+  }
+  return "general";
+}
+
 export function buildPrompt({ intent, boundary }, boundaryDef, capability = "reflection") {
+  const userIntent = compactIntentPhrase(intent);
   return [
     `Boot packet: ${ACTIVE_MIRROR_BOOT_VERSION}`,
     ...ACTIVE_MIRROR_BOOTLOAD,
     "Someone brought one thing they are stuck on. The first turn must create relief fast: name the loop, sharpen the question, and give one move they can start.",
     "If they are drifting, say so plainly in one sentence. If the obvious answer is weak, challenge the premise with a test, not a verdict.",
+    "The answer must feel made for this exact sentence. Use concrete nouns from the user's words. Avoid canned phrases like 'you may need more clarity', 'more context', 'it depends', or 'take a step back' unless the user's words specifically demand them.",
+    "Do not produce a report, a dashboard, a checklist, a numbered plan, a motivational note, or a therapy-style validation. This is a mirror turn: one reflection, one sharper question, one move.",
+    "The question must create productive pause, not ask for more background. The move must be physical or observable: write, send, remove, choose, test, ask, show, open, close, compare, or time-box.",
     "Return only compact JSON matching the requested structure. Plain English ASCII only. No markdown, no numbered labels, no slogans.",
     "No therapy claims, no diagnosis, no legal/medical/financial instruction, no personal-data collection, no invented facts.",
     "reflection: 1 to 2 short sentences. Use at least one concrete noun from their wording when possible. Name the real loop underneath their question. No praise, no setup, no generic validation. Be accurate before warm.",
@@ -174,7 +225,7 @@ export function buildPrompt({ intent, boundary }, boundaryDef, capability = "ref
     `Context excluded: ${boundaryDef.excluded}`,
     `Memory decision rule: ${boundaryDef.memory}`,
     "",
-    `What they are stuck on: ${intent}`,
+    `What they are stuck on: ${userIntent}`,
   ].join("\n");
 }
 
@@ -449,19 +500,57 @@ export function truthGate({ intent = "", mirror = {}, verified = false } = {}) {
 
 // --- Normalize a model's mirror, falling back to a safe deterministic one ---
 export function deterministicMirror({ intent, boundary }, boundaryDef, routeText) {
-  // Safe, honest reflection when no model is available — generic by necessity, never a board.
-  return {
-    reflection:
-      "You may be circling because the next move would make the work testable. The useful thing is not more context; it is one honest sentence you can act on.",
-    question: "What would make this real enough to test today?",
-    move: "Write the smallest testable version in one sentence, then show it to one person or one page.",
-    receipt: {
-      why: "No model response was available, so Active Mirror used the safe first-turn fallback.",
-      context_used: `Only your sentence and the selected ${boundary} boundary.`,
-      context_excluded: boundaryDef.excluded,
-      route: routeText,
-      memory_decision: boundaryDef.memory,
+  const userIntent = compactIntentPhrase(intent) || "this";
+  const kind = classifyIntent(userIntent);
+  const commonReceipt = {
+    why: "No model response was available, so Active Mirror used the safe first-turn fallback.",
+    context_used: `Only your sentence about "${userIntent}" and the selected ${boundary} boundary.`,
+    context_excluded: boundaryDef.excluded,
+    route: routeText,
+    memory_decision: boundaryDef.memory,
+  };
+
+  const mirrors = {
+    source_check: {
+      reflection: "The risky part is not the question; it is sounding current before anything has been checked.",
+      question: "What exact claim would change your next move if it turned out to be false?",
+      move: "Write one claim to verify, then do not rely on the answer until source check is run.",
     },
+    private_output: {
+      reflection: "The useful move is to separate the shape of the work from the private details inside it.",
+      question: "What can be turned into an output without exposing names, secrets, or private context?",
+      move: "Replace private details with placeholders, then write the one sentence you would be willing to share.",
+    },
+    launch_clarity: {
+      reflection: "The launch problem is probably not a missing feature; it is that the first user action is not obvious enough yet.",
+      question: "What should a new user understand and do in the first thirty seconds?",
+      move: "Write one promise and one button label, then remove everything that competes with them.",
+    },
+    decision: {
+      reflection: "The loop is pretending this is a decision when it may still be an evidence problem.",
+      question: "What signal would make one option clearly earned instead of merely preferred?",
+      move: "Name the signal, then run the smallest test that could produce it today.",
+    },
+    reset: {
+      reflection: "The stuck feeling is probably coming from too many open loops trying to become one answer.",
+      question: "Which one loop would make the rest easier if it moved even a little?",
+      move: "Pick one loop, set a ten-minute timer, and write the next visible action only.",
+    },
+    artifact: {
+      reflection: "The work wants to become a thing, not another conversation about the thing.",
+      question: "What output would be useful even if it is rough?",
+      move: "Draft the smallest usable version with a title, three bullets, and one ask.",
+    },
+    general: {
+      reflection: "The loop is likely that the next move would make the thought testable, so the mind keeps asking for more certainty.",
+      question: "What is the smallest version of this that could be tested today?",
+      move: "Write the testable version in one sentence, then show it to one person or one page.",
+    },
+  };
+
+  return {
+    ...mirrors[kind],
+    receipt: commonReceipt,
   };
 }
 
