@@ -651,6 +651,9 @@ function chooseFallbackRoute(route, env, attempted) {
   if (!attempted.includes("openai") && route.primary !== "openai" && env.OPENAI_API_KEY) {
     return { ...route, primary: "openai", modelEnv: "OPENAI_REFLECTION_MODEL", defaultModel: "gpt-5.5" };
   }
+  if (!attempted.includes("gemini") && route.primary !== "gemini" && (env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY)) {
+    return { ...route, primary: "gemini", modelEnv: "GEMINI_MEDIA_MODEL", defaultModel: "gemini-3.5-flash" };
+  }
   return null;
 }
 
