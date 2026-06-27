@@ -4,7 +4,16 @@ import assert from "node:assert";
 import { webcrypto } from "node:crypto";
 if (!globalThis.crypto) globalThis.crypto = webcrypto; // kernel uses Web Crypto for the receipt
 
-import { reflect, straitjacket, containsSecret, gateVisual, sanitizeModelIntent, truthGate } from "../src/mirror-kernel.js";
+import {
+  ACTIVE_MIRROR_BOOT_VERSION,
+  buildPrompt,
+  reflect,
+  straitjacket,
+  containsSecret,
+  gateVisual,
+  sanitizeModelIntent,
+  truthGate,
+} from "../src/mirror-kernel.js";
 
 let pass = 0;
 let fail = 0;
@@ -21,6 +30,22 @@ async function check(name, fn) {
 
 const RECEIPT = { why: "xxxxxxxxxxxx", context_used: "xxxxxxxxxxxx", context_excluded: "xxxxxxxxxxxx", route: "xxxxxxxxxxxx", memory_decision: "xxxxxxxxxxxx" };
 
+// 0. The boot packet is versioned and present before any provider sees the turn.
+await check("buildPrompt includes the versioned Active Mirror boot packet", () => {
+  const prompt = buildPrompt(
+    { intent: "I keep polishing instead of shipping.", boundary: "personal" },
+    {
+      excluded: "Only the text submitted in this turn is used.",
+      memory: "No memory without approval.",
+    },
+  );
+  assert.ok(prompt.includes(`Boot packet: ${ACTIVE_MIRROR_BOOT_VERSION}`), "boot version missing");
+  assert.ok(prompt.includes("ZERO_SYCOPHANCY"), "anti-sycophancy rail missing");
+  assert.ok(prompt.includes("REFLECTION_OVER_PREDICTION"), "reflection rail missing");
+  assert.ok(prompt.includes("ONE_MOVE_ONLY"), "one-move rail missing");
+  assert.ok(prompt.includes("Never use Active Mirror internal token names"), "consumer-language rail missing");
+});
+
 // 1. The straitjacket strips flattery, forces a real question, keeps one move — pure, no model.
 await check("straitjacket strips flattery, forces a question, makes one move", () => {
   const { mirror, violations } = straitjacket({
@@ -33,6 +58,18 @@ await check("straitjacket strips flattery, forces a question, makes one move", (
   assert.ok(mirror.question.endsWith("?"), "question not forced to a question");
   assert.ok(!mirror.move.includes("\n"), "move not reduced to one thing");
   assert.deepStrictEqual([...violations].sort(), ["flattery_removed", "move_made_singular", "question_forced"]);
+});
+
+// 1b. Internal governance tokens are allowed in the boot packet, not the consumer answer.
+await check("straitjacket strips internal governance tokens from user-facing output", () => {
+  const { mirror, violations } = straitjacket({
+    reflection: "ZERO_SYCOPHANCY says you are using polish to avoid contact.",
+    question: "TRUE_PRIVACY asks what detail can stay out",
+    move: "ONE_MOVE_ONLY: write one plain sentence.",
+    receipt: RECEIPT,
+  });
+  assert.ok(!/ZERO_SYCOPHANCY|TRUE_PRIVACY|ONE_MOVE_ONLY/.test(`${mirror.reflection} ${mirror.question} ${mirror.move}`), "internal token leaked");
+  assert.ok(violations.includes("internal_tokens_removed"), "internal token removal was not recorded");
 });
 
 // 2. A single-sentence move with internal punctuation survives whole (the bug we caught live).

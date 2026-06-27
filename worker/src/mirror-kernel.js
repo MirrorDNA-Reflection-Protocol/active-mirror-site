@@ -139,14 +139,27 @@ export function sanitizeModelIntent(intent, boundary = "personal") {
     .replace(/(?:[$€£₹]\s?\d[\d,]*(?:\.\d+)?|\b\d[\d,]*(?:\.\d+)?\s?(?:usd|inr|eur|gbp|crore|lakh|million|billion|trillion|m|bn)\b)/gi, "[commercial term masked]");
 }
 
-// --- 2. Prompt (the reflection instruction) ---
+// --- 2. Boot packet + prompt (the reflection instruction) ---
+export const ACTIVE_MIRROR_BOOT_VERSION = "2026-06-27-active-mirror-boot-v1";
+
+export const ACTIVE_MIRROR_BOOTLOAD = [
+  "You are Active Mirror.",
+  "Your job is not to impress, entertain, praise, diagnose, or decide for the user.",
+  "Your job is to reflect one stuck point back clearly enough that the user can move.",
+  "ZERO_SYCOPHANCY: do not agree to be agreeable, praise the user, validate a weak plan, or soften a needed challenge.",
+  "TRUE_PRIVACY: use only the submitted turn and the stated boundary; do not ask for secrets, identity details, or private history unless strictly necessary.",
+  "REFLECTION_OVER_PREDICTION: name the loop underneath the user's wording before proposing any next move.",
+  "ONE_MOVE_ONLY: the answer must end in one small, observable, reversible action the user can start in about 10 minutes.",
+  "USER_OWNS_MEMORY: do not imply that anything is remembered unless the memory decision says so.",
+  "SOURCE_HONESTY: if the answer depends on current or external facts, mark uncertainty and route toward source checking instead of sounding certain.",
+  "Tone: calm, sharp, plain, human. Warmth comes from usefulness, not emotional padding.",
+  "Never use Active Mirror internal token names in the user-facing reflection unless the user explicitly asks about the system.",
+];
+
 export function buildPrompt({ intent, boundary }, boundaryDef, capability = "reflection") {
   return [
-    "You are Active Mirror. You reflect a person back to themselves so they think for themselves.",
-    "You are their honest adviser, not their friend or their fan: hold your own ground and say what is true, even when it is not what they want to hear.",
-    "Sycophancy is prohibited. Do not agree to be agreeable, praise the user, validate a weak plan, or soften a needed challenge.",
-    "You do NOT decide for them, rank their options, or tell them what to do. You do NOT flatter, and you do NOT lecture.",
-    "Sound like a calm, sharp human adviser. Warmth comes from clarity and usefulness, not praise or emotional padding.",
+    `Boot packet: ${ACTIVE_MIRROR_BOOT_VERSION}`,
+    ...ACTIVE_MIRROR_BOOTLOAD,
     "Someone brought one thing they are stuck on. The first turn must create relief fast: name the loop, sharpen the question, and give one move they can start.",
     "If they are drifting, say so plainly in one sentence. If the obvious answer is weak, challenge the premise with a test, not a verdict.",
     "Return only compact JSON matching the requested structure. Plain English ASCII only. No markdown, no numbered labels, no slogans.",
@@ -285,10 +298,20 @@ function repairTextArtifacts(value) {
 // judging an AI. This is the line the model cannot cross. ---
 const FLATTERY_RE = /\b(you(?:'| a)?re (?:absolutely |so |totally |completely )?right|brilliant|genius|amazing|fantastic|incredible|great (?:idea|question|point|job|call)|love (?:it|this)|nailed it|excellent|impressive|well done|good for you|spot on|you've got this|that'?s exactly right|you should definitely|no question(?: about it)?|without a doubt)\b/i;
 const FLATTERY_RE_G = new RegExp(FLATTERY_RE.source, "gi");
+const INTERNAL_TOKEN_RE = /\b(?:ZERO_SYCOPHANCY|TRUE_PRIVACY|REFLECTION_OVER_PREDICTION|ONE_MOVE_ONLY|USER_OWNS_MEMORY|SOURCE_HONESTY|NO_FABRICATION|CONSENT_BOUND|FULL_RECEIPTS|SAME_RULES_EVERY_TURN|100_PERCENT_REFLECTION)\b/;
+const INTERNAL_TOKEN_RE_G = new RegExp(INTERNAL_TOKEN_RE.source, "g");
+
+export function stripInternalTokens(text) {
+  return String(text || "")
+    .replace(INTERNAL_TOKEN_RE_G, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([.,;!?])/g, "$1")
+    .replace(/^[\s,;.!-]+/, "")
+    .trim();
+}
 
 export function deflatter(text) {
-  return String(text || "")
-    .replace(FLATTERY_RE_G, "")
+  return stripInternalTokens(String(text || "").replace(FLATTERY_RE_G, ""))
     .replace(/\s{2,}/g, " ")
     .replace(/\s+([.,;!?])/g, "$1")
     .replace(/^[\s,;.!-]+/, "")
@@ -312,6 +335,9 @@ export function straitjacket(mirror) {
 
   if (FLATTERY_RE.test(reflectionRaw) || FLATTERY_RE.test(questionRaw) || FLATTERY_RE.test(moveRaw)) {
     violations.push("flattery_removed");
+  }
+  if (INTERNAL_TOKEN_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
+    violations.push("internal_tokens_removed");
   }
 
   const reflection = deflatter(reflectionRaw);
@@ -346,6 +372,7 @@ function cleanVisualText(value) {
     .replace(/[“”„″]/g, '"')
     .replace(/[–—−]/g, "-")
     .replace(/…/g, "...")
+    .replace(INTERNAL_TOKEN_RE_G, "")
     .replace(/[^\x09\x0a\x0d\x20-\x7e]/g, "")
     .replace(/\s+/g, " ")
     .trim()

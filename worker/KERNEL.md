@@ -12,6 +12,32 @@ UI against *this contract*, not against the source — the interface below is fr
 
 ---
 
+## Boot Packet
+
+Every provider route receives the same versioned Active Mirror boot packet before
+the user turn. The current boot id is:
+
+```text
+2026-06-27-active-mirror-boot-v1
+```
+
+The boot packet is steering, not enforcement. It tells the model to:
+
+- reflect one stuck point, not impress or entertain;
+- enforce anti-sycophancy in generation;
+- use only the submitted turn plus the selected boundary;
+- prefer reflection before prediction;
+- return one small reversible move;
+- avoid implying memory without explicit approval;
+- mark current or external factual claims instead of sounding certain;
+- keep consumer-facing output free of internal token names.
+
+The deterministic gates below remain the guarantee. If a provider leaks internal
+rails such as `ZERO_SYCOPHANCY` or `ONE_MOVE_ONLY`, the straitjacket strips them
+before the user sees the answer and records `"internal_tokens_removed"`.
+
+---
+
 ## HTTP API
 
 ### `POST /v1/mirror/create`
@@ -67,7 +93,7 @@ UI against *this contract*, not against the source — the interface below is fr
 - `fallback` — `true` if a backup route/model was used (still a valid mirror).
 - `truth_state` — deterministic source-sensitivity marker. It does not fact-check; it tells the UI whether the turn is reflective only or needs sources before reliance.
 - `straitjacket` — array of deterministic corrections applied this turn. Possible values:
-  `"flattery_removed"`, `"question_forced"`, `"move_made_singular"`, `"visual_dropped"`, `"truth_state_needs_sources"`.
+  `"flattery_removed"`, `"internal_tokens_removed"`, `"question_forced"`, `"move_made_singular"`, `"visual_dropped"`, `"truth_state_needs_sources"`.
   `"client_boundary_redacted"` appears when obvious client-boundary sensitive patterns were masked before model routing.
   (Empty array = the model stayed inside the cage on its own.)
 
