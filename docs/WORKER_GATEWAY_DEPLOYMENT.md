@@ -23,6 +23,15 @@ Use a Cloudflare API token scoped to account `c67a8591dff0a1b3681da50540530fc3` 
 npm run worker:deploy
 ```
 
+After deploy:
+
+```sh
+npm run canary:prod
+npm run monitor:gateway
+```
+
+Monitoring details live in `docs/GATEWAY_MONITORING.md`.
+
 If using a token directly:
 
 ```sh

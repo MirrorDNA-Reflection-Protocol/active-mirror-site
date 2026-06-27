@@ -33,7 +33,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-06-27-cost-rails-v1";
+const WORKER_VERSION = "2026-06-27-monitor-v1";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
@@ -181,6 +181,15 @@ export default {
 
       if (!result.ok) {
         return json({ ok: false, error: result.error, receipt: result.receipt }, 400, corsHeaders);
+      }
+
+      if (result.fallback) {
+        logSafe(ctx, {
+          type: "active_mirror_provider_fallback",
+          capability: route.capability,
+          fallback: lastFallbackReason || "unknown",
+          truth_state: result.truth_state?.status || "unknown",
+        });
       }
 
       return json(

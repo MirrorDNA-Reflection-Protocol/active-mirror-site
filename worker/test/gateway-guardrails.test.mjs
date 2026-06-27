@@ -68,6 +68,18 @@ function ctx() {
   return { waitUntil() {} };
 }
 
+function capturedCtx() {
+  const waits = [];
+  return {
+    waits,
+    ctx: {
+      waitUntil(promise) {
+        waits.push(promise);
+      },
+    },
+  };
+}
+
 function env(overrides = {}) {
   return {
     MIRROR_BRIDGE_URL: "https://mini.example/am-bridge",
@@ -95,6 +107,18 @@ async function post(path, body, overrides = {}, headers = {}) {
     env(overrides),
     ctx(),
   );
+}
+
+function openAIMirrorResponse() {
+  return {
+    output_text: JSON.stringify({
+      reflection: "You are asking for a safer path because the first route was not available.",
+      question: "What is the smallest useful answer you need right now?",
+      move: "Write the one answer you need and stop there.",
+      receipt: RECEIPT,
+      visual: { kind: "none", left: "", right: "", note: "" },
+    }),
+  };
 }
 
 installEdgeCache();
@@ -173,6 +197,61 @@ await check("health exposes enabled daily budget limits", async () => {
   assert.strictEqual(data.guardrails.daily_budget, "enabled");
   assert.strictEqual(data.guardrails.daily_session_limit, "100");
   assert.strictEqual(data.guardrails.daily_network_limit, "100");
+});
+
+await check("provider fallback emits metadata-only monitor log", async () => {
+  installEdgeCache();
+  const originalFetch = globalThis.fetch;
+  const originalLog = console.log;
+  const logs = [];
+  const captured = capturedCtx();
+
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("api.openai.com")) {
+      assert.strictEqual(init?.headers?.Authorization, "Bearer test-openai-key", "openai token missing");
+      return Response.json(openAIMirrorResponse());
+    }
+    return originalFetch(url, init);
+  };
+  console.log = (line) => logs.push(String(line));
+
+  try {
+    const response = await worker.fetch(
+      new Request("https://gateway.activemirror.ai/v1/mirror/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Active-Mirror-Session": "fallback-log-test",
+          "CF-Connecting-IP": "203.0.113.11",
+        },
+        body: JSON.stringify({
+          intent: "I need one bounded next move for this fallback log test.",
+          route: "reflection",
+        }),
+      }),
+      env({
+        MIRROR_BRIDGE_URL: "",
+        MIRROR_BRIDGE_TOKEN: "",
+        OPENAI_API_KEY: "test-openai-key",
+      }),
+      captured.ctx,
+    );
+    const data = await response.json();
+    await Promise.all(captured.waits);
+    const payloads = logs.map((line) => JSON.parse(line));
+    const fallbackLog = payloads.find((payload) => payload.type === "active_mirror_provider_fallback");
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(data.ok, true);
+    assert.strictEqual(data.fallback, true);
+    assert.ok(fallbackLog, "fallback log missing");
+    assert.deepStrictEqual(Object.keys(fallbackLog).sort(), ["capability", "fallback", "truth_state", "ts", "type"].sort());
+    assert.strictEqual(fallbackLog.capability, "reflection");
+    assert.strictEqual(fallbackLog.fallback, "local missing secret");
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.log = originalLog;
+  }
 });
 
 restoreFetch();
