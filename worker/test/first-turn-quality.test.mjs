@@ -68,6 +68,7 @@ const categories = [
       "I feel like we are hallucinating the product.",
       "I keep asking what else and never locking the next thing.",
       "I am tired of rebuilding the same website.",
+      "My thoughts are moving fast and I need one next move.",
       "The more we discuss, the less clear I feel.",
       "I am spiraling between consumer and enterprise.",
       "Everything feels urgent but nothing feels obvious.",
@@ -190,4 +191,4 @@ for (const fixture of allPrompts()) {
   assertFirstTurnQuality(fixture, data);
 }
 
-console.log(`first-turn quality passed: ${allPrompts().length}/100`);
+console.log(`first-turn quality passed: ${allPrompts().length}/${allPrompts().length}`);

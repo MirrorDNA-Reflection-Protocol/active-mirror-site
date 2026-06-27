@@ -188,13 +188,13 @@ function classifyIntent(intent = "") {
   if (/\b(leave my browser|leave the browser|personal details|personal history|privacy|private|sensitive|secret\w*|confidential|client|notes|send|sendable|shar\w*|expos\w*|reveal\w*|leak\w*|saved|swallow|safe|boundary)\b/.test(text)) {
     return "private_output";
   }
-  if (/\b(hallucinat\w*|overthink\w*|overwhelmed|scattered|spiral|too much|lost|anxious|panic|tired|drift|drifting)\b/.test(text) || /\b(i feel|i am|i'm|we are|we're)\b.*\b(confused|stuck|lost)\b/.test(text)) {
+  if (/\b(hallucinat\w*|overthink\w*|overwhelmed|scattered|spiral|too much|lost|anxious|panic|tired|drift|drifting|fast-moving|nonlinear)\b/.test(text) || /\b(thoughts?|mind)\b.*\b(moving fast|too fast|racing|all over)\b/.test(text) || /\b(i feel|i am|i'm|we are|we're)\b.*\b(confused|stuck|lost)\b/.test(text)) {
     return "reset";
   }
   if (/\b(site|page|product|homepage|copy|marketing|sales|sell|ads?|launch|positioning|offer|user|customer|demo|public|proof|reflection|receipts?|systems?)\b/.test(text)) {
     return "launch_clarity";
   }
-  if (/\b(overwhelmed|scattered|confused|lost|stuck|spiral|loop|too much|drift|drifting|anxious|panic|tired)\b/.test(text)) {
+  if (/\b(overwhelmed|scattered|confused|lost|stuck|spiral|loop|too much|drift|drifting|anxious|panic|tired|fast-moving|nonlinear)\b/.test(text) || /\b(thoughts?|mind)\b.*\b(moving fast|too fast|racing|all over)\b/.test(text)) {
     return "reset";
   }
   if (/\b(draft|write|document|memo|email|pdf|deck|file|artifact|output|useful)\b/.test(text)) {
@@ -209,6 +209,7 @@ export function buildPrompt({ intent, boundary }, boundaryDef, capability = "ref
     `Boot packet: ${ACTIVE_MIRROR_BOOT_VERSION}`,
     ...ACTIVE_MIRROR_BOOTLOAD,
     "Someone brought one thing they are stuck on. The first turn must create relief fast: name the loop, sharpen the question, and give one move they can start.",
+    "Treat scattered, fast-moving, or nonlinear input as usable signal, not as a flaw. Do not diagnose the user or name a condition. Find the strongest thread and make it feel containable.",
     "If they are drifting, say so plainly in one sentence. If the obvious answer is weak, challenge the premise with a test, not a verdict.",
     "The answer must feel made for this exact sentence. Use concrete nouns from the user's words. Avoid canned phrases like 'you may need more clarity', 'more context', 'it depends', or 'take a step back' unless the user's words specifically demand them.",
     "Do not produce a report, a dashboard, a checklist, a numbered plan, a motivational note, or a therapy-style validation. This is a mirror turn: one reflection, one sharper question, one move.",
@@ -532,7 +533,7 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
       move: "Name the signal, then run the smallest test that could produce it today.",
     },
     reset: {
-      reflection: "The stuck feeling is probably coming from too many open loops trying to become one answer.",
+      reflection: "The scatter is not the failure; too many open loops are trying to become one answer at once.",
       question: "Which one loop would make the rest easier if it moved even a little?",
       move: "Pick one loop, set a ten-minute timer, and write the next visible action only.",
     },
