@@ -29,6 +29,9 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Canonical deploy guard
+        run: npm run guard:canonical
+
       - name: Build
         run: npm run build
 

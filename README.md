@@ -35,6 +35,7 @@ Do not hand-edit `public/app/assets/*.js`. Build the product app in
 ```sh
 npm install
 npm run dev
+npm run guard:canonical
 npm run build
 npm run app:package
 npm run worker:dev
@@ -76,4 +77,6 @@ Use it before changing the public product story or browser workspace loop.
 ## Deployment
 
 The GitHub Actions workflow builds the Vite site and publishes `dist` to `gh-pages`.
-`public/CNAME` pins the intended production domain.
+`public/CNAME` and the deploy workflow `cname` setting pin the intended
+production domain. This is the only Active Mirror repo that should claim
+`activemirror.ai`.
