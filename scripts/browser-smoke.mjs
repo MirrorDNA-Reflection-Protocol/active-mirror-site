@@ -85,10 +85,19 @@ async function exerciseFirstInput(page) {
   await page.getByText("Was this useful?", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByRole("button", { name: /^Almost$/ }).first().click();
   await page.getByText(/No message text was saved/i).waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: /^Make it smaller$/ }).first().click();
 
   const feedbackStore = await page.evaluate(() => localStorage.getItem("active_mirror_feedback_v1") || "");
   if (feedbackStore.includes(testText)) {
     fail("Feedback storage leaked prompt text.");
+  }
+
+  const eventBuffer = await page.evaluate(() => sessionStorage.getItem("active_mirror_event_buffer_v1") || "");
+  if (!eventBuffer.includes("feedback_repair")) {
+    fail("Feedback repair was not recorded as metadata.");
+  }
+  if (eventBuffer.includes(testText)) {
+    fail("Privacy event buffer leaked prompt text.");
   }
 }
 
