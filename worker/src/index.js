@@ -23,6 +23,7 @@ import {
 const ALLOWED_ORIGINS = new Set([
   "https://activemirror.ai",
   "https://www.activemirror.ai",
+  "https://id.activemirror.ai",
   "https://mirrordna-reflection-protocol.github.io",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
@@ -36,7 +37,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-06-27-enterprise-stream-v1";
+const WORKER_VERSION = "2026-06-27-mirrorseed-proof-v1";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
@@ -69,6 +70,8 @@ const EVENT_NAMES = new Set([
   "draft_shared",
   "mirror_default_saved",
   "phone_thread_cleared",
+  "proof_sprint_started",
+  "proof_sprint_result",
 ]);
 
 const EVENT_FIELDS = new Set([
@@ -85,7 +88,14 @@ const EVENT_FIELDS = new Set([
   "totalBytes",
   "types",
   "label",
+  "workflow",
+  "timeline",
 ]);
+
+const PROOF_SPRINT_WORKFLOWS = new Set(["research", "approval", "ops", "unsure"]);
+const PROOF_SPRINT_TIMELINES = new Set(["72h", "this_week", "exploring"]);
+const PROOF_SPRINT_SOURCES = new Set(["hero", "final"]);
+const PROOF_SPRINT_FIELDS = new Set(["reply_to", "workflow", "timeline", "source", "consent", "website"]);
 
 const ENTERPRISE_RUNS = {
   research: {
@@ -198,6 +208,10 @@ export default {
 
     if (request.method === "POST" && url.pathname === "/v1/events") {
       return handleEvent(request, env, ctx, corsHeaders);
+    }
+
+    if (request.method === "POST" && url.pathname === "/v1/mirror/proof-sprint") {
+      return handleProofSprint(request, env, ctx, corsHeaders);
     }
 
     if (request.method === "POST" && url.pathname === "/v1/mirror/source-check") {
@@ -395,6 +409,77 @@ async function handleEnterpriseStream(request, env, ctx, corsHeaders) {
   });
 }
 
+async function handleProofSprint(request, env, ctx, corsHeaders) {
+  try {
+    const budget = await enforceEventBudget(request, env, ctx);
+    if (!budget.allowed) {
+      return rateLimitedResponse(budget, corsHeaders);
+    }
+
+    const body = await readJsonBody(request, maxEventRequestBytes(env));
+    const requestData = sanitizeProofSprint(body);
+    if (!requestData.ok) {
+      return json(
+        {
+          ok: requestData.honeypot ? true : false,
+          status: requestData.honeypot ? "received" : "rejected",
+          error: requestData.honeypot ? undefined : requestData.error,
+          policy: "metadata-only-contact",
+        },
+        requestData.honeypot ? 202 : 400,
+        { ...corsHeaders, "X-Active-Mirror-Event-Policy": "metadata-only-contact" },
+      );
+    }
+
+    const request_id = await proofSprintRequestId(requestData);
+    const receipt_id = await receiptHash({
+      type: "proof_sprint_request",
+      request_id,
+      workflow: requestData.workflow,
+      timeline: requestData.timeline,
+      source: requestData.source,
+      reply_domain: requestData.reply_domain,
+    });
+
+    logSafe(ctx, {
+      type: "active_mirror_proof_sprint_request",
+      request_id,
+      workflow: requestData.workflow,
+      timeline: requestData.timeline,
+      source: requestData.source,
+      reply_domain: requestData.reply_domain,
+    });
+
+    return json(
+      {
+        ok: true,
+        type: "proof_sprint_request",
+        status: "received",
+        request_id,
+        receipt_id,
+        policy: "metadata-only-contact",
+        next: "Request receipt created. Send the prepared email to start; do not include workflow content until a scoped intake is agreed.",
+      },
+      202,
+      { ...corsHeaders, "X-Active-Mirror-Event-Policy": "metadata-only-contact" },
+    );
+  } catch (error) {
+    if (error?.status) {
+      return json(
+        { ok: false, error: error.code || "bad_request", policy: "metadata-only-contact" },
+        error.status,
+        { ...corsHeaders, "X-Active-Mirror-Event-Policy": "metadata-only-contact" },
+      );
+    }
+    logSafe(ctx, { type: "active_mirror_gateway_error", surface: "proof_sprint", reason: safeError(error) });
+    return json(
+      { ok: false, error: "proof_sprint_error", policy: "metadata-only-contact" },
+      500,
+      { ...corsHeaders, "X-Active-Mirror-Event-Policy": "metadata-only-contact" },
+    );
+  }
+}
+
 function cors(origin) {
   const allowedOrigin = ALLOWED_ORIGINS.has(origin) ? origin : "https://activemirror.ai";
   return {
@@ -566,6 +651,60 @@ function enterpriseStreamIntervalMs(env) {
   const value = Number(env.ENTERPRISE_STREAM_INTERVAL_MS ?? 900);
   if (!Number.isFinite(value)) return 900;
   return Math.max(0, Math.min(2500, Math.trunc(value)));
+}
+
+function sanitizeProofSprint(body) {
+  const keys = Object.keys(body || {});
+  if (keys.some((key) => !PROOF_SPRINT_FIELDS.has(key))) {
+    return { ok: false, error: "unexpected_field" };
+  }
+
+  if (String(body?.website || "").trim()) {
+    return { ok: false, honeypot: true };
+  }
+
+  const rawBody = JSON.stringify(body || {});
+  if (containsSecret(rawBody)) {
+    return { ok: false, error: "boundary_violation" };
+  }
+
+  const reply_to = cleanContactEmail(body?.reply_to);
+  if (!reply_to) return { ok: false, error: "email_required" };
+
+  const workflow = cleanEventValue(body?.workflow, 24) || "unsure";
+  const timeline = cleanEventValue(body?.timeline, 24) || "72h";
+  const source = cleanEventValue(body?.source, 16) || "hero";
+
+  if (!PROOF_SPRINT_WORKFLOWS.has(workflow)) return { ok: false, error: "workflow_not_allowed" };
+  if (!PROOF_SPRINT_TIMELINES.has(timeline)) return { ok: false, error: "timeline_not_allowed" };
+  if (!PROOF_SPRINT_SOURCES.has(source)) return { ok: false, error: "source_not_allowed" };
+  if (body?.consent !== true) return { ok: false, error: "consent_required" };
+
+  return {
+    ok: true,
+    reply_to,
+    reply_domain: reply_to.split("@")[1] || "unknown",
+    workflow,
+    timeline,
+    source,
+  };
+}
+
+function cleanContactEmail(value) {
+  const email = String(value || "").trim().toLowerCase().slice(0, 160);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return "";
+  return email;
+}
+
+async function proofSprintRequestId(data) {
+  const hash = await receiptHash({
+    reply_to: data.reply_to,
+    workflow: data.workflow,
+    timeline: data.timeline,
+    source: data.source,
+    at: new Date().toISOString().slice(0, 16),
+  });
+  return `psr_${hash.slice(0, 16)}`;
 }
 
 async function enforceMirrorBudget(request, env, ctx, route) {
@@ -1587,6 +1726,11 @@ function publicRoutes(env) {
       status: "available",
       purpose: "public demo stream for governed work, approvals, and receipt states",
     },
+    proof_sprint: {
+      label: "proof sprint request",
+      status: "available",
+      purpose: "metadata-only contact request for a scoped enterprise proof sprint",
+    },
   };
 }
 
@@ -1600,6 +1744,7 @@ function publicGuardrails(env) {
     daily_network_limit: String(networkDailyLimit(env)),
     event_policy: "no-prompt-content",
     enterprise_stream_policy: "public-demo-only",
+    proof_sprint_policy: "metadata-only-contact",
     truth_state: "enabled",
     source_check: hasSourceCheckRoute(env) ? "enabled" : "not_configured",
   };

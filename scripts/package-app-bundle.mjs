@@ -4,11 +4,16 @@ import { join, resolve } from "node:path";
 const source = resolve(process.env.ACTIVE_MIRROR_APP_DIST || "/Users/mirror-pro/repos/activemirror-journey/dist");
 const target = resolve(process.env.ACTIVE_MIRROR_APP_TARGET || "public/app");
 const routeFallbacks = [
+  "brainscan",
   "device",
   "enterprise",
   "feedback",
+  "id",
   "mirror",
+  "mirrorseed",
   "privacy",
+  "reflect",
+  "scan",
   "start",
   "terms",
 ];

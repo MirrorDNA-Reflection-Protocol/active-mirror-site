@@ -8,7 +8,6 @@
       content="Active Mirror tells you what you need to hear, not what you want to hear. Bring one thing you're stuck on, and leave clearer."
     />
     <link rel="canonical" href="https://activemirror.ai/app/index.html" />
-    <meta http-equiv="refresh" content="0; url=/app/index.html" />
     <title>Active Mirror — Intelligence Reflected</title>
     <style>
       :root {
@@ -33,7 +32,10 @@
       }
     </style>
     <script>
-      window.location.replace("/app/index.html");
+      const target = window.location.hostname === "id.activemirror.ai"
+        ? "/app/start/index.html"
+        : "/app/index.html";
+      window.location.replace(target);
     </script>
   </head>
   <body>

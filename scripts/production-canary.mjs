@@ -47,6 +47,7 @@ async function main() {
     assert(data.guardrails?.mirror_rate_limit === "enabled", "mirror rate limit not enabled");
     assert(data.guardrails?.event_rate_limit === "enabled", "event rate limit not enabled");
     assert(data.guardrails?.daily_budget === "enabled", "daily budget not enabled");
+    assert(data.guardrails?.proof_sprint_policy === "metadata-only-contact", "proof sprint policy missing");
     assert(Number(data.guardrails?.daily_session_limit || 0) > 0, "daily session limit missing");
     assert(Number(data.guardrails?.daily_network_limit || 0) > 0, "daily network limit missing");
   });
@@ -168,6 +169,33 @@ async function main() {
     assert(events.length === 5, `expected 5 stream events, got ${events.length}`);
     assert(done?.run?.id === "ops", "stream done event missing or wrong run");
     assert(text.includes(`canary-${RUN_ID}`) === false, "session leaked into stream");
+  });
+
+  await check("proof sprint request returns metadata-only receipt", async () => {
+    const response = await fetchWithTimeout(`${GATEWAY}/v1/mirror/proof-sprint`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: SITE,
+        "X-Active-Mirror-Session": `canary-${RUN_ID}`,
+      },
+      body: JSON.stringify({
+        reply_to: `canary-${RUN_ID}@example.com`,
+        workflow: "research",
+        timeline: "72h",
+        source: "hero",
+        consent: true,
+        website: "",
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    assert(response.status === 202, `proof sprint status ${response.status} ${data.error || ""}`.trim());
+    assert(response.headers.get("x-active-mirror-event-policy") === "metadata-only-contact", "proof sprint policy header missing");
+    assert(data.ok === true, "proof sprint ok was not true");
+    assert(/^psr_[0-9a-f]{16}$/.test(String(data.request_id || "")), "proof sprint request id missing");
+    assert(/^[0-9a-f]{24}$/.test(String(data.receipt_id || "")), "proof sprint receipt id missing");
+    assert(data.policy === "metadata-only-contact", "proof sprint policy missing");
   });
 
   const failed = checks.filter((item) => item.status === "FAIL");

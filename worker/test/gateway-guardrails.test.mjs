@@ -259,6 +259,186 @@ await check("enterprise stream emits public-only proof events", async () => {
   assert.strictEqual(text.includes("test-token"), false, "secret leaked into stream");
 });
 
+await check("id origin is allowed for MirrorSeed entry point", async () => {
+  const response = await worker.fetch(
+    new Request("https://gateway.activemirror.ai/v1/mirror/create", {
+      method: "OPTIONS",
+      headers: {
+        Origin: "https://id.activemirror.ai",
+        "Access-Control-Request-Method": "POST",
+      },
+    }),
+    env(),
+    ctx(),
+  );
+
+  assert.strictEqual(response.status, 204);
+  assert.strictEqual(response.headers.get("Access-Control-Allow-Origin"), "https://id.activemirror.ai");
+});
+
+await check("proof sprint request returns metadata-only receipt", async () => {
+  installEdgeCache();
+  const originalLog = console.log;
+  const logs = [];
+  const captured = capturedCtx();
+  console.log = (line) => logs.push(String(line));
+
+  try {
+    const response = await worker.fetch(
+      new Request("https://gateway.activemirror.ai/v1/mirror/proof-sprint", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "https://activemirror.ai",
+          "X-Active-Mirror-Session": "proof-sprint-test",
+          "CF-Connecting-IP": "203.0.113.14",
+        },
+        body: JSON.stringify({
+          reply_to: "buyer@example.com",
+          workflow: "approval",
+          timeline: "72h",
+          source: "hero",
+          consent: true,
+          website: "",
+        }),
+      }),
+      env(),
+      captured.ctx,
+    );
+    const data = await response.json();
+    await Promise.all(captured.waits);
+    const payloads = logs.map((line) => JSON.parse(line));
+    const requestLog = payloads.find((payload) => payload.type === "active_mirror_proof_sprint_request");
+
+    assert.strictEqual(response.status, 202);
+    assert.strictEqual(response.headers.get("X-Active-Mirror-Event-Policy"), "metadata-only-contact");
+    assert.strictEqual(data.ok, true);
+    assert.strictEqual(data.type, "proof_sprint_request");
+    assert.match(data.request_id, /^psr_[0-9a-f]{16}$/);
+    assert.match(data.receipt_id, /^[0-9a-f]{24}$/);
+    assert.strictEqual(data.policy, "metadata-only-contact");
+    assert.ok(requestLog, "proof sprint metadata log missing");
+    assert.deepStrictEqual(Object.keys(requestLog).sort(), ["reply_domain", "request_id", "source", "timeline", "ts", "type", "workflow"].sort());
+    assert.strictEqual(requestLog.reply_domain, "example.com");
+    assert.strictEqual(JSON.stringify(payloads).includes("buyer@example.com"), false, "email leaked into logs");
+  } finally {
+    console.log = originalLog;
+  }
+});
+
+await check("proof sprint rejects disallowed browser origins", async () => {
+  const response = await worker.fetch(
+    new Request("https://gateway.activemirror.ai/v1/mirror/proof-sprint", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://attacker.example",
+        "CF-Connecting-IP": "203.0.113.15",
+      },
+      body: JSON.stringify({
+        reply_to: "buyer@example.com",
+        workflow: "research",
+        timeline: "72h",
+        source: "hero",
+        consent: true,
+        website: "",
+      }),
+    }),
+    env(),
+    ctx(),
+  );
+  const data = await response.json();
+
+  assert.strictEqual(response.status, 403);
+  assert.strictEqual(data.error, "origin_not_allowed");
+});
+
+await check("proof sprint rejects invalid contact fields", async () => {
+  installEdgeCache();
+  const invalidEmail = await post("/v1/mirror/proof-sprint", {
+    reply_to: "not-an-email",
+    workflow: "research",
+    timeline: "72h",
+    source: "hero",
+    consent: true,
+    website: "",
+  });
+  const missingConsent = await post("/v1/mirror/proof-sprint", {
+    reply_to: "buyer@example.com",
+    workflow: "research",
+    timeline: "72h",
+    source: "hero",
+    consent: false,
+    website: "",
+  });
+  const unexpectedPrivateField = await post("/v1/mirror/proof-sprint", {
+    reply_to: "buyer@example.com",
+    workflow: "research",
+    timeline: "72h",
+    source: "hero",
+    consent: true,
+    message: "This is private workflow content.",
+    website: "",
+  });
+  const secretPayload = await post("/v1/mirror/proof-sprint", {
+    reply_to: "sk-testtesttesttesttesttesttesttest",
+    workflow: "research",
+    timeline: "72h",
+    source: "hero",
+    consent: true,
+    website: "",
+  });
+
+  assert.strictEqual(invalidEmail.status, 400);
+  assert.strictEqual((await invalidEmail.json()).error, "email_required");
+  assert.strictEqual(missingConsent.status, 400);
+  assert.strictEqual((await missingConsent.json()).error, "consent_required");
+  assert.strictEqual(unexpectedPrivateField.status, 400);
+  assert.strictEqual((await unexpectedPrivateField.json()).error, "unexpected_field");
+  assert.strictEqual(secretPayload.status, 400);
+  assert.strictEqual((await secretPayload.json()).error, "boundary_violation");
+});
+
+await check("proof sprint honeypot accepts without logging contact", async () => {
+  installEdgeCache();
+  const originalLog = console.log;
+  const logs = [];
+  const captured = capturedCtx();
+  console.log = (line) => logs.push(String(line));
+
+  try {
+    const response = await worker.fetch(
+      new Request("https://gateway.activemirror.ai/v1/mirror/proof-sprint", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "https://activemirror.ai",
+          "CF-Connecting-IP": "203.0.113.16",
+        },
+        body: JSON.stringify({
+          reply_to: "bot@example.com",
+          workflow: "research",
+          timeline: "72h",
+          source: "hero",
+          consent: true,
+          website: "https://spam.example",
+        }),
+      }),
+      env(),
+      captured.ctx,
+    );
+    const data = await response.json();
+    await Promise.all(captured.waits);
+
+    assert.strictEqual(response.status, 202);
+    assert.strictEqual(data.ok, true);
+    assert.strictEqual(data.policy, "metadata-only-contact");
+    assert.strictEqual(logs.length, 0);
+  } finally {
+    console.log = originalLog;
+  }
+});
+
 await check("provider fallback emits metadata-only monitor log", async () => {
   installEdgeCache();
   const originalFetch = globalThis.fetch;

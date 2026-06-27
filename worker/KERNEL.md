@@ -250,6 +250,7 @@ limits, not user identity or billing records.
 ### CORS — allowed origins
 
 `https://activemirror.ai`, `https://www.activemirror.ai`,
+`https://id.activemirror.ai`,
 `https://mirrordna-reflection-protocol.github.io`,
 and for local dev: `localhost`/`127.0.0.1` on ports **5173, 5180, 4173, 8976**.
 Use one of those ports locally or the gateway will reject the call.
@@ -268,6 +269,55 @@ Allowed event names: `home_view`, `mirror_view`, `starter_clicked`,
 Allowed metadata fields: `page`, `surface`, `source`, `route`, `status`,
 `fallback`, `visualKind`, `turn`, `target`, plus the generated session id and
 timestamp. Event payloads are capped at 2 KB by default.
+
+### `POST /v1/mirror/proof-sprint`
+
+Metadata-only enterprise contact checkpoint for the public proof-sprint CTA.
+This is **not** a workflow intake and must not receive private workflow content,
+files, client names, notes, or prompts. The browser prepares the actual outbound
+email locally after the gateway returns a receipt.
+
+**Request body**:
+
+```json
+{
+  "reply_to": "person@example.com",
+  "workflow": "research",
+  "timeline": "72h",
+  "source": "hero",
+  "consent": true,
+  "website": ""
+}
+```
+
+Allowed enum values:
+
+| field | values |
+|---|---|
+| `workflow` | `research` · `approval` · `ops` · `unsure` |
+| `timeline` | `72h` · `this_week` · `exploring` |
+| `source` | `hero` · `final` |
+
+`website` is a honeypot. If it is filled, the endpoint accepts quietly without
+logging a contact request.
+
+**Success response** `202`:
+
+```json
+{
+  "ok": true,
+  "type": "proof_sprint_request",
+  "status": "received",
+  "request_id": "psr_16hex...",
+  "receipt_id": "24hex...",
+  "policy": "metadata-only-contact",
+  "next": "Request receipt created. Send the prepared email to start; do not include workflow content until a scoped intake is agreed."
+}
+```
+
+The response includes `X-Active-Mirror-Event-Policy: metadata-only-contact`.
+Safe logs include only request id, workflow enum, timeline enum, source enum,
+reply email domain, and timestamp. The full email address is not written to logs.
 
 ---
 
