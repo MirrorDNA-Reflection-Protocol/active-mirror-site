@@ -31,7 +31,7 @@ const viewports = [
 ];
 
 function routeUrl(routePath) {
-  return routePath === "/" ? `${baseUrl}/` : `${baseUrl}${routePath}`;
+  return routePath === "/" ? `${baseUrl}/` : `${baseUrl}${routePath}/`;
 }
 
 function fail(message, detail = "") {
@@ -78,7 +78,7 @@ async function exerciseFirstInput(page) {
 
   if (!submitFirstTurn) return;
 
-  await page.getByRole("button", { name: /reflect|send/i }).first().click();
+  await page.getByRole("button", { name: /reflect|send|get my next move/i }).first().click();
   await page.getByText("Next move", { exact: true }).waitFor({ timeout: 30000 });
   await page.getByText("Ask sharper", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("Make a draft", { exact: true }).waitFor({ timeout: 10000 });
