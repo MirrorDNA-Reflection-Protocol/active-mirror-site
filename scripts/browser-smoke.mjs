@@ -39,6 +39,20 @@ const routes = [
     mustSee: [/What do you want help with\?/i, /honest feedback, not reassurance/i, /Make it yours/i],
   },
   {
+    name: "enterprise",
+    path: "/enterprise",
+    mustSee: [/AI work your team can govern/i, /Pick one workflow/i, /No silent sharing/i],
+  },
+  {
+    name: "device",
+    path: "/device",
+    mustSee: [
+      /What is one thing you are stuck on\?|Best on this device/i,
+      /one next move|Open full mirror/i,
+      /Private by default|Memory stays your choice/i,
+    ],
+  },
+  {
     name: "privacy",
     path: "/privacy",
     mustSee: [/Privacy/i, /Security limits/i, /What telemetry excludes/i],
