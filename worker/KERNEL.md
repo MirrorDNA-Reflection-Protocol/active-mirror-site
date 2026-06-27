@@ -7,7 +7,8 @@ UI against *this contract*, not against the source — the interface below is fr
 - Source: `worker/src/mirror-kernel.js` (pure, model-agnostic, Web-Crypto only).
 - Runtime adapter (calls the configured hosted reflection/media routes): `worker/src/index.js`.
 - Live endpoint: **`https://gateway.activemirror.ai`** (Cloudflare Worker).
-- Tests (must stay green): `worker/test/mirror-kernel.test.mjs` (11/11).
+- Tests (must stay green): `npm run worker:test`
+  (`worker/test/mirror-kernel.test.mjs` plus gateway guardrail tests).
 
 ---
 
@@ -185,13 +186,37 @@ If `visual` is `null`, render nothing — most turns have no visual.
   { "ok": false, "error": "boundary_violation", "receipt": { "...": "nothing was sent to any model" } }
   ```
   The model is **never called** when a secret is detected. UI copy: hold the turn, send nothing.
-- **`intent` < 12 chars or malformed body** → `500 { "ok": false, "error": "mirror_gateway_error" }`.
+- **`intent` < 12 chars or malformed body** → `400 { "ok": false, "error": "intent_too_short" }` or `400 { "ok": false, "error": "invalid_json" }`.
   Prevent this client-side (require ≥12 chars before POST).
+- **Payload over gateway cap** → `413`:
+  ```json
+  { "ok": false, "error": "payload_too_large" }
+  ```
 - **Rate/budget guardrail** → `429`:
   ```json
-  { "ok": false, "error": "rate_limited", "scope": "session", "retry_after": 60 }
+  { "ok": false, "error": "rate_limited", "scope": "session_daily", "retry_after": 3600 }
   ```
-  UI copy: say the mirror route is cooling down and invite the user to try again shortly.
+  `scope` can be `session`, `network`, `session_daily`, `network_daily`,
+  `event_session`, or `event_network`. UI copy: say the mirror route is cooling
+  down and invite the user to try again shortly.
+
+### Public cost/abuse rails
+
+The public gateway enforces layered limits before provider calls:
+
+| rail | default |
+|---|---:|
+| mirror/source-check payload cap | 16 KB |
+| privacy event payload cap | 2 KB |
+| mirror session minute window | 12 turns / 60s |
+| mirror network minute window | 36 turns / 60s |
+| mirror session daily budget | 80 turns / UTC day |
+| mirror network daily budget | 500 turns / UTC day |
+| event session minute window | 90 events / 60s |
+| event network minute window | 240 events / 60s |
+
+Daily budget counters reset at UTC midnight. These are public-edge protection
+limits, not user identity or billing records.
 
 ### CORS — allowed origins
 

@@ -33,13 +33,15 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-06-26-source-check-v1";
+const WORKER_VERSION = "2026-06-27-cost-rails-v1";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
 const DEFAULT_RATE_WINDOW_SECONDS = 60;
 const DEFAULT_SESSION_WINDOW_LIMIT = 12;
 const DEFAULT_NETWORK_WINDOW_LIMIT = 36;
+const DEFAULT_MIRROR_SESSION_DAILY_LIMIT = 80;
+const DEFAULT_MIRROR_NETWORK_DAILY_LIMIT = 500;
 const DEFAULT_EVENT_WINDOW_SECONDS = 60;
 const DEFAULT_EVENT_SESSION_WINDOW_LIMIT = 90;
 const DEFAULT_EVENT_NETWORK_WINDOW_LIMIT = 240;
@@ -432,6 +434,31 @@ async function enforceMirrorBudget(request, env, ctx, route) {
     if (!outcome.allowed) {
       logSafe(ctx, { type: "active_mirror_rate_limited", scope: check.scope, capability, window: "minute" });
       return { allowed: false, scope: check.scope, retryAfter: check.retryAfter };
+    }
+  }
+
+  const dailyWindowSeconds = secondsUntilUtcMidnight();
+  const dailyKey = utcDateKey();
+  const dailyChecks = [
+    {
+      scope: "session_daily",
+      key: `daily:${dailyKey}:session:${actor.session}`,
+      limit: sessionDailyLimit(env),
+      retryAfter: dailyWindowSeconds,
+    },
+    {
+      scope: "network_daily",
+      key: `daily:${dailyKey}:network:${actor.network}`,
+      limit: networkDailyLimit(env),
+      retryAfter: dailyWindowSeconds,
+    },
+  ];
+
+  for (const check of dailyChecks) {
+    const outcome = await safeEdgeWindowLimit(check.key, check.limit, dailyWindowSeconds, check.scope, ctx, "daily_budget");
+    if (!outcome.allowed) {
+      logSafe(ctx, { type: "active_mirror_rate_limited", scope: check.scope, capability, window: "daily_budget" });
+      return { allowed: false, scope: check.scope, retryAfter: outcome.retryAfter || check.retryAfter };
     }
   }
 
@@ -1277,6 +1304,24 @@ function eventNetworkWindowLimit(env) {
   return clampNumber(env.EVENT_NETWORK_WINDOW_LIMIT, 20, 10000, DEFAULT_EVENT_NETWORK_WINDOW_LIMIT);
 }
 
+function sessionDailyLimit(env) {
+  return clampNumber(env.MIRROR_SESSION_DAILY_LIMIT, 1, 10000, DEFAULT_MIRROR_SESSION_DAILY_LIMIT);
+}
+
+function networkDailyLimit(env) {
+  return clampNumber(env.MIRROR_NETWORK_DAILY_LIMIT, 1, 100000, DEFAULT_MIRROR_NETWORK_DAILY_LIMIT);
+}
+
+function utcDateKey(now = new Date()) {
+  return now.toISOString().slice(0, 10);
+}
+
+function secondsUntilUtcMidnight(now = new Date()) {
+  const next = new Date(now);
+  next.setUTCHours(24, 0, 0, 0);
+  return Math.max(60, Math.ceil((next.getTime() - now.getTime()) / 1000));
+}
+
 function clampNumber(value, min, max, fallback) {
   const configured = Number(value);
   if (!Number.isFinite(configured)) return fallback;
@@ -1367,7 +1412,9 @@ function publicGuardrails(env) {
     mirror_rate_limit: "enabled",
     event_rate_limit: "enabled",
     platform_rate_limit: env.MIRROR_SESSION_RATE_LIMITER || env.MIRROR_NETWORK_RATE_LIMITER ? "enabled" : "not_configured",
-    daily_budget: "deferred",
+    daily_budget: "enabled",
+    daily_session_limit: String(sessionDailyLimit(env)),
+    daily_network_limit: String(networkDailyLimit(env)),
     event_policy: "no-prompt-content",
     truth_state: "enabled",
     source_check: hasSourceCheckRoute(env) ? "enabled" : "not_configured",
