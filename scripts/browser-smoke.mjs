@@ -4,6 +4,7 @@ import { chromium } from "playwright";
 
 const baseUrl = (process.env.ACTIVE_MIRROR_BASE_URL || "https://activemirror.ai/app").replace(/\/+$/, "");
 const screenshotDir = process.env.SMOKE_SCREENSHOT_DIR || "";
+const submitFirstTurn = process.env.SMOKE_SUBMIT_FIRST_TURN === "true";
 
 const routes = [
   {
@@ -65,6 +66,13 @@ async function exerciseFirstInput(page) {
   if (!value || !value.includes(testText)) {
     fail("Home route input did not retain typed text.");
   }
+
+  if (!submitFirstTurn) return;
+
+  await page.getByRole("button", { name: /reflect|send/i }).first().click();
+  await page.getByText("Next move", { exact: false }).waitFor({ timeout: 30000 });
+  await page.getByText("Ask sharper", { exact: false }).waitFor({ timeout: 10000 });
+  await page.getByText("Make a draft", { exact: false }).waitFor({ timeout: 10000 });
 }
 
 async function main() {
@@ -150,6 +158,9 @@ async function main() {
   }
 
   console.log(JSON.stringify({ ok: true, baseUrl, results }, null, 2));
+  if (submitFirstTurn) {
+    console.log("First-turn model render checked.");
+  }
 }
 
 main().catch((error) => {
