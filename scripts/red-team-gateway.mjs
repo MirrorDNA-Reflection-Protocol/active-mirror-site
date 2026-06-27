@@ -5,6 +5,9 @@ const TURNS = positiveInt(process.env.ACTIVE_MIRROR_RED_TEAM_TURNS, 100);
 const CONCURRENCY = positiveInt(process.env.ACTIVE_MIRROR_RED_TEAM_CONCURRENCY, 1);
 const TIMEOUT_MS = positiveInt(process.env.ACTIVE_MIRROR_RED_TEAM_TIMEOUT_MS, 30000);
 const DELAY_MS = positiveInt(process.env.ACTIVE_MIRROR_RED_TEAM_DELAY_MS, 2000);
+const SESSION_SPAN = positiveInt(process.env.ACTIVE_MIRROR_RED_TEAM_SESSION_SPAN, 10);
+const RATE_RETRIES = positiveInt(process.env.ACTIVE_MIRROR_RED_TEAM_RATE_RETRIES, 2);
+const ALLOW_PROD_STRESS = process.env.ACTIVE_MIRROR_RED_TEAM_ALLOW_PROD_STRESS === "1";
 const RUN_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 const args = new Set(process.argv.slice(2));
 const QUIET = process.env.ACTIVE_MIRROR_RED_TEAM_QUIET === "1";
@@ -45,12 +48,23 @@ async function main() {
   if (args.has("--help")) {
     console.log("Usage: npm run redteam:gateway");
     console.log("Env: ACTIVE_MIRROR_RED_TEAM_TURNS=100 ACTIVE_MIRROR_RED_TEAM_CONCURRENCY=1 ACTIVE_MIRROR_RED_TEAM_DELAY_MS=2000");
+    console.log("Production stress requires ACTIVE_MIRROR_RED_TEAM_ALLOW_PROD_STRESS=1.");
     return;
   }
 
   if (args.has("--list-cases")) {
     console.log(JSON.stringify(CASES, null, 2));
     return;
+  }
+
+  if (isProductionGateway() && TURNS > 20 && !ALLOW_PROD_STRESS) {
+    console.error(
+      [
+        `Refusing ${TURNS} production red-team turns against ${GATEWAY}.`,
+        "The live gateway has public rate and daily budget limits; use a staging/local gateway or set ACTIVE_MIRROR_RED_TEAM_ALLOW_PROD_STRESS=1 deliberately.",
+      ].join(" "),
+    );
+    process.exit(2);
   }
 
   const cases = Array.from({ length: TURNS }, (_, index) => ({ ...CASES[index % CASES.length], index: index + 1 }));
@@ -79,7 +93,7 @@ async function main() {
 }
 
 async function runCase(item) {
-  const session = `redteam-${RUN_ID}-${Math.floor((item.index - 1) / 25)}`;
+  const session = `redteam-${RUN_ID}-${Math.floor((item.index - 1) / SESSION_SPAN)}`;
   const started = Date.now();
   const response = await postMirrorWithRetry({
     method: "POST",
@@ -113,12 +127,13 @@ async function runCase(item) {
 }
 
 async function postMirrorWithRetry(init) {
-  const response = await fetchWithTimeout(`${GATEWAY}/v1/mirror/create`, init);
-  if (response.status !== 429) return response;
-
-  const retryAfter = Number(response.headers.get("Retry-After") || 5);
-  await sleep(Math.max(1000, Math.min(30000, retryAfter * 1000)));
-  return fetchWithTimeout(`${GATEWAY}/v1/mirror/create`, init);
+  let response = await fetchWithTimeout(`${GATEWAY}/v1/mirror/create`, init);
+  for (let attempt = 0; response.status === 429 && attempt < RATE_RETRIES; attempt += 1) {
+    const retryAfter = positiveInt(response.headers.get("Retry-After"), 5);
+    await sleep(Math.max(1000, Math.min(65000, retryAfter * 1000)));
+    response = await fetchWithTimeout(`${GATEWAY}/v1/mirror/create`, init);
+  }
+  return response;
 }
 
 function evaluate(item, response, data) {
@@ -158,6 +173,7 @@ function summarize(results) {
   const truthStates = {};
   const straitjacket = {};
   let fallbackCount = 0;
+  let rateLimitedCount = 0;
   let totalLatency = 0;
 
   for (const result of results) {
@@ -167,6 +183,7 @@ function summarize(results) {
     truthStates[result.truth_state || "none"] = (truthStates[result.truth_state || "none"] || 0) + 1;
     for (const violation of result.straitjacket) straitjacket[violation] = (straitjacket[violation] || 0) + 1;
     if (result.fallback) fallbackCount += 1;
+    if (result.status === 429) rateLimitedCount += 1;
     totalLatency += result.latency_ms;
   }
 
@@ -175,7 +192,9 @@ function summarize(results) {
     gateway: GATEWAY,
     run_id: RUN_ID,
     turns: results.length,
+    session_span: SESSION_SPAN,
     failed: failures.length,
+    rate_limited_count: rateLimitedCount,
     fallback_count: fallbackCount,
     avg_latency_ms: Math.round(totalLatency / Math.max(1, results.length)),
     by_kind: byKind,
@@ -198,6 +217,10 @@ async function fetchWithTimeout(url, init = {}) {
 function positiveInt(value, fallback) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : fallback;
+}
+
+function isProductionGateway() {
+  return /^https:\/\/gateway\.activemirror\.ai(?:\/|$)/i.test(GATEWAY);
 }
 
 function sleep(ms) {
