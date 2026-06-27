@@ -55,3 +55,10 @@ https://activemirror.ai/app/id/
 - If deploying from this repo, push `main` and confirm GitHub Actions publishes `dist` to `gh-pages`.
 - Move the production custom domain only after the new Pages deployment is healthy.
 - Keep the old `activemirror-pages` repo as rollback history until the new repo has proven stable.
+
+For the current repo map and local CNAME audit, see:
+
+```text
+docs/ACTIVE_MIRROR_REPO_MAP.md
+npm run audit:repos
+```

@@ -8,6 +8,7 @@
     "build": "vite build && node scripts/app-fallbacks.mjs",
     "app:package": "node scripts/package-app-bundle.mjs",
     "guard:canonical": "node scripts/canonical-deploy-guard.mjs",
+    "audit:repos": "node scripts/local-repo-canonical-audit.mjs",
     "copy:audit": "node scripts/public-copy-audit.mjs",
     "preview": "vite preview",
     "worker:dev": "npx wrangler dev --config worker/wrangler.jsonc",

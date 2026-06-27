@@ -36,6 +36,7 @@ Do not hand-edit `public/app/assets/*.js`. Build the product app in
 npm install
 npm run dev
 npm run guard:canonical
+npm run audit:repos
 npm run build
 npm run app:package
 npm run worker:dev
