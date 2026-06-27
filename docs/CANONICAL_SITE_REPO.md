@@ -27,7 +27,7 @@ That made it too easy to patch the wrong surface.
 
 ## Rule
 
-New source changes for the public front door, BrainScan/Mirror Seed onboarding, and consumer reflection chat start in `/Users/mirror-pro/repos/activemirror-journey`.
+New source changes for the public front door, setup, and consumer reflection chat start in `/Users/mirror-pro/repos/activemirror-journey`.
 
 Use `/Users/mirror-pro/repos/activemirror-genui` only when deliberately migrating a specific GenUI/runtime experiment.
 
@@ -42,10 +42,10 @@ into `/app`; those pages can override the React routes.
 
 `id.activemirror.ai` is not a separate product surface now. It is a compatibility
 domain maintained by `/Users/mirror-pro/repos/active-mirror-identity`, and it
-should redirect into the canonical MirrorSeed route:
+should redirect into the canonical setup route:
 
 ```text
-https://activemirror.ai/app/id/
+https://activemirror.ai/app/start/
 ```
 
 ## Cutover Checklist

@@ -17,9 +17,9 @@ Cloudflare gateway at `gateway.activemirror.ai`.
 - Product UI source: `/Users/mirror-pro/repos/activemirror-journey`.
 - Deploy bundle target: `/Users/mirror-pro/repos/active-mirror-site/public/app`.
 - Gateway/kernel: `/Users/mirror-pro/repos/active-mirror-site/worker`.
-- MirrorSeed live route: `https://activemirror.ai/app/id/`.
-- MirrorSeed compatibility domain: `https://id.activemirror.ai/`, maintained by
-  `/Users/mirror-pro/repos/active-mirror-identity` as a redirect/archive surface.
+- Setup route: `https://activemirror.ai/app/start/`.
+- Identity compatibility domain: `https://id.activemirror.ai/`, maintained by
+  `/Users/mirror-pro/repos/active-mirror-identity` as a redirect surface.
 
 Do not edit `public/app/assets/*.js` by hand. Rebuild the source app and copy
 only the SPA shell/assets into `public/app`: `index.html`, `404.html`, and
@@ -30,8 +30,8 @@ only the SPA shell/assets into `public/app`: `index.html`, `404.html`, and
 ## Guardrails
 
 - Public UI must not name private provider/model routing unless Paul approves it.
-- Do not rebuild a separate public MirrorSeed website; use the canonical
-  `BrainScan / MirrorSeed / Reflection` flow in the product app.
+- Do not rebuild a separate public identity website; route people into the
+  canonical setup and reflection flow in the product app.
 - Frontend events must not include prompt text, file names, notes, receipts, or
   private user content.
 - Remote frontend event sending is enabled only in the production app bundle

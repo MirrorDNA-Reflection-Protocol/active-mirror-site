@@ -19,9 +19,9 @@ This is the canonical map for public Active Mirror web work.
 
 | Repo | Role | Public domain claim |
 | --- | --- | --- |
-| `/Users/mirror-pro/repos/activemirror-journey` | Product source for homepage, reflection chat, BrainScan, MirrorSeed, device, privacy, terms, enterprise UI | None. Must not contain `CNAME`. |
+| `/Users/mirror-pro/repos/activemirror-journey` | Product source for homepage, reflection chat, setup, device, privacy, terms, enterprise UI | None. Must not contain `CNAME`. |
 | `/Users/mirror-pro/repos/active-mirror-site` | Deploy and gateway repo. Packages `activemirror-journey/dist` into `public/app`, publishes Pages, owns Worker gateway. | `activemirror.ai` via `public/CNAME` and workflow `cname`. |
-| `/Users/mirror-pro/repos/active-mirror-identity` | MirrorSeed archive and compatibility surface. | `id.activemirror.ai`, redirects to `https://activemirror.ai/app/id/`. |
+| `/Users/mirror-pro/repos/active-mirror-identity` | Identity compatibility surface. | `id.activemirror.ai`, redirects to `https://activemirror.ai/app/start/`. |
 | `/Users/mirror-pro/repos/activemirror-genui` | Prototype/reference repo for GenUI and runtime experiments. | None for the public front door. |
 | `/Users/mirror-pro/repos/activemirror-pages` | Legacy deploy/history repo. | Should not be edited as source. Any old `activemirror.ai` claim is stale. |
 | `/Users/mirror-pro/repos/activemirror-site` | Legacy gh-pages/history checkout. | Should not be edited as source. Dirty local state may exist. |

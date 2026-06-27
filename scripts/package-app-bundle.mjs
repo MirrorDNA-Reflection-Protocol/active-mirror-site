@@ -17,6 +17,17 @@ const routeFallbacks = [
   "start",
   "terms",
 ];
+const forbiddenPackagedPaths = [
+  "llms.txt",
+  "llms-full.txt",
+  "ai-plugin.json",
+  ".well-known",
+  "legacy",
+  "mobile",
+  "glossary",
+  "blog",
+  "solutions",
+];
 
 for (const required of ["index.html", "404.html", "assets"]) {
   if (!existsSync(join(source, required))) {
@@ -35,6 +46,13 @@ for (const route of routeFallbacks) {
   const routeDir = join(target, route);
   mkdirSync(routeDir, { recursive: true });
   copyFileSync(join(source, "index.html"), join(routeDir, "index.html"));
+}
+
+for (const forbidden of forbiddenPackagedPaths) {
+  const packagedPath = join(target, forbidden);
+  if (existsSync(packagedPath)) {
+    throw new Error(`Legacy public file leaked into packaged app: ${packagedPath}`);
+  }
 }
 
 console.log(`Packaged Active Mirror app bundle: ${source} -> ${target}`);

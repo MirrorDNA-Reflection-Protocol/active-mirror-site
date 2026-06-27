@@ -39,7 +39,7 @@ const canonicalDoc = read("CANONICAL_SITE.md");
 for (const required of [
   "/Users/mirror-pro/repos/activemirror-journey",
   "/Users/mirror-pro/repos/active-mirror-site/public/app",
-  "https://activemirror.ai/app/id/",
+  "https://activemirror.ai/app/start/",
   "https://id.activemirror.ai/",
 ]) {
   if (!canonicalDoc.includes(required)) {
