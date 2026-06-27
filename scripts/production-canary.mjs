@@ -146,6 +146,30 @@ async function main() {
     }
   });
 
+  await check("enterprise proof stream emits public demo events", async () => {
+    const response = await fetchWithTimeout(`${GATEWAY}/v1/mirror/enterprise-stream?run=ops`, {
+      method: "GET",
+      headers: {
+        Origin: SITE,
+        "X-Active-Mirror-Session": `canary-${RUN_ID}`,
+      },
+    });
+    const text = await response.text();
+    const payloads = text
+      .split("\n")
+      .filter((line) => line.startsWith("data: "))
+      .map((line) => JSON.parse(line.slice(6)));
+    const events = payloads.filter((payload) => payload.type === "enterprise_proof_event");
+    const done = payloads.find((payload) => payload.type === "enterprise_proof_done");
+
+    assert(response.ok, `enterprise stream status ${response.status}`);
+    assert(/text\/event-stream/.test(response.headers.get("content-type") || ""), "enterprise stream content type missing");
+    assert(response.headers.get("x-active-mirror-event-policy") === "public-demo-only", "enterprise stream policy missing");
+    assert(events.length === 5, `expected 5 stream events, got ${events.length}`);
+    assert(done?.run?.id === "ops", "stream done event missing or wrong run");
+    assert(text.includes(`canary-${RUN_ID}`) === false, "session leaked into stream");
+  });
+
   const failed = checks.filter((item) => item.status === "FAIL");
   for (const item of checks) {
     const detail = item.detail ? ` - ${item.detail}` : "";

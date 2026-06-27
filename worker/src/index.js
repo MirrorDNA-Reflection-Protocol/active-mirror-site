@@ -30,11 +30,13 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:5180",
   "http://localhost:4173",
   "http://127.0.0.1:4173",
+  "http://localhost:8984",
+  "http://127.0.0.1:8984",
   "http://localhost:8976",
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-06-27-bootload-v1";
+const WORKER_VERSION = "2026-06-27-enterprise-stream-v1";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
@@ -84,6 +86,51 @@ const EVENT_FIELDS = new Set([
   "types",
   "label",
 ]);
+
+const ENTERPRISE_RUNS = {
+  research: {
+    id: "research",
+    label: "Research brief",
+    request: "Turn a source pile into a board-ready brief.",
+    output: "Brief outline, missing-evidence list, approval-ready next move.",
+    risk: "medium",
+    steps: [
+      ["intake", "workflow received", "Only the selected files and brief are in scope.", "ok"],
+      ["boundary", "private context held", "Unneeded names and side notes stay out.", "ok"],
+      ["route", "research path selected", "Source-heavy claims require citation status.", "live"],
+      ["check", "unsupported claims marked", "Two claims need stronger evidence before use.", "warn"],
+      ["receipt", "proof pack ready", "Used, excluded, checked, and open items recorded.", "ok"],
+    ],
+  },
+  approval: {
+    id: "approval",
+    label: "Approval memo",
+    request: "Review an AI-generated memo before it goes to leadership.",
+    output: "Risk notes, edits, approval state, and a clean decision trail.",
+    risk: "high",
+    steps: [
+      ["intake", "memo opened", "The draft is readable, but not trusted yet.", "ok"],
+      ["claim", "figures inspected", "Numbers without source records are held.", "block"],
+      ["gate", "approval required", "External sharing is paused until a human approves.", "warn"],
+      ["repair", "safer version produced", "Unsupported claims become questions or caveats.", "live"],
+      ["receipt", "approval trail saved", "Reviewer, route, changes, and limits recorded.", "ok"],
+    ],
+  },
+  ops: {
+    id: "ops",
+    label: "Agent run",
+    request: "Let an agent prepare work without letting it act alone.",
+    output: "Tool calls, blocked actions, files touched, and handoff notes.",
+    risk: "controlled",
+    steps: [
+      ["start", "agent started", "Read-only prep run begins inside the boundary.", "live"],
+      ["tools", "tools observed", "Search, file read, and draft actions are logged.", "ok"],
+      ["block", "side effect blocked", "No external send or destructive action without approval.", "block"],
+      ["handoff", "human checkpoint", "The next action waits for review.", "warn"],
+      ["receipt", "run summarized", "What happened, what changed, and what is next are visible.", "ok"],
+    ],
+  },
+};
 
 const SOURCE_CHECK_SCHEMA = {
   type: "object",
@@ -136,6 +183,13 @@ export default {
 
     if (request.method === "GET" && url.pathname === "/v1/routes") {
       return json({ ok: true, routes: publicRoutes(env) }, 200, corsHeaders);
+    }
+
+    if (request.method === "GET" && url.pathname === "/v1/mirror/enterprise-stream") {
+      if (origin && !ALLOWED_ORIGINS.has(origin)) {
+        return json({ ok: false, error: "origin_not_allowed" }, 403, corsHeaders);
+      }
+      return handleEnterpriseStream(request, env, ctx, corsHeaders);
     }
 
     if (request.method === "POST" && origin && !ALLOWED_ORIGINS.has(origin)) {
@@ -292,6 +346,55 @@ async function handleSourceCheck(request, env, ctx, corsHeaders) {
   }
 }
 
+async function handleEnterpriseStream(request, env, ctx, corsHeaders) {
+  const budget = await enforceEventBudget(request, env, ctx);
+  if (!budget.allowed) {
+    return rateLimitedResponse(budget, corsHeaders);
+  }
+
+  const url = new URL(request.url);
+  const run = enterpriseRun(url.searchParams.get("run"));
+  const intervalMs = enterpriseStreamIntervalMs(env);
+  const encoder = new TextEncoder();
+
+  logSafe(ctx, {
+    type: "active_mirror_enterprise_stream",
+    run: run.id,
+    surface: "enterprise",
+  });
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      controller.enqueue(encoder.encode("retry: 5000\n\n"));
+      for (let index = 0; index < run.steps.length; index += 1) {
+        controller.enqueue(encoder.encode(sseEvent("mirror.event", enterpriseStreamPayload(run, index))));
+        if (intervalMs > 0 && index < run.steps.length - 1) {
+          await sleep(intervalMs);
+        }
+      }
+      controller.enqueue(encoder.encode(sseEvent("mirror.done", {
+        ok: true,
+        type: "enterprise_proof_done",
+        run: publicEnterpriseRun(run),
+        total: run.steps.length,
+        source: "gateway_demo_stream",
+      })));
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    status: 200,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-store, no-transform",
+      "X-Accel-Buffering": "no",
+      "X-Active-Mirror-Event-Policy": "public-demo-only",
+    },
+  });
+}
+
 function cors(origin) {
   const allowedOrigin = ALLOWED_ORIGINS.has(origin) ? origin : "https://activemirror.ai";
   return {
@@ -413,6 +516,56 @@ function cleanEventValue(value, maxLength) {
     .replace(/_+/g, "_")
     .replace(/^_|_$/g, "")
     .slice(0, maxLength);
+}
+
+function enterpriseRun(value) {
+  const key = cleanEventValue(value, 24);
+  return ENTERPRISE_RUNS[key] || ENTERPRISE_RUNS.research;
+}
+
+function publicEnterpriseRun(run) {
+  return {
+    id: run.id,
+    label: run.label,
+    request: run.request,
+    output: run.output,
+    risk: run.risk,
+  };
+}
+
+function enterpriseStreamPayload(run, index) {
+  const [key, title, body, status] = run.steps[index];
+  return {
+    ok: true,
+    type: "enterprise_proof_event",
+    source: "gateway_demo_stream",
+    run: publicEnterpriseRun(run),
+    index,
+    total: run.steps.length,
+    progress: Math.round(((index + 1) / run.steps.length) * 100),
+    route: "request.read -> boundary.check -> route.choose -> proof.mark -> human.approve",
+    metrics: [
+      { label: "Approval", value: "Human on", tone: "emerald" },
+      { label: "Risk", value: run.risk, tone: run.risk === "high" ? "amber" : "cyan" },
+      { label: "Memory", value: "choice", tone: "violet" },
+      { label: "Sharing", value: "gated", tone: "emerald" },
+    ],
+    step: { key, title, body, status },
+  };
+}
+
+function sseEvent(event, data) {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function enterpriseStreamIntervalMs(env) {
+  const value = Number(env.ENTERPRISE_STREAM_INTERVAL_MS ?? 900);
+  if (!Number.isFinite(value)) return 900;
+  return Math.max(0, Math.min(2500, Math.trunc(value)));
 }
 
 async function enforceMirrorBudget(request, env, ctx, route) {
@@ -1429,6 +1582,11 @@ function publicRoutes(env) {
       status: hasSourceCheckRoute(env) ? "available" : "unavailable",
       purpose: "source-backed checks for current or external factual claims",
     },
+    enterprise_stream: {
+      label: "enterprise proof stream",
+      status: "available",
+      purpose: "public demo stream for governed work, approvals, and receipt states",
+    },
   };
 }
 
@@ -1441,6 +1599,7 @@ function publicGuardrails(env) {
     daily_session_limit: String(sessionDailyLimit(env)),
     daily_network_limit: String(networkDailyLimit(env)),
     event_policy: "no-prompt-content",
+    enterprise_stream_policy: "public-demo-only",
     truth_state: "enabled",
     source_check: hasSourceCheckRoute(env) ? "enabled" : "not_configured",
   };

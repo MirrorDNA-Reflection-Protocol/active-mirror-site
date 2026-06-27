@@ -207,6 +207,58 @@ await check("health does not claim bridge availability without bridge token", as
   assert.strictEqual(data.routes.chat.status, "browser fallback");
 });
 
+await check("enterprise stream rejects disallowed browser origins", async () => {
+  const response = await worker.fetch(
+    new Request("https://gateway.activemirror.ai/v1/mirror/enterprise-stream?run=approval", {
+      method: "GET",
+      headers: {
+        Origin: "https://attacker.example",
+        "CF-Connecting-IP": "203.0.113.12",
+      },
+    }),
+    env({ ENTERPRISE_STREAM_INTERVAL_MS: "0" }),
+    ctx(),
+  );
+  const data = await response.json();
+
+  assert.strictEqual(response.status, 403);
+  assert.strictEqual(data.error, "origin_not_allowed");
+});
+
+await check("enterprise stream emits public-only proof events", async () => {
+  installEdgeCache();
+  const response = await worker.fetch(
+    new Request("https://gateway.activemirror.ai/v1/mirror/enterprise-stream?run=approval", {
+      method: "GET",
+      headers: {
+        Origin: "https://activemirror.ai",
+        "X-Active-Mirror-Session": "enterprise-stream-test",
+        "CF-Connecting-IP": "203.0.113.13",
+      },
+    }),
+    env({ ENTERPRISE_STREAM_INTERVAL_MS: "0" }),
+    ctx(),
+  );
+  const text = await response.text();
+  const payloads = text
+    .split("\n")
+    .filter((line) => line.startsWith("data: "))
+    .map((line) => JSON.parse(line.slice(6)));
+  const events = payloads.filter((payload) => payload.type === "enterprise_proof_event");
+  const done = payloads.find((payload) => payload.type === "enterprise_proof_done");
+
+  assert.strictEqual(response.status, 200);
+  assert.match(response.headers.get("Content-Type"), /text\/event-stream/);
+  assert.strictEqual(response.headers.get("X-Active-Mirror-Event-Policy"), "public-demo-only");
+  assert.strictEqual(events.length, 5);
+  assert.ok(done, "done event missing");
+  assert.strictEqual(events[0].run.id, "approval");
+  assert.strictEqual(events[0].step.key, "intake");
+  assert.strictEqual(events[1].step.status, "block");
+  assert.strictEqual(text.includes("enterprise-stream-test"), false, "session leaked into stream");
+  assert.strictEqual(text.includes("test-token"), false, "secret leaked into stream");
+});
+
 await check("provider fallback emits metadata-only monitor log", async () => {
   installEdgeCache();
   const originalFetch = globalThis.fetch;
