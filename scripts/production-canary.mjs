@@ -107,7 +107,7 @@ async function main() {
     assert(data.truth_state?.status === "needs_checking", `expected needs_checking, got ${data.truth_state?.status || "missing"}`);
   });
 
-  await check("source check returns cited evidence", async () => {
+  await check("source check returns cited evidence or a verification plan", async () => {
     const response = await fetchWithTimeout(`${GATEWAY}/v1/mirror/source-check`, {
       method: "POST",
       headers: {
@@ -122,17 +122,24 @@ async function main() {
       }),
     });
     const data = await response.json().catch(() => ({}));
-    assert(response.ok, `source-check status ${response.status} ${data.error || ""}`.trim());
-    assert(data.ok === true, "source check ok was not true");
-    assert(data.truth_state?.status === "checked", `expected checked, got ${data.truth_state?.status || "missing"}`);
+    assert([200, 502].includes(response.status), `source-check status ${response.status} ${data.error || ""}`.trim());
+    assert(data.error !== "source_check_error", "source check returned an internal gateway error");
     assert(["supported", "mixed", "not_enough"].includes(data.research?.verdict), "source verdict missing");
-    assert(Array.isArray(data.research?.sources) && data.research.sources.length > 0, "sources missing");
-    assert(/^https?:\/\//.test(data.research.sources[0].url || ""), "first source url missing");
-    assert(typeof data.research.sources[0].quality === "string", "source quality missing");
-    assert(typeof data.research.sources[0].quality_score === "number", "source quality score missing");
-    const scores = data.research.sources.map((source) => Number(source.quality_score || 0));
-    assert(scores.every((score, index) => index === 0 || score <= scores[index - 1]), "sources are not ranked by quality");
     assert(typeof data.research?.source_quality?.best_score === "number", "source quality summary missing");
+    if (data.ok === true) {
+      assert(data.truth_state?.status === "checked", `expected checked, got ${data.truth_state?.status || "missing"}`);
+      assert(Array.isArray(data.research?.sources) && data.research.sources.length > 0, "sources missing");
+      assert(/^https?:\/\//.test(data.research.sources[0].url || ""), "first source url missing");
+      assert(typeof data.research.sources[0].quality === "string", "source quality missing");
+      assert(typeof data.research.sources[0].quality_score === "number", "source quality score missing");
+      const scores = data.research.sources.map((source) => Number(source.quality_score || 0));
+      assert(scores.every((score, index) => index === 0 || score <= scores[index - 1]), "sources are not ranked by quality");
+    } else {
+      assert(data.truth_state?.status === "needs_checking", `expected needs_checking, got ${data.truth_state?.status || "missing"}`);
+      assert(data.research?.verification_plan?.status === "needs_sources", "verification plan missing");
+      assert(Array.isArray(data.research?.verification_plan?.queries) && data.research.verification_plan.queries.length > 0, "verification queries missing");
+      assert(Array.isArray(data.research?.sources) && data.research.sources.length === 0, "unchecked result should not include sources");
+    }
   });
 
   const failed = checks.filter((item) => item.status === "FAIL");

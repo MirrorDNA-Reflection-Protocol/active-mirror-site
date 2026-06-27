@@ -235,7 +235,7 @@ async function handleSourceCheck(request, env, ctx, corsHeaders) {
       );
     }
 
-    const research = await runSourceCheck(input, env);
+    const research = await runSourceCheck(input, env, ctx);
     const checked = research.sources.length > 0;
     const checkedLabel = {
       supported: "Source checked.",
@@ -725,8 +725,11 @@ async function callGemini(prompt, route, env) {
   return { fallback: false, model, mirror: parseProviderMirror(text, "gemini") };
 }
 
-async function runSourceCheck(input, env) {
+async function runSourceCheck(input, env, ctx) {
   if (!env.OPENAI_API_KEY) {
+    if (env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY) {
+      return callGeminiSourceCheck(input, env, ctx);
+    }
     return {
       fallback: true,
       answer: "Source checking is not available right now.",
@@ -735,7 +738,24 @@ async function runSourceCheck(input, env) {
     };
   }
 
-  return callOpenAISourceCheck(input, env);
+  try {
+    return await callOpenAISourceCheck(input, env);
+  } catch (error) {
+    if (env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY) {
+      logSafe(ctx, {
+        type: "active_mirror_source_check_fallback",
+        from: "primary",
+        to: "backup",
+        reason: providerFailureReason("openai", error),
+      });
+      try {
+        return await callGeminiSourceCheck(input, env, ctx);
+      } catch (fallbackError) {
+        return makeSourceCheckPlan(input, fallbackError);
+      }
+    }
+    return makeSourceCheckPlan(input, error);
+  }
 }
 
 async function callOpenAISourceCheck(input, env) {
@@ -792,6 +812,80 @@ async function callOpenAISourceCheck(input, env) {
   throw lastError || new Error("openai_source_check_failed");
 }
 
+async function callGeminiSourceCheck(input, env, ctx) {
+  const models = [
+    env.GEMINI_SOURCE_MODEL,
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+    env.GEMINI_MEDIA_MODEL,
+  ].filter(Boolean);
+  const modelCandidates = [...new Set(models)];
+  const toolCandidates = [[{ googleSearch: {} }], [{ googleSearchRetrieval: {} }]];
+  const key = env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY;
+  const referer = env.GEMINI_ALLOWED_REFERER || "https://activemirror.ai/";
+  const prompt = [
+    "You are Active Mirror's backup source checker.",
+    "Use Google Search grounding for current or external factual claims. Do not answer from memory.",
+    "Return compact JSON only: verdict, answer, changes, sources.",
+    "verdict: supported, mixed, or not_enough.",
+    "Use supported only when sources directly support the narrow claim.",
+    "Use mixed when the evidence is real but ambiguous, incomplete, or split.",
+    "Use not_enough when you cannot find enough reliable current evidence.",
+    "answer: one short answer with uncertainty if the evidence is mixed.",
+    "changes: one sentence saying what this changes for the user's next move.",
+    "sources: 2 to 5 web sources you actually used, each with title and url.",
+    "Do not include private facts, personal history, or unsupported rankings.",
+    "",
+    `Original user intent: ${input.intent}`,
+    `Mirror question to check: ${input.question}`,
+    `Mirror next move: ${input.move || "not provided"}`,
+  ].join("\n");
+
+  let lastError = null;
+  for (const model of modelCandidates) {
+    for (const tools of toolCandidates) {
+      try {
+        const response = await fetchWithTimeout(
+          `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-goog-api-key": key,
+              Referer: referer,
+              Origin: new URL(referer).origin,
+            },
+            body: JSON.stringify({
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+              tools,
+              generationConfig: { temperature: 0.1, maxOutputTokens: 1200 },
+            }),
+          },
+          "gemini",
+          env,
+        );
+
+        const data = await readProviderResponse(response, "gemini");
+        const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("") || "";
+        const payload = parseSourceCheckPayload(text);
+        return { ...normalizeSourceCheck(payload, extractGeminiSourceAnnotations(data)), fallback: true };
+      } catch (error) {
+        lastError = error;
+        logSafe(ctx, {
+          type: "active_mirror_source_check_backup_failed",
+          provider: "backup",
+          model: cleanProviderCode(model),
+          tool: Object.keys(tools?.[0] || {})[0] || "none",
+          reason: providerFailureReason("gemini", error),
+        });
+      }
+    }
+  }
+
+  throw lastError || new Error("gemini_source_check_failed");
+}
+
 function parseSourceCheckPayload(text) {
   const value = String(text || "").trim();
   if (!value) return {};
@@ -817,6 +911,35 @@ function normalizeSourceCheck(payload, annotations = []) {
     changes,
     source_quality,
     sources,
+  };
+}
+
+function makeSourceCheckPlan(input, error) {
+  const narrow = cleanResearchText(input.question || input.intent, "the claim", 160);
+  const query = `"${narrow.replace(/"/g, "")}"`;
+  return {
+    fallback: true,
+    verdict: "not_enough",
+    answer: "The source route could not fetch reliable citations from this edge right now.",
+    changes: "Do not rely on this claim yet; use the verification plan before turning it into a conclusion.",
+    source_quality: {
+      best_score: 0,
+      high_quality_count: 0,
+      weak_count: 0,
+      count: 0,
+    },
+    sources: [],
+    verification_plan: {
+      status: "needs_sources",
+      reason: publicFallbackReason(providerFailureReason("source", error)),
+      queries: [
+        query,
+        `${query} official docs`,
+        `${query} research paper`,
+      ].slice(0, 3),
+      prefer: ["official documentation", "primary company pages", "research or standards sources"],
+      avoid: ["unsourced rankings", "listicles without primary links", "social posts without evidence"],
+    },
   };
 }
 
@@ -866,6 +989,29 @@ function extractSourceAnnotations(data) {
     for (const item of Object.values(value)) visit(item);
   };
   visit(data?.output);
+  return uniqueSources(found);
+}
+
+function extractGeminiSourceAnnotations(data) {
+  const found = [];
+  for (const candidate of data?.candidates || []) {
+    const metadata = candidate?.groundingMetadata || {};
+    for (const chunk of metadata.groundingChunks || []) {
+      const url = chunk?.web?.uri;
+      if (/^https?:\/\//i.test(url || "")) {
+        found.push({ title: chunk.web.title || url, url });
+      }
+    }
+    for (const item of metadata.groundingSupports || []) {
+      for (const chunkIndex of item?.groundingChunkIndices || []) {
+        const chunk = metadata.groundingChunks?.[chunkIndex];
+        const url = chunk?.web?.uri;
+        if (/^https?:\/\//i.test(url || "")) {
+          found.push({ title: chunk.web.title || url, url });
+        }
+      }
+    }
+  }
   return uniqueSources(found);
 }
 
@@ -1105,7 +1251,7 @@ function publicRoutes(env) {
     },
     source_check: {
       label: "source check",
-      status: env.OPENAI_API_KEY ? "available" : "unavailable",
+      status: hasSourceCheckRoute(env) ? "available" : "unavailable",
       purpose: "source-backed checks for current or external factual claims",
     },
   };
@@ -1119,8 +1265,12 @@ function publicGuardrails(env) {
     daily_budget: "deferred",
     event_policy: "no-prompt-content",
     truth_state: "enabled",
-    source_check: env.OPENAI_API_KEY ? "enabled" : "not_configured",
+    source_check: hasSourceCheckRoute(env) ? "enabled" : "not_configured",
   };
+}
+
+function hasSourceCheckRoute(env) {
+  return Boolean(env.OPENAI_API_KEY || env.GEMINI_SOURCE_MODEL || env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY);
 }
 
 function safeError(error) {
