@@ -70,9 +70,9 @@ async function exerciseFirstInput(page) {
   if (!submitFirstTurn) return;
 
   await page.getByRole("button", { name: /reflect|send/i }).first().click();
-  await page.getByText("Next move", { exact: false }).waitFor({ timeout: 30000 });
-  await page.getByText("Ask sharper", { exact: false }).waitFor({ timeout: 10000 });
-  await page.getByText("Make a draft", { exact: false }).waitFor({ timeout: 10000 });
+  await page.getByText("Next move", { exact: true }).waitFor({ timeout: 30000 });
+  await page.getByText("Ask sharper", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByText("Make a draft", { exact: true }).waitFor({ timeout: 10000 });
 }
 
 async function main() {
