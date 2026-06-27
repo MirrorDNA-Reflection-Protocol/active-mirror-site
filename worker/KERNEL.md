@@ -21,7 +21,7 @@ UI against *this contract*, not against the source — the interface below is fr
 | field | type | required | notes |
 |---|---|---|---|
 | `intent` | string | yes | the one thing the user is stuck on. **12–1000 chars** (enforce the 12 min client-side; shorter throws). |
-| `boundary` | string | no | `"personal"` (default) · `"client"` · `"secrets"` · `"drafts"`. Controls what's declared excluded. |
+| `boundary` | string | no | `"personal"` (default) · `"client"` · `"secrets"` · `"drafts"`. Controls declared exclusions and, for `client`, best-effort masking before model/source-check routing. |
 | `route` | string | no | `"reflection"` (use this) · `"chat"` · `"media"` · `"auto"` (default). |
 | `turn` | integer | no | 1–9999, default 1. Increment per turn in a session. |
 
@@ -68,6 +68,7 @@ UI against *this contract*, not against the source — the interface below is fr
 - `truth_state` — deterministic source-sensitivity marker. It does not fact-check; it tells the UI whether the turn is reflective only or needs sources before reliance.
 - `straitjacket` — array of deterministic corrections applied this turn. Possible values:
   `"flattery_removed"`, `"question_forced"`, `"move_made_singular"`, `"visual_dropped"`, `"truth_state_needs_sources"`.
+  `"client_boundary_redacted"` appears when obvious client-boundary sensitive patterns were masked before model routing.
   (Empty array = the model stayed inside the cage on its own.)
 
 ### `truth_state` — the hallucination rail
@@ -90,6 +91,8 @@ not as a large workflow.
 Runs a bounded source-backed check for a turn already marked `needs_checking`.
 Provider keys stay in the Worker. The browser sends only the current intent,
 question, and next move.
+For `boundary: "client"`, obvious emails, URLs, phone numbers, account-like IDs,
+and money terms are masked before the source-check provider route.
 
 **Request body**:
 
@@ -174,8 +177,8 @@ If `visual` is `null`, render nothing — most turns have no visual.
 
 | value | what the receipt declares excluded |
 |---|---|
-| `personal` | personal history, sensitive emotion, private identity context |
-| `client` | client names, partner details, commercial terms, confidential screenshots |
+| `personal` | stored personal history stays out unless approved; only the submitted turn is used |
+| `client` | extra client context stays out; obvious emails, URLs, phone numbers, account-like IDs, and money terms are masked before model/source-check routing |
 | `secrets` | keys, tokens, credentials, private URLs, operational secrets |
 | `drafts` | loose drafts, half-formed claims, speculative positioning (temporary) |
 

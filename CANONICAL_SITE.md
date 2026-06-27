@@ -19,7 +19,10 @@ Cloudflare gateway at `gateway.activemirror.ai`.
 - Gateway/kernel: `/Users/mirror-pro/repos/active-mirror-site/worker`.
 
 Do not edit `public/app/assets/*.js` by hand. Rebuild the source app and copy
-the generated bundle.
+only the SPA shell/assets into `public/app`: `index.html`, `404.html`, and
+`assets/`. Do not broad-copy old static route pages from the product repo's
+`public/` folder into `/app`, because they can shadow React routes such as
+`/app/privacy` and `/app/terms`.
 
 ## Guardrails
 

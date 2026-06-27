@@ -199,6 +199,14 @@ await check("health exposes enabled daily budget limits", async () => {
   assert.strictEqual(data.guardrails.daily_network_limit, "100");
 });
 
+await check("health does not claim bridge availability without bridge token", async () => {
+  const response = await worker.fetch(new Request("https://gateway.activemirror.ai/health"), env({ MIRROR_BRIDGE_TOKEN: "", OPENAI_API_KEY: "" }), ctx());
+  const data = await response.json();
+  assert.strictEqual(response.status, 200);
+  assert.strictEqual(data.routes.reflection.status, "browser fallback");
+  assert.strictEqual(data.routes.chat.status, "browser fallback");
+});
+
 await check("provider fallback emits metadata-only monitor log", async () => {
   installEdgeCache();
   const originalFetch = globalThis.fetch;

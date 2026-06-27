@@ -23,11 +23,11 @@
 
 export const BOUNDARIES = {
   personal: {
-    excluded: "Personal history, sensitive emotion, and private identity context stay out unless approved.",
+    excluded: "Only the text submitted in this turn is used; stored personal history stays out unless approved.",
     memory: "No personal context is promoted until the receipt is accepted.",
   },
   client: {
-    excluded: "Client names, partner details, commercial terms, and confidential screenshots are masked.",
+    excluded: "Extra client context stays out; obvious emails, URLs, phone numbers, account-like IDs, and money terms are masked before model routing.",
     memory: "Only public-safe project learning can be promoted.",
   },
   secrets: {
@@ -125,6 +125,18 @@ export function containsSecret(value) {
     /-----BEGIN [A-Z ]+PRIVATE KEY-----/,
     /\b(?:api[_-]?key|secret|token|password)\s*[:=]\s*['"]?[A-Za-z0-9_./+=-]{12,}/i,
   ].some((pattern) => pattern.test(value));
+}
+
+export function sanitizeModelIntent(intent, boundary = "personal") {
+  let text = String(intent || "");
+  if (boundary !== "client") return text;
+
+  return text
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[email masked]")
+    .replace(/\bhttps?:\/\/[^\s)]+/gi, "[url masked]")
+    .replace(/\b(?:\+?\d[\d .()/-]{8,}\d)\b/g, "[phone/id masked]")
+    .replace(/\b(?:account|acct|iban|swift|pan|gst|cin|lei|client id|customer id)\s*[:#-]?\s*[A-Z0-9-]{4,}\b/gi, "[client id masked]")
+    .replace(/(?:[$€£₹]\s?\d[\d,]*(?:\.\d+)?|\b\d[\d,]*(?:\.\d+)?\s?(?:usd|inr|eur|gbp|crore|lakh|million|billion|trillion|m|bn)\b)/gi, "[commercial term masked]");
 }
 
 // --- 2. Prompt (the reflection instruction) ---
@@ -489,8 +501,11 @@ export async function reflect({ intent, boundary = "personal", turn = 1, capabil
     };
   }
 
+  const modelIntent = sanitizeModelIntent(intent, boundary);
+  const redactedForModel = modelIntent !== String(intent || "");
+
   // 2. A prompt the model can only answer as a reflection.
-  const prompt = buildPrompt({ intent, boundary }, boundaryDef, capability);
+  const prompt = buildPrompt({ intent: modelIntent, boundary }, boundaryDef, capability);
 
   // 3. Call ANY model. It returns { mirror, fallback, routeText }; mirror may be null.
   let res = null;
@@ -506,8 +521,9 @@ export async function reflect({ intent, boundary = "personal", turn = 1, capabil
     "Reflection ran in the browser; no external model was used.";
 
   // 4. Normalize, then the straitjacket — the honesty floor the model can't cross.
-  const normalized = normalizeMirror(hasModelMirror ? res.mirror : null, { intent, boundary }, boundaryDef, routeText);
+  const normalized = normalizeMirror(hasModelMirror ? res.mirror : null, { intent: modelIntent, boundary }, boundaryDef, routeText);
   const { mirror, violations } = straitjacket(normalized);
+  if (redactedForModel) violations.push("client_boundary_redacted");
 
   // GenUI: gate the model's chosen visual against the fixed registry. Fails closed.
   const rawVisual = hasModelMirror ? res.mirror.visual : null;

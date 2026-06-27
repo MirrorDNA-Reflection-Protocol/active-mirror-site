@@ -4,7 +4,7 @@ import assert from "node:assert";
 import { webcrypto } from "node:crypto";
 if (!globalThis.crypto) globalThis.crypto = webcrypto; // kernel uses Web Crypto for the receipt
 
-import { reflect, straitjacket, containsSecret, gateVisual, truthGate } from "../src/mirror-kernel.js";
+import { reflect, straitjacket, containsSecret, gateVisual, sanitizeModelIntent, truthGate } from "../src/mirror-kernel.js";
 
 let pass = 0;
 let fail = 0;
@@ -201,6 +201,36 @@ await check("reflect() redirects harmful planning before model routing", async (
   assert.strictEqual(modelWasCalled, false, "the model was called with a harmful planning turn");
   assert.ok(out.straitjacket.includes("safety_redirect"), "safety redirect not recorded");
   assert.match(out.mirror.reflection, /will not help/i, "harmful planning refusal missing");
+});
+
+// 14. Client boundary masks obvious sensitive details before model routing.
+await check("client boundary masks obvious sensitive details before model routing", async () => {
+  const raw = "Client email dipika@example.com says deal is ₹24.8B at https://private.example/deck with account ABCD-1234.";
+  const masked = sanitizeModelIntent(raw, "client");
+  assert.ok(!masked.includes("dipika@example.com"), "email survived");
+  assert.ok(!masked.includes("https://private.example/deck"), "url survived");
+  assert.ok(!masked.includes("₹24.8B"), "money term survived");
+
+  let promptSeen = "";
+  const spy = async (prompt) => {
+    promptSeen = prompt;
+    return {
+      mirror: {
+        reflection: "The work needs a safer public version before it becomes an action.",
+        question: "What can be stated without client-specific details?",
+        move: "Write the same point with all client details removed.",
+        receipt: RECEIPT,
+        visual: { kind: "none", left: "", right: "", note: "" },
+      },
+      fallback: false,
+      routeText: "mock",
+    };
+  };
+  const out = await reflect({ intent: raw, boundary: "client", callModel: spy });
+  assert.strictEqual(out.ok, true);
+  assert.ok(!promptSeen.includes("dipika@example.com"), "model prompt saw email");
+  assert.ok(!promptSeen.includes("https://private.example/deck"), "model prompt saw private url");
+  assert.ok(out.straitjacket.includes("client_boundary_redacted"), "redaction was not recorded");
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

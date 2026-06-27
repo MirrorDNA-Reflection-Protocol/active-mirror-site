@@ -227,7 +227,10 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         # Accept any POST path so the public Worker can use this as a narrow
         # origin bridge without path coupling. Auth still gates the endpoint.
-        if TOKEN and self.headers.get("X-Active-Mirror-Bridge") != TOKEN:
+        if not TOKEN:
+            self.send_json(503, {"ok": False, "error": "bridge_token_missing"})
+            return
+        if self.headers.get("X-Active-Mirror-Bridge") != TOKEN:
             self.send_json(401, {"ok": False, "error": "unauthorized"})
             return
         try:

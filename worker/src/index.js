@@ -17,6 +17,7 @@ import {
   parseProviderMirror,
   receiptHash,
   reflect,
+  sanitizeModelIntent,
 } from "./mirror-kernel.js";
 
 const ALLOWED_ORIGINS = new Set([
@@ -246,7 +247,8 @@ async function handleSourceCheck(request, env, ctx, corsHeaders) {
       );
     }
 
-    const research = await runSourceCheck(input, env, ctx);
+    const sourceInput = maskSourceCheckInput(input);
+    const research = await runSourceCheck(sourceInput, env, ctx);
     const checked = research.sources.length > 0;
     const checkedLabel = {
       supported: "Source checked.",
@@ -268,7 +270,7 @@ async function handleSourceCheck(request, env, ctx, corsHeaders) {
           reason: "No cited web evidence was returned.",
           signals: ["source_check_incomplete"],
         };
-    const receipt_id = await receiptHash({ research, truth_state, intent: input.intent, question: input.question });
+    const receipt_id = await receiptHash({ research, truth_state, intent: sourceInput.intent, question: sourceInput.question });
 
     return json(
       {
@@ -426,7 +428,7 @@ async function enforceMirrorBudget(request, env, ctx, route) {
   ];
 
   for (const check of edgeChecks) {
-    const outcome = await safeEdgeWindowLimit(check.key, check.limit, windowSeconds, check.scope, ctx, capability);
+    const outcome = await safeEdgeWindowLimit(check.key, check.limit, windowSeconds, check.scope, ctx, capability, rateLimitFailClosed(env));
     if (!outcome.allowed) {
       logSafe(ctx, { type: "active_mirror_rate_limited", scope: check.scope, capability, window: "edge_cache" });
       return { allowed: false, scope: check.scope, retryAfter: outcome.retryAfter || check.retryAfter };
@@ -439,7 +441,7 @@ async function enforceMirrorBudget(request, env, ctx, route) {
   ];
 
   for (const check of minuteChecks) {
-    const outcome = await safeRateLimit(check.limiter, check.key, check.scope, ctx, capability);
+    const outcome = await safeRateLimit(check.limiter, check.key, check.scope, ctx, capability, rateLimitFailClosed(env));
     if (!outcome.allowed) {
       logSafe(ctx, { type: "active_mirror_rate_limited", scope: check.scope, capability, window: "minute" });
       return { allowed: false, scope: check.scope, retryAfter: check.retryAfter };
@@ -464,7 +466,7 @@ async function enforceMirrorBudget(request, env, ctx, route) {
   ];
 
   for (const check of dailyChecks) {
-    const outcome = await safeEdgeWindowLimit(check.key, check.limit, dailyWindowSeconds, check.scope, ctx, "daily_budget");
+    const outcome = await safeEdgeWindowLimit(check.key, check.limit, dailyWindowSeconds, check.scope, ctx, "daily_budget", rateLimitFailClosed(env));
     if (!outcome.allowed) {
       logSafe(ctx, { type: "active_mirror_rate_limited", scope: check.scope, capability, window: "daily_budget" });
       return { allowed: false, scope: check.scope, retryAfter: outcome.retryAfter || check.retryAfter };
@@ -483,7 +485,7 @@ async function enforceEventBudget(request, env, ctx) {
   ];
 
   for (const check of checks) {
-    const outcome = await safeEdgeWindowLimit(check.key, check.limit, windowSeconds, check.scope, ctx, "events");
+    const outcome = await safeEdgeWindowLimit(check.key, check.limit, windowSeconds, check.scope, ctx, "events", rateLimitFailClosed(env));
     if (!outcome.allowed) {
       logSafe(ctx, { type: "active_mirror_rate_limited", scope: check.scope, capability: "events", window: "edge_cache" });
       return { allowed: false, scope: check.scope, retryAfter: outcome.retryAfter || check.retryAfter };
@@ -493,7 +495,7 @@ async function enforceEventBudget(request, env, ctx) {
   return { allowed: true };
 }
 
-async function safeEdgeWindowLimit(key, limit, windowSeconds, scope, ctx, capability) {
+async function safeEdgeWindowLimit(key, limit, windowSeconds, scope, ctx, capability, failClosed = true) {
   if (!globalThis.caches?.default) return { allowed: true, configured: false };
 
   try {
@@ -531,11 +533,11 @@ async function safeEdgeWindowLimit(key, limit, windowSeconds, scope, ctx, capabi
       capability,
       reason: cleanProviderCode(error?.message || "edge_window_error"),
     });
-    return { allowed: true, configured: true, degraded: true };
+    return { allowed: !failClosed, configured: true, degraded: true, retryAfter: windowSeconds };
   }
 }
 
-async function safeRateLimit(limiter, key, scope, ctx, capability) {
+async function safeRateLimit(limiter, key, scope, ctx, capability, failClosed = true) {
   if (!limiter?.limit) return { allowed: true, configured: false };
 
   try {
@@ -549,7 +551,7 @@ async function safeRateLimit(limiter, key, scope, ctx, capability) {
       capability,
       reason: cleanProviderCode(error?.message || "rate_limit_error"),
     });
-    return { allowed: true, configured: true, degraded: true };
+    return { allowed: !failClosed, configured: true, degraded: true };
   }
 }
 
@@ -567,6 +569,10 @@ function cleanActorKey(value, fallback, maxLength) {
     .replace(/^_|_$/g, "")
     .slice(0, maxLength);
   return clean || fallback;
+}
+
+function rateLimitFailClosed(env) {
+  return String(env.RATE_LIMIT_FAIL_CLOSED || "true").toLowerCase() !== "false";
 }
 
 function logSafe(ctx, payload) {
@@ -602,6 +608,16 @@ function sanitizeSourceCheckInput(body) {
     question: target,
     move,
     boundary: BOUNDARIES[boundary] ? boundary : "personal",
+  };
+}
+
+function maskSourceCheckInput(input) {
+  if (input.boundary !== "client") return input;
+  return {
+    ...input,
+    intent: sanitizeModelIntent(input.intent, "client"),
+    question: sanitizeModelIntent(input.question, "client"),
+    move: sanitizeModelIntent(input.move, "client"),
   };
 }
 
@@ -1395,12 +1411,12 @@ function publicRoutes(env) {
   return {
     reflection: {
       label: "reflection help",
-      status: env.MIRROR_BRIDGE_URL || env.ANTHROPIC_API_KEY || env.OPENAI_API_KEY ? "available" : "browser fallback",
+      status: (env.MIRROR_BRIDGE_URL && env.MIRROR_BRIDGE_TOKEN) || env.ANTHROPIC_API_KEY || env.OPENAI_API_KEY ? "available" : "browser fallback",
       purpose: "reflective reasoning and first-use mirror generation",
     },
     chat: {
       label: "critique help",
-      status: env.MIRROR_BRIDGE_URL || env.ANTHROPIC_API_KEY || env.OPENAI_API_KEY ? "available" : "browser fallback",
+      status: (env.MIRROR_BRIDGE_URL && env.MIRROR_BRIDGE_TOKEN) || env.ANTHROPIC_API_KEY || env.OPENAI_API_KEY ? "available" : "browser fallback",
       purpose: "chat polish, critique, rewrite, and receipt review",
     },
     media: {
@@ -1431,7 +1447,7 @@ function publicGuardrails(env) {
 }
 
 function hasSourceCheckRoute(env) {
-  return Boolean(env.OPENAI_API_KEY || env.GEMINI_SOURCE_MODEL || env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY);
+  return Boolean(env.OPENAI_API_KEY || env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY);
 }
 
 function safeError(error) {

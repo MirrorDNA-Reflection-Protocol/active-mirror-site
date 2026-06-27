@@ -31,7 +31,11 @@ New source changes for the public front door, BrainScan/Mirror Seed onboarding, 
 Use `/Users/mirror-pro/repos/activemirror-genui` only when deliberately migrating a specific GenUI/runtime experiment.
 
 This repo is now a migration source for prior Vite public-site work, Worker gateway notes, and copy-audit precedent.
-The deploy branch owns generated static output only.
+The deploy branch owns generated static output only. When packaging the current
+product app into `/Users/mirror-pro/repos/active-mirror-site/public/app`, copy
+only the Vite app shell and assets (`index.html`, `404.html`, `assets/`). Do not
+copy stale top-level static pages from the product repo's `public/` directory
+into `/app`; those pages can override the React routes.
 
 ## Cutover Checklist
 
