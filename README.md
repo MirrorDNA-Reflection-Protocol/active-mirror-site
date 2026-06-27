@@ -1,10 +1,10 @@
 # Active Mirror Site
 
-Legacy/migration source for the Active Mirror public and commercial web surface.
+Deploy and gateway repo for the Active Mirror public surface.
 
 ## Canonicalization Notice
 
-New Active Mirror product/front-door work now starts in:
+New Active Mirror product/front-door source work starts in:
 
 ```text
 /Users/mirror-pro/repos/activemirror-journey
@@ -12,17 +12,21 @@ New Active Mirror product/front-door work now starts in:
 
 This repo remains useful for:
 
-- Vite public-site history;
-- Worker gateway deployment notes and live deployment bridge;
+- the GitHub Pages deployment bundle for `activemirror.ai`;
+- the Cloudflare Worker gateway for `gateway.activemirror.ai`;
+- Vite public-site history and migration references;
 - copy audit scripts and public-copy precedent;
-- migration of specific homepage/trust/docs work into the canonical repo.
+- migration of specific homepage/trust/docs work into the canonical product repo.
 
-Do not start new homepage, BrainScan, Mirror Seed, or consumer chat work here unless Paul explicitly reopens this lane.
+Do not hand-edit `public/app/assets/*.js`. Build the product app in
+`/Users/mirror-pro/repos/activemirror-journey`, then package it here with
+`npm run app:package`.
 
 ## Status
 
-- Treat this repo as a migration source unless explicitly instructed otherwise.
+- Treat this repo as the deploy/gateway surface, not the source UI surface.
 - Port useful product changes into `/Users/mirror-pro/repos/activemirror-journey`.
+- `id.activemirror.ai` is a compatibility domain; the live MirrorSeed product route is `/app/id/`.
 - Do not use `/Users/mirror-pro/Documents/Active Mirror/commercial-site` as the source of truth going forward.
 - Do not edit `MirrorDNA-Reflection-Protocol/activemirror-pages` as source after cutover; treat it as legacy deployment history.
 
@@ -32,6 +36,7 @@ Do not start new homepage, BrainScan, Mirror Seed, or consumer chat work here un
 npm install
 npm run dev
 npm run build
+npm run app:package
 npm run worker:dev
 npm run worker:deploy
 ```
