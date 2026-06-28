@@ -10,7 +10,7 @@ const routes = [
   {
     name: "home",
     path: "/",
-    mustSee: [/What do you want\?/i, /one honest next move/i, /fake agreement/i],
+    mustSee: [/What do you want\?/i, /Say one real thing/i, /Start Reflection/i],
     interact: true,
   },
   {
@@ -36,7 +36,7 @@ const routes = [
   {
     name: "mirror",
     path: "/mirror",
-    mustSee: [/What do you want help with\?/i, /honest feedback, not reassurance/i, /Make it yours/i],
+    mustSee: [/What do you want help with\?/i, /Say one real thing/i, /Make it yours/i],
   },
   {
     name: "enterprise",
@@ -55,7 +55,7 @@ const routes = [
   {
     name: "privacy",
     path: "/privacy",
-    mustSee: [/Privacy/i, /Security limits/i, /What telemetry excludes/i],
+    mustSee: [/Privacy/i, /Safety limits/i, /What telemetry excludes/i],
   },
   {
     name: "terms",
@@ -127,7 +127,7 @@ async function exerciseFirstInput(page) {
   if (!submitFirstTurn) return;
 
   await page.getByRole("button", { name: /reflect|send|get my next move/i }).first().click();
-  await page.getByText("Next move", { exact: true }).waitFor({ timeout: 30000 });
+  await page.getByText("Try this next", { exact: true }).waitFor({ timeout: 30000 });
   await page.getByText("Ask sharper", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("Make a draft", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("Was this useful?", { exact: true }).waitFor({ timeout: 10000 });
