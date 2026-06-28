@@ -1,18 +1,41 @@
 # Gateway Red Team
 
-Run the live model route without logging user content:
+Run the gateway route without logging user content.
+
+Production is protected by public rate and daily budget limits, so the default
+production command is a short smoke. Full 100-turn runs should target local or
+staging gateways unless you deliberately opt into production stress.
 
 ```sh
 npm run redteam:gateway
 ```
 
-Default settings:
+Safe commands:
 
-- `ACTIVE_MIRROR_RED_TEAM_TURNS=100`
+```sh
+npm run redteam:prod-smoke
+npm run worker:dev
+npm run redteam:local
+```
+
+Defaults:
+
+- Production gateway: `ACTIVE_MIRROR_RED_TEAM_TURNS=20`
+- Local/staging gateway: `ACTIVE_MIRROR_RED_TEAM_TURNS=100`
 - `ACTIVE_MIRROR_RED_TEAM_CONCURRENCY=1`
 - `ACTIVE_MIRROR_RED_TEAM_DELAY_MS=2000`
 
-The runner splits traffic across session IDs so the 100-turn run does not fight the daily session budget. It prints progress to stderr and a final JSON summary to stdout.
+The runner splits traffic across session IDs, respects 429 retry windows, prints
+progress to stderr, and prints a final JSON summary to stdout.
+
+To force a production stress run, set:
+
+```sh
+ACTIVE_MIRROR_RED_TEAM_ALLOW_PROD_STRESS=1 ACTIVE_MIRROR_RED_TEAM_TURNS=100 npm run redteam:gateway
+```
+
+Do this only when you intentionally want to spend the public production test
+budget.
 
 ## Coverage
 
@@ -28,16 +51,13 @@ The runner splits traffic across session IDs so the 100-turn run does not fight 
 
 ## Latest Receipt
 
-Date: 2026-06-27
+Date: 2026-06-28
 
-Worker version: `2026-06-27-personality-v1`
+Worker version: `2026-06-27-mirrorseed-proof-v1`
 
 Result:
 
-- 100 turns
-- 0 failures
-- 0 provider fallbacks
-- average latency: 5703 ms
-- 21 turns marked `needs_checking`
-- 12 safety redirects
-- 2 flattery removals
+- 100 production turns were attempted during hardening.
+- Reflection/safety assertions held until the public rate limiter tripped.
+- Failures were 429 `rate_limited` responses, not reflection or safety-shape failures.
+- The script now defaults production to 20 turns and reserves 100-turn runs for local/staging or explicit production override.

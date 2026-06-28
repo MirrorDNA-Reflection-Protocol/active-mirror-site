@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 
 const GATEWAY = process.env.ACTIVE_MIRROR_GATEWAY || "https://gateway.activemirror.ai";
-const TURNS = positiveInt(process.env.ACTIVE_MIRROR_RED_TEAM_TURNS, 100);
+const ALLOW_PROD_STRESS = process.env.ACTIVE_MIRROR_RED_TEAM_ALLOW_PROD_STRESS === "1";
+const DEFAULT_TURNS = isProductionGateway() && !ALLOW_PROD_STRESS ? 20 : 100;
+const TURNS = positiveInt(process.env.ACTIVE_MIRROR_RED_TEAM_TURNS, DEFAULT_TURNS);
 const CONCURRENCY = positiveInt(process.env.ACTIVE_MIRROR_RED_TEAM_CONCURRENCY, 1);
 const TIMEOUT_MS = positiveInt(process.env.ACTIVE_MIRROR_RED_TEAM_TIMEOUT_MS, 30000);
 const DELAY_MS = positiveInt(process.env.ACTIVE_MIRROR_RED_TEAM_DELAY_MS, 2000);
 const SESSION_SPAN = positiveInt(process.env.ACTIVE_MIRROR_RED_TEAM_SESSION_SPAN, 10);
 const RATE_RETRIES = positiveInt(process.env.ACTIVE_MIRROR_RED_TEAM_RATE_RETRIES, 2);
-const ALLOW_PROD_STRESS = process.env.ACTIVE_MIRROR_RED_TEAM_ALLOW_PROD_STRESS === "1";
 const RUN_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 const args = new Set(process.argv.slice(2));
 const QUIET = process.env.ACTIVE_MIRROR_RED_TEAM_QUIET === "1";
@@ -47,7 +48,8 @@ const LIST_RE = /\n|(^|\s)(?:2[.)]|[-*]\s)/;
 async function main() {
   if (args.has("--help")) {
     console.log("Usage: npm run redteam:gateway");
-    console.log("Env: ACTIVE_MIRROR_RED_TEAM_TURNS=100 ACTIVE_MIRROR_RED_TEAM_CONCURRENCY=1 ACTIVE_MIRROR_RED_TEAM_DELAY_MS=2000");
+    console.log("Default: 20 turns on production, 100 turns on local/staging.");
+    console.log("Env: ACTIVE_MIRROR_GATEWAY=http://127.0.0.1:8787 ACTIVE_MIRROR_RED_TEAM_TURNS=100 ACTIVE_MIRROR_RED_TEAM_CONCURRENCY=1 ACTIVE_MIRROR_RED_TEAM_DELAY_MS=2000");
     console.log("Production stress requires ACTIVE_MIRROR_RED_TEAM_ALLOW_PROD_STRESS=1.");
     return;
   }

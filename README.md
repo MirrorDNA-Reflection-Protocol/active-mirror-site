@@ -26,7 +26,7 @@ Do not hand-edit `public/app/assets/*.js`. Build the product app in
 
 - Treat this repo as the deploy/gateway surface, not the source UI surface.
 - Port useful product changes into `/Users/mirror-pro/repos/activemirror-journey`.
-- `id.activemirror.ai` is a compatibility domain; the live MirrorSeed product route is `/app/id/`.
+- `id.activemirror.ai` is a compatibility domain; it routes people into `/app/start/`.
 - Do not use `/Users/mirror-pro/Documents/Active Mirror/commercial-site` as the source of truth going forward.
 - Do not edit `MirrorDNA-Reflection-Protocol/activemirror-pages` as source after cutover; treat it as legacy deployment history.
 
@@ -41,6 +41,7 @@ npm run build
 npm run app:package
 npm run worker:dev
 npm run worker:deploy
+npm run redteam:prod-smoke
 ```
 
 ## Runtime Routing Policy
