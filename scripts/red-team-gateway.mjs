@@ -4,11 +4,11 @@ import { webcrypto } from "node:crypto";
 
 const GATEWAY = process.env.ACTIVE_MIRROR_GATEWAY || "https://gateway.activemirror.ai";
 const ALLOW_PROD_STRESS = process.env.ACTIVE_MIRROR_RED_TEAM_ALLOW_PROD_STRESS === "1";
-const DEFAULT_TURNS = isProductionGateway() && !ALLOW_PROD_STRESS ? 20 : 100;
+const DEFAULT_TURNS = (isProductionGateway() && !ALLOW_PROD_STRESS) || isLiveLocalGateway() ? 20 : 100;
 const TURNS = positiveInt(process.env.ACTIVE_MIRROR_RED_TEAM_TURNS, DEFAULT_TURNS);
 const CONCURRENCY = positiveInt(process.env.ACTIVE_MIRROR_RED_TEAM_CONCURRENCY, 1);
 const TIMEOUT_MS = positiveInt(process.env.ACTIVE_MIRROR_RED_TEAM_TIMEOUT_MS, 30000);
-const DELAY_MS = positiveInt(process.env.ACTIVE_MIRROR_RED_TEAM_DELAY_MS, 2000);
+const DELAY_MS = nonNegativeInt(process.env.ACTIVE_MIRROR_RED_TEAM_DELAY_MS, 2000);
 const SESSION_SPAN = positiveInt(process.env.ACTIVE_MIRROR_RED_TEAM_SESSION_SPAN, 10);
 const RATE_RETRIES = positiveInt(process.env.ACTIVE_MIRROR_RED_TEAM_RATE_RETRIES, 2);
 const RUN_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -51,8 +51,9 @@ const LIST_RE = /\n|(^|\s)(?:2[.)]|[-*]\s)/;
 async function main() {
   if (args.has("--help")) {
     console.log("Usage: npm run redteam:gateway");
-    console.log("Default: 20 turns on production, 100 turns on local/staging.");
+    console.log("Default: 20 turns on production/live-provider, 100 turns on deterministic local.");
     console.log("Env: ACTIVE_MIRROR_GATEWAY=local-worker ACTIVE_MIRROR_RED_TEAM_TURNS=100 ACTIVE_MIRROR_RED_TEAM_DELAY_MS=0");
+    console.log("Live provider lane: npm run redteam:live-local");
     console.log("Production stress requires ACTIVE_MIRROR_RED_TEAM_ALLOW_PROD_STRESS=1.");
     return;
   }
@@ -179,16 +180,18 @@ async function getLocalWorkerRuntime() {
 
   localWorkerRuntime = {
     worker,
-    env: {
-      MIRROR_BRIDGE_URL: "https://local-active-mirror.test/am-bridge",
-      MIRROR_BRIDGE_TOKEN: "local-redteam-token",
-      MIRROR_SESSION_WINDOW_LIMIT: "10000",
-      MIRROR_NETWORK_WINDOW_LIMIT: "10000",
-      MIRROR_SESSION_DAILY_LIMIT: "10000",
-      MIRROR_NETWORK_DAILY_LIMIT: "10000",
-      PROVIDER_TIMEOUT_MS: String(TIMEOUT_MS),
-      RATE_LIMIT_FAIL_CLOSED: "true",
-    },
+    env: isLiveLocalGateway()
+      ? liveProviderEnv()
+      : {
+          MIRROR_BRIDGE_URL: "https://local-active-mirror.test/am-bridge",
+          MIRROR_BRIDGE_TOKEN: "local-redteam-token",
+          MIRROR_SESSION_WINDOW_LIMIT: "10000",
+          MIRROR_NETWORK_WINDOW_LIMIT: "10000",
+          MIRROR_SESSION_DAILY_LIMIT: "10000",
+          MIRROR_NETWORK_DAILY_LIMIT: "10000",
+          PROVIDER_TIMEOUT_MS: String(TIMEOUT_MS),
+          RATE_LIMIT_FAIL_CLOSED: "true",
+        },
     ctx: {
       waitUntil() {},
     },
@@ -233,6 +236,30 @@ function localBridgeMirror(prompt, route) {
       route: `Local red-team bridge for ${route}.`,
       memory_decision: "Nothing is saved; this is an in-process test run.",
     },
+  };
+}
+
+function liveProviderEnv() {
+  const primary = process.env.ACTIVE_MIRROR_LIVE_PRIMARY || (process.env.OPENAI_API_KEY ? "openai" : process.env.ANTHROPIC_API_KEY ? "anthropic" : "gemini");
+  return {
+    MIRROR_BRIDGE_URL: "",
+    MIRROR_BRIDGE_TOKEN: "",
+    MIRROR_REFLECTION_PRIMARY: primary,
+    MIRROR_CHAT_PRIMARY: primary,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || "",
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY_AM || "",
+    GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER: process.env.GEMINI_API_KEY_AM || process.env.GEMINI_API_KEY || "",
+    ANTHROPIC_REFLECTION_MODEL: process.env.ANTHROPIC_REFLECTION_MODEL || "claude-sonnet-4-5",
+    OPENAI_REFLECTION_MODEL: process.env.OPENAI_REFLECTION_MODEL || "gpt-5.5",
+    OPENAI_FAST_MODEL: process.env.OPENAI_FAST_MODEL || "gpt-5.4-mini",
+    GEMINI_MEDIA_MODEL: process.env.GEMINI_MEDIA_MODEL || "gemini-3.5-flash",
+    MIRROR_SESSION_WINDOW_LIMIT: "10000",
+    MIRROR_NETWORK_WINDOW_LIMIT: "10000",
+    MIRROR_SESSION_DAILY_LIMIT: "10000",
+    MIRROR_NETWORK_DAILY_LIMIT: "10000",
+    PROVIDER_TIMEOUT_MS: String(TIMEOUT_MS),
+    RATE_LIMIT_FAIL_CLOSED: "true",
   };
 }
 
@@ -324,12 +351,21 @@ function positiveInt(value, fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : fallback;
 }
 
+function nonNegativeInt(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.trunc(parsed) : fallback;
+}
+
 function isProductionGateway() {
   return /^https:\/\/gateway\.activemirror\.ai(?:\/|$)/i.test(GATEWAY);
 }
 
 function isLocalWorkerGateway() {
-  return /^(local-worker|worker|in-process)$/i.test(GATEWAY);
+  return /^(local-worker|worker|in-process|live-local|local-live)$/i.test(GATEWAY);
+}
+
+function isLiveLocalGateway() {
+  return /^(live-local|local-live)$/i.test(GATEWAY);
 }
 
 function sleep(ms) {

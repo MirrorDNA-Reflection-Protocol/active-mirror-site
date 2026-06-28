@@ -15,6 +15,7 @@ Safe commands:
 ```sh
 npm run redteam:prod-smoke
 npm run redteam:local
+npm run redteam:live-local
 ```
 
 Defaults:
@@ -28,6 +29,12 @@ The runner splits traffic across session IDs, respects 429 retry windows, prints
 progress to stderr, and prints a final JSON summary to stdout. The local command
 runs the Worker in-process with a deterministic test bridge, so it does not use
 provider secrets, Cloudflare, or public gateway budget.
+
+`redteam:live-local` also runs the Worker in-process, but routes through local
+provider environment variables. It defaults to 20 turns and is for smaller
+real-model quality checks without spending the public gateway budget. Set
+`ACTIVE_MIRROR_LIVE_PRIMARY=openai|anthropic|gemini` to choose the first provider
+for that run.
 
 To force a production stress run, set:
 
@@ -54,12 +61,13 @@ budget.
 
 Date: 2026-06-28
 
-Worker version: `2026-06-28-setup-proof-v1`
+Worker version: `2026-06-28-provider-primary-v1`
 
 Result:
 
-- Local in-process Worker red-team: 100/100 passed, `fallback_count=0`, `rate_limited_count=0`, average latency about 2002 ms.
+- Local deterministic in-process Worker red-team: 100/100 passed, `fallback_count=0`, `rate_limited_count=0`, average latency about 1 ms.
 - Local truth states: 72 `reflective`, 20 `needs_checking`, 8 blocked/none.
 - Local straitjacket events: 20 `truth_state_needs_sources`, 12 `safety_redirect`.
-- Production red-team smoke: 20/20 passed, `fallback_count=0`, `rate_limited_count=0`, average latency about 4397 ms after Worker deploy.
+- Live-provider in-process Worker smoke: 20/20 passed, `fallback_count=0`, `rate_limited_count=0`, average latency about 3282 ms.
+- Production red-team smoke: 20/20 passed, `fallback_count=0`, `rate_limited_count=0`, average latency about 4736 ms after Worker deploy.
 - Earlier 100-turn production stress hit public 429 limits. That was a budget result, not a reflection or safety-shape failure.

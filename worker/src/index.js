@@ -37,7 +37,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-06-28-setup-proof-v1";
+const WORKER_VERSION = "2026-06-28-provider-primary-v1";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
@@ -225,7 +225,7 @@ export default {
     try {
       const body = await readJsonBody(request, maxMirrorRequestBytes(env));
       const input = sanitizeInput(body);
-      const route = selectRoute(input.intent, input.route);
+      const route = selectRoute(input.intent, input.route, env);
       const budget = await enforceMirrorBudget(request, env, ctx, route);
       if (!budget.allowed) {
         return rateLimitedResponse(budget, corsHeaders);
@@ -927,31 +927,49 @@ function normalizeRoute(value) {
 }
 
 // --- Routing: a runtime concern. Picks which provider/model answers a turn. ---
-function selectRoute(intent, selected = "auto") {
-  if (selected === "media") return mediaRoute();
-  if (selected === "chat") return chatRoute();
-  if (selected === "reflection") return reflectionRoute();
+function selectRoute(intent, selected = "auto", env = {}) {
+  if (selected === "media") return mediaRoute(env);
+  if (selected === "chat") return chatRoute(env);
+  if (selected === "reflection") return reflectionRoute(env);
 
   const value = intent.toLowerCase();
   if (/\b(image|visual|video|poster|screenshot|render|asset|thumbnail|media)\b/.test(value)) {
-    return mediaRoute();
+    return mediaRoute(env);
   }
   if (/\b(chat|rewrite|tone|copy|critique|review|polish)\b/.test(value)) {
-    return chatRoute();
+    return chatRoute(env);
   }
-  return reflectionRoute();
+  return reflectionRoute(env);
 }
 
-function reflectionRoute() {
-  return { capability: "reflection", primary: "bridge", modelEnv: "MINI_REFLECTION_MODEL", defaultModel: "mini-mirror-bridge" };
+function reflectionRoute(env = {}) {
+  const primary = allowedPrimary(env.MIRROR_REFLECTION_PRIMARY, "bridge");
+  return modelRoute("reflection", primary);
 }
 
-function chatRoute() {
-  return { capability: "chat", primary: "bridge", modelEnv: "MINI_REFLECTION_MODEL", defaultModel: "mini-mirror-bridge" };
+function chatRoute(env = {}) {
+  const primary = allowedPrimary(env.MIRROR_CHAT_PRIMARY || env.MIRROR_REFLECTION_PRIMARY, "bridge");
+  return modelRoute("chat", primary);
 }
 
-function mediaRoute() {
-  return { capability: "media", primary: "gemini", modelEnv: "GEMINI_MEDIA_MODEL", defaultModel: "gemini-3.5-flash" };
+function mediaRoute(env = {}) {
+  const primary = allowedPrimary(env.MIRROR_MEDIA_PRIMARY, "gemini");
+  return modelRoute("media", primary);
+}
+
+function allowedPrimary(value, fallback) {
+  const primary = String(value || "").trim().toLowerCase();
+  return ["bridge", "anthropic", "openai", "gemini"].includes(primary) ? primary : fallback;
+}
+
+function modelRoute(capability, primary) {
+  const routes = {
+    bridge: { modelEnv: "MINI_REFLECTION_MODEL", defaultModel: "mini-mirror-bridge" },
+    anthropic: { modelEnv: "ANTHROPIC_REFLECTION_MODEL", defaultModel: "claude-sonnet-4-5" },
+    openai: { modelEnv: "OPENAI_REFLECTION_MODEL", defaultModel: "gpt-5.5" },
+    gemini: { modelEnv: "GEMINI_MEDIA_MODEL", defaultModel: "gemini-3.5-flash" },
+  };
+  return { capability, primary, ...routes[primary] };
 }
 
 // --- Provider calls. The kernel never sees any of this. Returns { fallback, fallbackReason, model, mirror }. ---
