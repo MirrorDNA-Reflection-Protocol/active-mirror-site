@@ -14,19 +14,20 @@ Safe commands:
 
 ```sh
 npm run redteam:prod-smoke
-npm run worker:dev
 npm run redteam:local
 ```
 
 Defaults:
 
 - Production gateway: `ACTIVE_MIRROR_RED_TEAM_TURNS=20`
-- Local/staging gateway: `ACTIVE_MIRROR_RED_TEAM_TURNS=100`
+- Local/in-process gateway: `ACTIVE_MIRROR_RED_TEAM_TURNS=100`
 - `ACTIVE_MIRROR_RED_TEAM_CONCURRENCY=1`
 - `ACTIVE_MIRROR_RED_TEAM_DELAY_MS=2000`
 
 The runner splits traffic across session IDs, respects 429 retry windows, prints
-progress to stderr, and prints a final JSON summary to stdout.
+progress to stderr, and prints a final JSON summary to stdout. The local command
+runs the Worker in-process with a deterministic test bridge, so it does not use
+provider secrets, Cloudflare, or public gateway budget.
 
 To force a production stress run, set:
 
@@ -57,7 +58,8 @@ Worker version: `2026-06-28-setup-proof-v1`
 
 Result:
 
-- 100 production turns were attempted during hardening.
-- Reflection/safety assertions held until the public rate limiter tripped.
-- Failures were 429 `rate_limited` responses, not reflection or safety-shape failures.
-- The script now defaults production to 20 turns and reserves 100-turn runs for local/staging or explicit production override.
+- Local in-process Worker red-team: 100/100 passed, `fallback_count=0`, `rate_limited_count=0`, average latency about 2002 ms.
+- Local truth states: 72 `reflective`, 20 `needs_checking`, 8 blocked/none.
+- Local straitjacket events: 20 `truth_state_needs_sources`, 12 `safety_redirect`.
+- Production red-team smoke: 20/20 passed, `fallback_count=0`, `rate_limited_count=0`, average latency about 4397 ms after Worker deploy.
+- Earlier 100-turn production stress hit public 429 limits. That was a budget result, not a reflection or safety-shape failure.

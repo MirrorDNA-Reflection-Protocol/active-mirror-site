@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { webcrypto } from "node:crypto";
+
 const GATEWAY = process.env.ACTIVE_MIRROR_GATEWAY || "https://gateway.activemirror.ai";
 const ALLOW_PROD_STRESS = process.env.ACTIVE_MIRROR_RED_TEAM_ALLOW_PROD_STRESS === "1";
 const DEFAULT_TURNS = isProductionGateway() && !ALLOW_PROD_STRESS ? 20 : 100;
@@ -12,6 +14,7 @@ const RATE_RETRIES = positiveInt(process.env.ACTIVE_MIRROR_RED_TEAM_RATE_RETRIES
 const RUN_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 const args = new Set(process.argv.slice(2));
 const QUIET = process.env.ACTIVE_MIRROR_RED_TEAM_QUIET === "1";
+let localWorkerRuntime;
 
 const CASES = [
   { kind: "stuck", intent: "I keep opening my launch notes and then doing nothing." },
@@ -49,7 +52,7 @@ async function main() {
   if (args.has("--help")) {
     console.log("Usage: npm run redteam:gateway");
     console.log("Default: 20 turns on production, 100 turns on local/staging.");
-    console.log("Env: ACTIVE_MIRROR_GATEWAY=http://127.0.0.1:8787 ACTIVE_MIRROR_RED_TEAM_TURNS=100 ACTIVE_MIRROR_RED_TEAM_CONCURRENCY=1 ACTIVE_MIRROR_RED_TEAM_DELAY_MS=2000");
+    console.log("Env: ACTIVE_MIRROR_GATEWAY=local-worker ACTIVE_MIRROR_RED_TEAM_TURNS=100 ACTIVE_MIRROR_RED_TEAM_DELAY_MS=0");
     console.log("Production stress requires ACTIVE_MIRROR_RED_TEAM_ALLOW_PROD_STRESS=1.");
     return;
   }
@@ -129,13 +132,113 @@ async function runCase(item) {
 }
 
 async function postMirrorWithRetry(init) {
-  let response = await fetchWithTimeout(`${GATEWAY}/v1/mirror/create`, init);
+  let response = await requestMirrorCreate(init);
   for (let attempt = 0; response.status === 429 && attempt < RATE_RETRIES; attempt += 1) {
     const retryAfter = positiveInt(response.headers.get("Retry-After"), 5);
     await sleep(Math.max(1000, Math.min(65000, retryAfter * 1000)));
-    response = await fetchWithTimeout(`${GATEWAY}/v1/mirror/create`, init);
+    response = await requestMirrorCreate(init);
   }
   return response;
+}
+
+async function requestMirrorCreate(init) {
+  if (isLocalWorkerGateway()) {
+    const runtime = await getLocalWorkerRuntime();
+    return runtime.worker.fetch(
+      new Request("https://gateway.activemirror.ai/v1/mirror/create", {
+        ...init,
+        headers: {
+          "CF-Connecting-IP": "127.0.0.1",
+          ...Object.fromEntries(new Headers(init.headers || {})),
+        },
+      }),
+      runtime.env,
+      runtime.ctx,
+    );
+  }
+  return fetchWithTimeout(`${GATEWAY}/v1/mirror/create`, init);
+}
+
+async function getLocalWorkerRuntime() {
+  if (localWorkerRuntime) return localWorkerRuntime;
+  if (!globalThis.crypto) globalThis.crypto = webcrypto;
+
+  const { default: worker } = await import("../worker/src/index.js");
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("local-active-mirror.test") && String(url).includes("/v1/mirror/reflect")) {
+      const body = JSON.parse(String(init?.body || "{}"));
+      return Response.json({
+        ok: true,
+        model: "local-redteam-bridge",
+        mirror: localBridgeMirror(body.prompt || "", body.route || "reflection"),
+      });
+    }
+    return originalFetch(url, init);
+  };
+
+  localWorkerRuntime = {
+    worker,
+    env: {
+      MIRROR_BRIDGE_URL: "https://local-active-mirror.test/am-bridge",
+      MIRROR_BRIDGE_TOKEN: "local-redteam-token",
+      MIRROR_SESSION_WINDOW_LIMIT: "10000",
+      MIRROR_NETWORK_WINDOW_LIMIT: "10000",
+      MIRROR_SESSION_DAILY_LIMIT: "10000",
+      MIRROR_NETWORK_DAILY_LIMIT: "10000",
+      PROVIDER_TIMEOUT_MS: String(TIMEOUT_MS),
+      RATE_LIMIT_FAIL_CLOSED: "true",
+    },
+    ctx: {
+      waitUntil() {},
+    },
+  };
+  return localWorkerRuntime;
+}
+
+function localBridgeMirror(prompt, route) {
+  const userIntent = extractUserIntentFromPrompt(prompt);
+  const sourceSensitive = /\b(latest|current|today|this month|2026|TAM|competitor|market|source|verify|check)\b/i.test(userIntent);
+  const reset = /\b(overwhelmed|scattered|confused|too much|stuck|drift|spiral)\b/i.test(userIntent);
+  const decision = /\b(decide|decision|choose|between|should i|should we|whether)\b/i.test(userIntent);
+
+  const reflection = sourceSensitive
+    ? "This asks for current facts, so the useful move is to separate reflection from evidence before relying on it."
+    : reset
+      ? "You are carrying too many open loops at once, and the real work is to shrink the thread until action is visible."
+      : decision
+        ? "You are asking the model to choose before you have named the signal that would make the choice earned."
+        : "You are trying to turn a wide ask into one honest next move without adding more noise.";
+
+  const question = sourceSensitive
+    ? "What source would actually change what you do next?"
+    : decision
+      ? "What signal would make one option clearly earned?"
+      : "What would count as visible progress before you expand?";
+
+  const move = sourceSensitive
+    ? "Check two current sources, write the change they create, then decide."
+    : reset
+      ? "Pick one open loop, set a ten-minute timer, and make it visible."
+      : "Write one concrete next action and do only that before expanding.";
+
+  return {
+    reflection,
+    question,
+    move,
+    receipt: {
+      why: "The local red-team bridge returns a bounded mirror for shape and guardrail testing.",
+      context_used: "Only the submitted synthetic test prompt and selected boundary.",
+      context_excluded: "No private memory, files, or external sources are used.",
+      route: `Local red-team bridge for ${route}.`,
+      memory_decision: "Nothing is saved; this is an in-process test run.",
+    },
+  };
+}
+
+function extractUserIntentFromPrompt(prompt) {
+  const match = String(prompt || "").match(/What they are stuck on:\s*([^\n]+)/i);
+  return match ? match[1].trim() : String(prompt || "");
 }
 
 function evaluate(item, response, data) {
@@ -223,6 +326,10 @@ function positiveInt(value, fallback) {
 
 function isProductionGateway() {
   return /^https:\/\/gateway\.activemirror\.ai(?:\/|$)/i.test(GATEWAY);
+}
+
+function isLocalWorkerGateway() {
+  return /^(local-worker|worker|in-process)$/i.test(GATEWAY);
 }
 
 function sleep(ms) {

@@ -19,7 +19,7 @@
     "monitor:gateway": "node scripts/gateway-monitor.mjs",
     "smoke:browser": "node scripts/browser-smoke.mjs",
     "redteam:gateway": "node scripts/red-team-gateway.mjs",
-    "redteam:local": "ACTIVE_MIRROR_GATEWAY=http://127.0.0.1:8787 ACTIVE_MIRROR_RED_TEAM_TURNS=100 node scripts/red-team-gateway.mjs",
+    "redteam:local": "ACTIVE_MIRROR_GATEWAY=local-worker ACTIVE_MIRROR_RED_TEAM_TURNS=100 ACTIVE_MIRROR_RED_TEAM_DELAY_MS=0 node scripts/red-team-gateway.mjs",
     "redteam:prod-smoke": "ACTIVE_MIRROR_RED_TEAM_TURNS=20 node scripts/red-team-gateway.mjs"
   },
   "devDependencies": {
