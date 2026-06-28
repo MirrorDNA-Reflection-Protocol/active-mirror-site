@@ -10,7 +10,7 @@ const routes = [
   {
     name: "home",
     path: "/",
-    mustSee: [/What do you want\?/i, /Say one real thing/i, /Start Reflection/i],
+    mustSee: [/What do you want\?/i, /Type one thing you are stuck on/i, /Start Reflection/i],
     interact: true,
   },
   {
@@ -36,7 +36,7 @@ const routes = [
   {
     name: "mirror",
     path: "/mirror",
-    mustSee: [/What do you want help with\?/i, /Say one real thing/i, /Make it yours/i],
+    mustSee: [/What do you want help with\?/i, /Type one thing you are stuck on/i, /Make it yours/i],
   },
   {
     name: "enterprise",
@@ -98,6 +98,7 @@ function isIgnoredConsoleError(text) {
     // Local preview origins are intentionally not CORS-allowed by the Worker.
     || (isLocalPreview() && /Failed to load resource: the server responded with a status of 403/i.test(text))
     || (isLocalPreview() && /gateway\.activemirror\.ai\/v1\/mirror\/create.*CORS policy/i.test(text))
+    || (isLocalPreview() && /gateway\.activemirror\.ai\/v1\/mirror\/enterprise-stream.*CORS policy/i.test(text))
     || (isLocalPreview() && /Failed to load resource: net::ERR_FAILED/i.test(text));
 }
 
@@ -128,9 +129,10 @@ async function exerciseFirstInput(page) {
 
   await page.getByRole("button", { name: /reflect|send|get my next move/i }).first().click();
   await page.getByText("Try this next", { exact: true }).waitFor({ timeout: 30000 });
-  await page.getByText("Ask sharper", { exact: true }).waitFor({ timeout: 10000 });
-  await page.getByText("Make a draft", { exact: true }).waitFor({ timeout: 10000 });
-  await page.getByText("Was this useful?", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByText("Make it smaller", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByText("Be more honest", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByText("Turn into draft", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByText("Did this help?", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByRole("button", { name: /^Almost$/ }).first().click();
   await page.getByText(/No message text was saved/i).waitFor({ timeout: 10000 });
   await page.getByRole("button", { name: /^Make it smaller$/ }).first().click();

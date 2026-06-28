@@ -485,9 +485,14 @@ await check("provider fallback emits metadata-only monitor log", async () => {
     assert.strictEqual(data.ok, true);
     assert.strictEqual(data.fallback, true);
     assert.ok(fallbackLog, "fallback log missing");
-    assert.deepStrictEqual(Object.keys(fallbackLog).sort(), ["capability", "fallback", "truth_state", "ts", "type"].sort());
+    assert.deepStrictEqual(Object.keys(fallbackLog).sort(), ["capability", "fallback", "provider_reason", "truth_state", "ts", "type"].sort());
     assert.strictEqual(fallbackLog.capability, "reflection");
-    assert.strictEqual(fallbackLog.fallback, "local missing secret");
+    assert.strictEqual(fallbackLog.fallback, "the live answer is not fully configured");
+    assert.strictEqual(fallbackLog.provider_reason, "bridge_missing_secret");
+    assert.strictEqual(JSON.stringify(fallbackLog).includes("bounded next move"), false, "prompt text leaked into fallback log");
+    assert.strictEqual(JSON.stringify(fallbackLog).includes("test-openai-key"), false, "secret leaked into fallback log");
+    assert.strictEqual(data.route.fallback, "the live answer is not fully configured");
+    assert.ok(!/openai|bridge|anthropic|gemini|provider_\\d+/i.test(data.mirror.receipt.route), "raw provider detail leaked");
   } finally {
     globalThis.fetch = originalFetch;
     console.log = originalLog;

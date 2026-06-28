@@ -233,6 +233,7 @@ export default {
 
       // The only thing the runtime injects into the kernel: how to call a model.
       let lastFallbackReason = null;
+      let lastInternalFallbackReason = null;
       const result = await reflect({
         intent: input.intent,
         boundary: input.boundary,
@@ -240,9 +241,10 @@ export default {
         capability: route.capability,
         callModel: async (prompt) => {
           const r = await runRoute(route, prompt, env);
+          lastInternalFallbackReason = r.fallback ? cleanProviderCode(r.fallbackReason || "unknown") : null;
           lastFallbackReason = r.fallback ? publicFallbackReason(r.fallbackReason) : null;
           const routeText = r.fallback
-            ? `Backup route used because ${lastFallbackReason}. Original route: ${publicRouteLabel(route.capability)}.`
+            ? `Backup answer used because ${lastFallbackReason}. Original help type: ${publicRouteLabel(route.capability)}.`
             : publicRouteReceipt(route.capability);
           return { mirror: r.mirror, fallback: r.fallback, routeText };
         },
@@ -257,6 +259,7 @@ export default {
           type: "active_mirror_provider_fallback",
           capability: route.capability,
           fallback: lastFallbackReason || "unknown",
+          provider_reason: lastInternalFallbackReason || "unknown",
           truth_state: result.truth_state?.status || "unknown",
         });
       }
@@ -1133,7 +1136,7 @@ async function callOpenAIModel(prompt, model, env) {
         input: prompt,
         store: false,
         reasoning: { effort: "low" },
-        text: { format: { type: "json_schema", name: "active_mirror_turn", strict: true, schema: MIRROR_SCHEMA } },
+        text: { format: { type: "json_schema", name: "active_mirror_turn", strict: true, schema: PROVIDER_MIRROR_SCHEMA } },
         max_output_tokens: 1000,
       }),
     },
@@ -1704,17 +1707,20 @@ function publicRouteReceipt(capability) {
 }
 
 function publicFallbackReason(reason) {
-  const value = String(reason || "the route was unavailable")
-    .replace(/openai/gi, "primary")
-    .replace(/bridge/gi, "local")
-    .replace(/gemini/gi, "media")
-    .replace(/anthropic/gi, "provider")
-    .replace(/claude/gi, "provider")
-    .replace(/gpt-[a-z0-9._-]+/gi, "backup")
-    .replace(/claude-[a-z0-9._-]+/gi, "backup")
-    .replace(/gemini-[a-z0-9._-]+/gi, "backup")
-    .replace(/fast_model/gi, "backup_route");
-  return cleanProviderCode(value).replace(/_/g, " ").slice(0, 90) || "the route was unavailable";
+  const code = cleanProviderCode(reason || "").toLowerCase();
+  if (!code || code.includes("missing_secret") || code.includes("no_provider_secret")) {
+    return "the live answer is not fully configured";
+  }
+  if (code.includes("timeout")) {
+    return "the live answer timed out";
+  }
+  if (code.includes("429")) {
+    return "the live answer is cooling down";
+  }
+  if (/(^|_)5\d\d($|_)/.test(code) || code.includes("provider_error")) {
+    return "the live answer is unavailable right now";
+  }
+  return "the live answer is unavailable right now";
 }
 
 function publicRoutes(env) {

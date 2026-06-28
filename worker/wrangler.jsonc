@@ -34,6 +34,9 @@
   ],
   "vars": {
     "MIRROR_BRIDGE_URL": "https://mirror-admins-mac-mini.taildfee74.ts.net/am-bridge",
+    "MIRROR_REFLECTION_PRIMARY": "gemini",
+    "MIRROR_CHAT_PRIMARY": "gemini",
+    "MIRROR_MEDIA_PRIMARY": "gemini",
     "PROVIDER_TIMEOUT_MS": "25000",
     "ANTHROPIC_REFLECTION_MODEL": "claude-sonnet-4-5",
     "OPENAI_REFLECTION_MODEL": "gpt-5.5",
