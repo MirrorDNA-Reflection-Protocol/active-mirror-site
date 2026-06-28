@@ -36,7 +36,7 @@ const routes = [
   {
     name: "mirror",
     path: "/mirror",
-    mustSee: [/What do you want help with\?/i, /Type one thing you are stuck on/i, /Make it yours/i],
+    mustSee: [/What do you want help with\?/i, /Type one thing you are stuck on/i, /Save preferences/i],
   },
   {
     name: "enterprise",
@@ -49,7 +49,7 @@ const routes = [
     mustSee: [
       /What is one thing you are stuck on\?|Best on this device/i,
       /one next move|Open full mirror/i,
-      /Private by default|Memory stays your choice/i,
+      /Private by default|Saving stays your choice/i,
     ],
   },
   {
@@ -129,13 +129,14 @@ async function exerciseFirstInput(page) {
 
   await page.getByRole("button", { name: /reflect|send|get my next move/i }).first().click();
   await page.getByText("Try this next", { exact: true }).waitFor({ timeout: 30000 });
+  await page.locator("summary", { hasText: /^More$/ }).first().click();
   await page.getByText("Make it smaller", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("Be more honest", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("Turn into draft", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("Did this help?", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByRole("button", { name: /^Almost$/ }).first().click();
   await page.getByText(/No message text was saved/i).waitFor({ timeout: 10000 });
-  await page.getByRole("button", { name: /^Make it smaller$/ }).first().click();
+  await page.getByRole("button", { name: /^Make it smaller$/ }).last().click();
 
   const feedbackStore = await page.evaluate(() => localStorage.getItem("active_mirror_feedback_v1") || "");
   if (feedbackStore.includes(testText)) {
