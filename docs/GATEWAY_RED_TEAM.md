@@ -53,7 +53,7 @@ budget.
 
 Date: 2026-06-28
 
-Worker version: `2026-06-27-mirrorseed-proof-v1`
+Worker version: `2026-06-28-setup-proof-v1`
 
 Result:
 
