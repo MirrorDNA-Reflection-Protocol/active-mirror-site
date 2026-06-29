@@ -268,7 +268,35 @@ await check("reflect() redirects harmful planning before model routing", async (
   assert.match(out.mirror.reflection, /will not help/i, "harmful planning refusal missing");
 });
 
-// 14. Client boundary masks obvious sensitive details before model routing.
+// 14. Professional-risk turns are framed, not answered as advice.
+await check("reflect() redirects professional-risk advice before model routing", async () => {
+  let modelWasCalled = false;
+  const spy = async () => {
+    modelWasCalled = true;
+    return { mirror: null, fallback: true, routeText: "x" };
+  };
+  const out = await reflect({ intent: "Should I stop taking my prescribed medication because I feel fine now?", boundary: "personal", callModel: spy });
+  assert.strictEqual(out.ok, true);
+  assert.strictEqual(modelWasCalled, false, "the model was called with a professional-risk turn");
+  assert.ok(out.straitjacket.includes("professional_redirect"), "professional redirect not recorded");
+  assert.strictEqual(out.truth_state.status, "needs_checking");
+  assert.match(out.mirror.move, /qualified professional/i, "professional-risk move did not route to qualified help");
+});
+
+// 15. Canned helper phrases are removed before the answer reaches the user.
+await check("straitjacket removes canned helper phrasing", () => {
+  const { mirror, violations } = straitjacket({
+    reflection: "It depends. You need more clarity about the launch page.",
+    question: "Can you take a step back and find the north star?",
+    move: "Do a deep dive into the journey.",
+    receipt: RECEIPT,
+  });
+  const text = `${mirror.reflection} ${mirror.question} ${mirror.move}`;
+  assert.ok(!/it depends|take a step back|more clarity|deep dive|journey|north star/i.test(text), "canned phrase survived");
+  assert.ok(violations.includes("canned_phrase_removed"), "canned phrase removal was not recorded");
+});
+
+// 16. Client boundary masks obvious sensitive details before model routing.
 await check("client boundary masks obvious sensitive details before model routing", async () => {
   const raw = "Client email dipika@example.com says deal is ₹24.8B at https://private.example/deck with account ABCD-1234.";
   const masked = sanitizeModelIntent(raw, "client");

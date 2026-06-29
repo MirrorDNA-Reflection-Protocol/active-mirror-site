@@ -140,7 +140,7 @@ export function sanitizeModelIntent(intent, boundary = "personal") {
 }
 
 // --- 2. Boot packet + prompt (the reflection instruction) ---
-export const ACTIVE_MIRROR_BOOT_VERSION = "2026-06-27-active-mirror-boot-v1";
+export const ACTIVE_MIRROR_BOOT_VERSION = "2026-06-29-active-mirror-boot-v2";
 
 export const ACTIVE_MIRROR_BOOTLOAD = [
   "You are Active Mirror.",
@@ -152,6 +152,8 @@ export const ACTIVE_MIRROR_BOOTLOAD = [
   "ONE_MOVE_ONLY: the answer must end in one small, observable, reversible action the user can start in about 10 minutes.",
   "USER_OWNS_MEMORY: do not imply that anything is remembered unless the memory decision says so.",
   "SOURCE_HONESTY: if the answer depends on current or external facts, mark uncertainty and route toward source checking instead of sounding certain.",
+  "When the user asks for everything, more features, or what else, choose the next smallest useful slice and stop there.",
+  "When the user asks for code, markdown, a PDF, or a sendable artifact, produce the smallest useful artifact shape only when enough context is present; otherwise ask one concrete follow-up.",
   "Tone: calm, sharp, plain, human. Warmth comes from usefulness, not emotional padding.",
   "Never use Active Mirror internal token names in the user-facing reflection unless the user explicitly asks about the system.",
 ];
@@ -211,6 +213,7 @@ export function buildPrompt({ intent, boundary }, boundaryDef, capability = "ref
     "Someone brought one thing they are stuck on. The first turn must create relief fast: name the loop, sharpen the question, and give one move they can start.",
     "Treat scattered, fast-moving, or nonlinear input as usable signal, not as a flaw. Do not diagnose the user or name a condition. Find the strongest thread and make it feel containable.",
     "If they are drifting, say so plainly in one sentence. If the obvious answer is weak, challenge the premise with a test, not a verdict.",
+    "If they ask whether they are hallucinating, overreaching, or drifting, answer the risk plainly before the move. Do not reassure them to keep momentum.",
     "The answer must feel made for this exact sentence. Use concrete nouns from the user's words. Avoid canned phrases like 'you may need more clarity', 'more context', 'it depends', or 'take a step back' unless the user's words specifically demand them.",
     "Do not produce a report, a dashboard, a checklist, a numbered plan, a motivational note, or a therapy-style validation. This is a mirror turn: one reflection, one sharper question, one move.",
     "The question must create productive pause, not ask for more background. The move must be physical or observable: write, send, remove, choose, test, ask, show, open, close, compare, or time-box.",
@@ -265,6 +268,10 @@ const HARM_OTHER_RE =
   /\b(kill|hurt|harm|attack|poison|stab|shoot|bomb|blackmail|revenge)\b.{0,80}\b(someone|them|people|person|boss|partner|ex|enemy|school|office)\b/i;
 const ABUSE_OR_CRIME_RE =
   /\b(hide evidence|destroy evidence|commit fraud|launder money|phishing|malware|ransomware|steal credentials|bypass security|evade detection|forge documents)\b/i;
+const PROFESSIONAL_MEDICAL_RE =
+  /\b(?:stop|start|change|skip|increase|decrease|quit)\b.{0,60}\b(?:medication|medicine|prescription|dose|dosage|therapy|treatment)\b|\b(?:diagnose|prescribed medication|medical advice|symptoms?|side effects?)\b/i;
+const PROFESSIONAL_LEGAL_FINANCIAL_RE =
+  /\b(?:legal advice|sue|lawsuit|contract dispute|avoid taxes|evade taxes|tax structure|investment advice|financial advice|securities|insider|regulation|regulatory filing)\b/i;
 
 function safetyGate(intent, boundary, boundaryDef, turn) {
   const value = String(intent || "");
@@ -314,6 +321,37 @@ function safetyGate(intent, boundary, boundaryDef, turn) {
   return { mirror, truth_state, turn };
 }
 
+function professionalGate(intent, boundary, boundaryDef, turn) {
+  const value = String(intent || "");
+  if (!PROFESSIONAL_MEDICAL_RE.test(value) && !PROFESSIONAL_LEGAL_FINANCIAL_RE.test(value)) {
+    return null;
+  }
+
+  const mirror = {
+    reflection: "This is not just a reflection decision; it could create health, legal, or financial risk. Active Mirror can help you frame the question, but it cannot tell you to act.",
+    question: "Who is the qualified person or source that owns this risk?",
+    move: "Write the exact decision you are considering, then ask the qualified professional before acting.",
+    receipt: {
+      why: "The turn asked for professional-risk guidance, so Active Mirror paused before model routing.",
+      context_used: `Only the professional-risk signal and selected ${boundary} boundary were used.`,
+      context_excluded: boundaryDef.excluded,
+      route: "Active Mirror paused before model routing for professional risk.",
+      memory_decision: "Nothing was saved or promoted.",
+    },
+    visual: null,
+  };
+
+  const truth_state = {
+    status: "needs_checking",
+    checked: false,
+    label: "Needs a qualified source before you rely on it.",
+    reason: "The turn involved health, legal, financial, or regulatory risk and was redirected before model routing.",
+    signals: ["professional_boundary"],
+  };
+
+  return { mirror, truth_state, turn };
+}
+
 // --- Text hygiene ---
 export function cleanText(value, fallback, maxLength) {
   const text = repairTextArtifacts(
@@ -350,6 +388,7 @@ function repairTextArtifacts(value) {
 // judging an AI. This is the line the model cannot cross. ---
 const FLATTERY_RE = /\b(you(?:'| a)?re (?:absolutely |so |totally |completely )?right|brilliant|genius|amazing|fantastic|incredible|great (?:idea|question|point|job|call)|love (?:it|this)|nailed it|excellent|impressive|well done|good for you|spot on|you've got this|that'?s exactly right|you should definitely|no question(?: about it)?|without a doubt)\b/i;
 const FLATTERY_RE_G = new RegExp(FLATTERY_RE.source, "gi");
+const CANNED_PHRASE_RE = /\b(it depends|take a step back|more context|more clarity|deep dive|game changer|unlock(?:ing)?|journey|leverage|holistic|at the end of the day|move the needle|north star|synergy)\b/i;
 const INTERNAL_TOKEN_RE = /\b(?:ZERO_SYCOPHANCY|TRUE_PRIVACY|REFLECTION_OVER_PREDICTION|ONE_MOVE_ONLY|USER_OWNS_MEMORY|SOURCE_HONESTY|NO_FABRICATION|CONSENT_BOUND|FULL_RECEIPTS|SAME_RULES_EVERY_TURN|100_PERCENT_REFLECTION)\b/;
 const INTERNAL_TOKEN_RE_G = new RegExp(INTERNAL_TOKEN_RE.source, "g");
 
@@ -363,10 +402,20 @@ export function stripInternalTokens(text) {
 }
 
 export function deflatter(text) {
-  return stripInternalTokens(String(text || "").replace(FLATTERY_RE_G, ""))
+  return stripInternalTokens(removeCannedPhrases(String(text || "").replace(FLATTERY_RE_G, "")))
     .replace(/\s{2,}/g, " ")
     .replace(/\s+([.,;!?])/g, "$1")
     .replace(/^[\s,;.!-]+/, "")
+    .trim();
+}
+
+function removeCannedPhrases(text) {
+  return String(text || "")
+    .replace(/\bit depends\b[:,.]?\s*/gi, "")
+    .replace(/\btake a step back\b[:,.]?\s*/gi, "")
+    .replace(/\bmore clarity\b/gi, "a concrete signal")
+    .replace(/\bmore context\b/gi, "the specific constraint")
+    .replace(/\b(deep dive|game changer|unlock(?:ing)?|journey|leverage|holistic|at the end of the day|move the needle|north star|synergy)\b[:,.]?\s*/gi, "")
     .trim();
 }
 
@@ -390,6 +439,9 @@ export function straitjacket(mirror) {
   }
   if (INTERNAL_TOKEN_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
     violations.push("internal_tokens_removed");
+  }
+  if (CANNED_PHRASE_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
+    violations.push("canned_phrase_removed");
   }
 
   const reflection = deflatter(reflectionRaw);
@@ -624,6 +676,19 @@ export async function reflect({ intent, boundary = "personal", turn = 1, capabil
       mirror: safety.mirror,
       truth_state: safety.truth_state,
       straitjacket: ["safety_redirect"],
+    };
+  }
+
+  const professional = professionalGate(intent, boundary, boundaryDef, turn);
+  if (professional) {
+    const receipt_id = await receiptHash({ mirror: professional.mirror, truth_state: professional.truth_state, turn });
+    return {
+      ok: true,
+      fallback: false,
+      receipt_id,
+      mirror: professional.mirror,
+      truth_state: professional.truth_state,
+      straitjacket: ["professional_redirect", "truth_state_needs_sources"],
     };
   }
 

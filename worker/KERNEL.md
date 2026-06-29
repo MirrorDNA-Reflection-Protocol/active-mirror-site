@@ -18,7 +18,7 @@ Every provider route receives the same versioned Active Mirror boot packet befor
 the user turn. The current boot id is:
 
 ```text
-2026-06-27-active-mirror-boot-v1
+2026-06-29-active-mirror-boot-v2
 ```
 
 The boot packet is steering, not enforcement. It tells the model to:
@@ -30,6 +30,9 @@ The boot packet is steering, not enforcement. It tells the model to:
 - return one small reversible move;
 - avoid implying memory without explicit approval;
 - mark current or external factual claims instead of sounding certain;
+- narrow "do everything / what else" turns to the next smallest useful slice;
+- produce only the smallest useful artifact shape when the user asks for code,
+  markdown, a PDF, or a sendable output;
 - keep consumer-facing output free of internal token names.
 
 The deterministic gates below remain the guarantee. If a provider leaks internal
@@ -103,8 +106,9 @@ before the user sees the answer and records `"internal_tokens_removed"`.
 - `route.upstream_host` — only present for the bridge route, and only contains the non-secret host used by the Worker.
 - `truth_state` — deterministic source-sensitivity marker. It does not fact-check; it tells the UI whether the turn is reflective only or needs sources before reliance.
 - `straitjacket` — array of deterministic corrections applied this turn. Possible values:
-  `"flattery_removed"`, `"internal_tokens_removed"`, `"question_forced"`, `"move_made_singular"`, `"visual_dropped"`, `"truth_state_needs_sources"`.
+  `"flattery_removed"`, `"canned_phrase_removed"`, `"internal_tokens_removed"`, `"question_forced"`, `"move_made_singular"`, `"visual_dropped"`, `"truth_state_needs_sources"`.
   `"client_boundary_redacted"` appears when obvious client-boundary sensitive patterns were masked before model routing.
+  `"professional_redirect"` appears when medical, legal, financial, or regulatory-risk advice was framed before model routing.
   (Empty array = the model stayed inside the cage on its own.)
 
 ### `truth_state` — the hallucination rail
@@ -225,6 +229,10 @@ If `visual` is `null`, render nothing — most turns have no visual.
   { "ok": false, "error": "boundary_violation", "receipt": { "...": "nothing was sent to any model" } }
   ```
   The model is **never called** when a secret is detected. UI copy: hold the turn, send nothing.
+- **Professional-risk request detected in `intent`** → `200` with a redirect mirror:
+  the model is **not called** for medical, legal, financial, or regulatory advice.
+  `truth_state.status` is `needs_checking`, `straitjacket` includes
+  `"professional_redirect"`, and the move routes to a qualified person/source.
 - **`intent` < 12 chars or malformed body** → `400 { "ok": false, "error": "intent_too_short" }` or `400 { "ok": false, "error": "invalid_json" }`.
   Prevent this client-side (require ≥12 chars before POST).
 - **Payload over gateway cap** → `413`:
@@ -335,8 +343,8 @@ reply email domain, and timestamp. The full email address is not written to logs
 
 1. **Shape** — `reflection`, `question`, `move`, `receipt` are always present (schema-forced;
    safe deterministic fallback if the model fails). `visual` is `null` or a valid object.
-2. **Honesty floor** — flattery phrases stripped; `question` always ends with `?`; `move`
-   is one thing (lists collapsed to the first item).
+2. **Honesty floor** — flattery and common canned helper phrases stripped; `question`
+   always ends with `?`; `move` is one thing (lists collapsed to the first item).
 3. **Privacy** — secrets in `intent` are blocked before any model runs.
 4. **Source honesty** — source-sensitive claims are marked `needs_checking` unless a route explicitly verifies them.
 5. **Record** — `receipt_id` is a content hash of exactly what was returned.
