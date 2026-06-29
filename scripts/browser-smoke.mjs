@@ -11,15 +11,13 @@ const routes = [
     name: "home",
     path: "/",
     mustSee: [
-      /What do you want\?/i,
-      /Type one thing you are stuck on/i,
-      /Try a messy sentence\. It works better that way\./i,
-      /I need to decide/i,
-      /I need to send something/i,
-      /I need to stop spiraling/i,
-      /What can I ask\?/i,
-      /Check claim/i,
-      /Get next move/i,
+      /What do you want to move\?/i,
+      /Say it messy/i,
+      /one honest next move/i,
+      /Get unstuck/i,
+      /Make this sendable/i,
+      /Check my thinking/i,
+      /Reflect/i,
     ],
     interact: true,
   },
@@ -47,7 +45,7 @@ const routes = [
   {
     name: "mirror",
     path: "/mirror",
-    mustSee: [/What do you want\?/i, /Type one thing you are stuck on/i, /Get next move/i],
+    mustSee: [/What do you want to move\?/i, /Say it messy/i, /Reflect/i],
   },
   {
     name: "enterprise",
@@ -139,18 +137,18 @@ async function exerciseFirstInput(page) {
   if (!submitFirstTurn) return;
 
   await page.goto(routeUrl("/"), { waitUntil: "domcontentloaded", timeout: 20000 });
-  await page.getByRole("button", { name: /^I need to decide$/ }).click();
+  await page.getByRole("button", { name: /^Get unstuck$/ }).first().click();
   await page.getByText(/Real question:/).waitFor({ timeout: 30000 });
-  await page.getByText(/Next move/i).first().waitFor({ timeout: 10000 });
+  await page.getByText(/^NEXT MOVE$/i).waitFor({ timeout: 10000 });
   await page.getByText("Remember this", { exact: true }).click();
   await page.getByText("Saved for next time", { exact: true }).waitFor({ timeout: 10000 });
-  await page.getByText("Make it smaller", { exact: true }).waitFor({ timeout: 10000 });
-  await page.getByText("Be more honest", { exact: true }).waitFor({ timeout: 10000 });
-  await page.getByText("Turn into a message", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByText("What else?", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByText("Challenge me", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByText("Make it sendable", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("Did this help?", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByRole("button", { name: /^Almost$/ }).first().click();
   await page.getByText(/No message text was saved/i).waitFor({ timeout: 10000 });
-  await page.getByRole("button", { name: /^Make it smaller$/ }).last().click();
+  await page.getByRole("button", { name: /^What else\?$/ }).last().click();
   await page.waitForTimeout(1500);
   if (await page.getByText("This asks for current facts.", { exact: true }).isVisible().catch(() => false)) {
     fail("Starter/feedback reflection leaked source-check UI.");
