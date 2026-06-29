@@ -33,7 +33,7 @@
     }
   ],
   "vars": {
-    "MIRROR_BRIDGE_URL": "https://proxy.activemirror.ai",
+    "MIRROR_BRIDGE_URL": "https://bridge.activemirror.ai",
     "MIRROR_REFLECTION_PRIMARY": "bridge",
     "MIRROR_CHAT_PRIMARY": "bridge",
     "MIRROR_MEDIA_PRIMARY": "gemini",
