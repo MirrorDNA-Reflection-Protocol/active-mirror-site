@@ -179,6 +179,20 @@ await check("truthGate leaves personal reflection in reflective mode", () => {
   assert.strictEqual(truth.checked, false);
 });
 
+// 9b. Plain action language like "write it on paper" is not an academic-paper/source claim.
+await check("truthGate does not source-gate plain action counts on paper", () => {
+  const truth = truthGate({
+    intent: "I need the next step",
+    mirror: {
+      reflection: "You are treating the next step like it should arrive fully formed, which keeps the work abstract.",
+      question: "What is the one thing you can do in 10 minutes that would make the next step visible?",
+      move: "Write the next 3 actions on paper and circle the one you can start now.",
+    },
+  });
+  assert.strictEqual(truth.status, "reflective");
+  assert.deepStrictEqual(truth.signals, []);
+});
+
 // 10. Truth gate marks current/external claims as needing sources instead of sounding certain.
 await check("truthGate marks current competitor claims as needing sources", () => {
   const truth = truthGate({

@@ -444,13 +444,13 @@ export function gateVisual(visual) {
 // It marks current/external/factual claims before the UI renders them, so the
 // mirror cannot sound sourced when it has only reflected. ---
 const CURRENT_FACT_RE =
-  /\b(latest|today|current(?:ly)?|as of|state of|online|web|source|sources|cite|verify|fact[- ]?check|competitor|competitors|market|tam|pricing|price|research|paper|study|studies|report|benchmark|released|launched|funding|revenue|valuation|users|law|regulation|regulatory|ceo|president|openai|anthropic|gemini|hugging ?face|vercel|apple|nvidia|cloudflare|genui)\b|202[0-9]/i;
+  /\b(latest|today|current(?:ly)?|as of|state of|online|web|source|sources|cite|verify|fact[- ]?check|competitor|competitors|market|tam|pricing|price|research|study|studies|report|benchmark|released|launched|funding|revenue|valuation|users|law|regulation|regulatory|ceo|president|openai|anthropic|gemini|hugging ?face|vercel|apple|nvidia|cloudflare|genui)\b|202[0-9]/i;
 const SPECIFIC_EXTERNAL_NUMBER_RE =
   /(?:[$€£₹]\s?\d|\d+(?:\.\d+)?\s?(?:%|percent|million|billion|trillion|bn|m|users|customers|employees|tokens|parameters|dollars|usd|inr|gb|tb))/i;
 const OVERCLAIM_RE =
   /\b(proves?|proven|guarantee[sd]?|certain(?:ly)?|undisputed|best|top|only|first|all|every|everyone|no one|nobody|always|never|without a doubt|no question about it|industry standard)\b/i;
 const EXTERNAL_NOUN_RE =
-  /\b(company|companies|market|competitor|competitors|model|models|research|paper|study|report|pricing|price|users|customers|revenue|funding|valuation|law|regulation|benchmark|release|platform|provider|industry)\b/i;
+  /\b(company|companies|market|competitor|competitors|model|models|research|study|report|pricing|price|users|customers|revenue|funding|valuation|law|regulation|benchmark|release|platform|provider|industry)\b/i;
 
 function truthText(value) {
   return String(value || "")
