@@ -1,22 +1,8 @@
-import { cpSync, copyFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const source = resolve(process.env.ACTIVE_MIRROR_APP_DIST || "/Users/mirror-pro/repos/activemirror-journey/dist");
 const target = resolve(process.env.ACTIVE_MIRROR_APP_TARGET || "public/app");
-const routeFallbacks = [
-  "brainscan",
-  "device",
-  "enterprise",
-  "feedback",
-  "id",
-  "mirror",
-  "mirrorseed",
-  "privacy",
-  "reflect",
-  "scan",
-  "start",
-  "terms",
-];
 const forbiddenPackagedPaths = [
   "llms.txt",
   "llms-full.txt",
@@ -41,12 +27,6 @@ mkdirSync(target, { recursive: true });
 cpSync(join(source, "index.html"), join(target, "index.html"));
 cpSync(join(source, "404.html"), join(target, "404.html"));
 cpSync(join(source, "assets"), join(target, "assets"), { recursive: true });
-
-for (const route of routeFallbacks) {
-  const routeDir = join(target, route);
-  mkdirSync(routeDir, { recursive: true });
-  copyFileSync(join(source, "index.html"), join(routeDir, "index.html"));
-}
 
 for (const forbidden of forbiddenPackagedPaths) {
   const packagedPath = join(target, forbidden);

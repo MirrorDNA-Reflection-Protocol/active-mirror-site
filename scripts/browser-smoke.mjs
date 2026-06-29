@@ -10,7 +10,7 @@ const routes = [
   {
     name: "home",
     path: "/",
-    mustSee: [/What do you want\?/i, /Type one thing you are stuck on/i, /Start Reflection/i],
+    mustSee: [/What do you want help with\?/i, /Type one thing you are stuck on/i, /Start Reflection/i],
     interact: true,
   },
   {
@@ -36,7 +36,7 @@ const routes = [
   {
     name: "mirror",
     path: "/mirror",
-    mustSee: [/What do you want help with\?/i, /Type one thing you are stuck on/i, /Save preferences/i],
+    mustSee: [/What do you want help with\?/i, /Type one thing you are stuck on/i, /Start Reflection/i],
   },
   {
     name: "enterprise",
@@ -129,7 +129,7 @@ async function exerciseFirstInput(page) {
 
   await page.getByRole("button", { name: /reflect|send|get my next move/i }).first().click();
   await page.getByText("Try this next", { exact: true }).waitFor({ timeout: 30000 });
-  await page.locator("summary", { hasText: /^More$/ }).first().click();
+  await page.getByText("Keep going", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("Make it smaller", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("Be more honest", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("Turn into draft", { exact: true }).waitFor({ timeout: 10000 });
