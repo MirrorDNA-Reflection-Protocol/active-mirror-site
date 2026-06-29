@@ -26,13 +26,21 @@ if (!/\bcname:\s*activemirror\.ai\b/.test(deployWorkflow)) {
   failures.push("Deploy workflow must publish with cname: activemirror.ai");
 }
 
-for (const route of ["brainscan", "id", "mirrorseed", "scan", "start", "mirror", "enterprise", "privacy", "terms"]) {
-  requireFile(join("public/app", route, "index.html"), `/app/${route}/ fallback`);
+requireFile(join("public/app", "index.html"), "/app/index.html shell");
+requireFile(join("public/app", "404.html"), "/app/404.html shell fallback");
+
+const appIndex = read(join("public/app", "index.html"));
+const appFallback = read(join("public/app", "404.html"));
+if (appIndex && appFallback && appIndex !== appFallback) {
+  failures.push("/app/index.html and /app/404.html must match so deep links render the same app shell");
+}
+if (!appFallback.includes("/app/assets/")) {
+  failures.push("/app/404.html must load app assets from /app/assets/");
 }
 
 const rootIndex = read("index.html");
-if (!rootIndex.includes("id.activemirror.ai") || !rootIndex.includes("/app/start/index.html")) {
-  failures.push("Root redirect must route id.activemirror.ai into /app/start/index.html");
+if (!rootIndex.includes("id.activemirror.ai") || !rootIndex.includes("/app/start/")) {
+  failures.push("Root redirect must route id.activemirror.ai into /app/start/");
 }
 
 const canonicalDoc = read("CANONICAL_SITE.md");
