@@ -17,6 +17,8 @@ const routes = [
       /I need to decide/i,
       /I need to send something/i,
       /I need to stop spiraling/i,
+      /What can I ask\?/i,
+      /Check claim/i,
       /Get next move/i,
     ],
     interact: true,
@@ -24,22 +26,23 @@ const routes = [
   {
     name: "start",
     path: "/start",
-    mustSee: [/Make it feel like yours/i, /How should Active Mirror help/i, /Saved on this browser/i],
+    mustSee: [/Make it feel like yours/i, /How should this help you/i, /You decide what stays/i],
+    setup: true,
   },
   {
     name: "id-alias",
     path: "/id",
-    mustSee: [/Make it feel like yours/i, /How should Active Mirror help/i, /Saved on this browser/i],
+    mustSee: [/Make it feel like yours/i, /How should this help you/i, /You decide what stays/i],
   },
   {
     name: "brainscan-alias",
     path: "/brainscan",
-    mustSee: [/Make it feel like yours/i, /How should Active Mirror help/i, /Saved on this browser/i],
+    mustSee: [/Make it feel like yours/i, /How should this help you/i, /You decide what stays/i],
   },
   {
     name: "mirrorseed-alias",
     path: "/mirrorseed",
-    mustSee: [/Make it feel like yours/i, /How should Active Mirror help/i, /Saved on this browser/i],
+    mustSee: [/Make it feel like yours/i, /How should this help you/i, /You decide what stays/i],
   },
   {
     name: "mirror",
@@ -167,6 +170,23 @@ async function exerciseFirstInput(page) {
   }
 }
 
+async function exerciseStartFlow(page) {
+  await page.getByRole("button", { name: /Help me decide/i }).click();
+  await page.getByText(/What should it avoid\?/i).waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: /Do not just agree with me/i }).click();
+  await page.getByText(/How direct should it be\?/i).waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: /Very direct/i }).click();
+  await page.getByText(/Save this for next time/i).waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: /Save this for next time/i }).click();
+  await page.getByText(/Saved for next time/i).first().waitFor({ timeout: 10000 });
+  await page.getByText(/Start chat/i).waitFor({ timeout: 10000 });
+
+  const state = await page.evaluate(() => localStorage.getItem("mirrorState_v1") || "");
+  if (!state.includes("starter-preferences") || !state.includes("directness")) {
+    fail("Setup choices were not saved into the browser-local state.");
+  }
+}
+
 async function main() {
   if (screenshotDir) {
     await mkdir(screenshotDir, { recursive: true });
@@ -224,6 +244,10 @@ async function main() {
 
         if (route.interact) {
           await exerciseFirstInput(page);
+        }
+
+        if (route.setup) {
+          await exerciseStartFlow(page);
         }
 
         if (screenshotDir) {
