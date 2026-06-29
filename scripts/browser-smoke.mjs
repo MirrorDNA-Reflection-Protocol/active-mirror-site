@@ -10,7 +10,15 @@ const routes = [
   {
     name: "home",
     path: "/",
-    mustSee: [/What do you want\?/i, /Type one thing you are stuck on/i, /Get next move/i],
+    mustSee: [
+      /What do you want\?/i,
+      /Type one thing you are stuck on/i,
+      /Try a messy sentence\. It works better that way\./i,
+      /I need to decide/i,
+      /I need to send something/i,
+      /I need to stop spiraling/i,
+      /Get next move/i,
+    ],
     interact: true,
   },
   {
@@ -127,10 +135,12 @@ async function exerciseFirstInput(page) {
 
   if (!submitFirstTurn) return;
 
-  await page.getByRole("button", { name: /reflect|send|get my next move|get next move/i }).first().click();
+  await page.goto(routeUrl("/"), { waitUntil: "domcontentloaded", timeout: 20000 });
+  await page.getByRole("button", { name: /^I need to decide$/ }).click();
   await page.getByText(/Real question:/).waitFor({ timeout: 30000 });
   await page.getByText(/Next move/i).first().waitFor({ timeout: 10000 });
-  await page.getByText("Remember this", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByText("Remember this", { exact: true }).click();
+  await page.getByText("Saved for next time", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("Make it smaller", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("Be more honest", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("Turn into a message", { exact: true }).waitFor({ timeout: 10000 });
