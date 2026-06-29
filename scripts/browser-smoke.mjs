@@ -16,22 +16,22 @@ const routes = [
   {
     name: "start",
     path: "/start",
-    mustSee: [/Make Active Mirror yours/i, /Quick setup/i, /saved on this browser/i],
+    mustSee: [/Make it feel like yours/i, /How should Active Mirror help/i, /Saved on this browser/i],
   },
   {
     name: "id-alias",
     path: "/id",
-    mustSee: [/Make Active Mirror yours/i, /Quick setup/i, /saved on this browser/i],
+    mustSee: [/Make it feel like yours/i, /How should Active Mirror help/i, /Saved on this browser/i],
   },
   {
     name: "brainscan-alias",
     path: "/brainscan",
-    mustSee: [/Make Active Mirror yours/i, /Quick setup/i, /saved on this browser/i],
+    mustSee: [/Make it feel like yours/i, /How should Active Mirror help/i, /Saved on this browser/i],
   },
   {
     name: "mirrorseed-alias",
     path: "/mirrorseed",
-    mustSee: [/Make Active Mirror yours/i, /Quick setup/i, /saved on this browser/i],
+    mustSee: [/Make it feel like yours/i, /How should Active Mirror help/i, /Saved on this browser/i],
   },
   {
     name: "mirror",
