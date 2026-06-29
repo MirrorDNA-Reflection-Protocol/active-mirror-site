@@ -10,7 +10,7 @@ const routes = [
   {
     name: "home",
     path: "/",
-    mustSee: [/What do you want help with\?/i, /Type one thing you are stuck on/i, /Start Reflection/i],
+    mustSee: [/What do you want\?/i, /Type one thing you are stuck on/i, /Get next move/i],
     interact: true,
   },
   {
@@ -36,7 +36,7 @@ const routes = [
   {
     name: "mirror",
     path: "/mirror",
-    mustSee: [/What do you want help with\?/i, /Type one thing you are stuck on/i, /Start Reflection/i],
+    mustSee: [/What do you want\?/i, /Type one thing you are stuck on/i, /Get next move/i],
   },
   {
     name: "enterprise",
@@ -127,12 +127,13 @@ async function exerciseFirstInput(page) {
 
   if (!submitFirstTurn) return;
 
-  await page.getByRole("button", { name: /reflect|send|get my next move/i }).first().click();
-  await page.getByText("Try this next", { exact: true }).waitFor({ timeout: 30000 });
-  await page.getByText("Keep going", { exact: true }).waitFor({ timeout: 10000 });
-  await page.getByText("Make it smaller", { exact: true }).waitFor({ timeout: 10000 });
-  await page.getByText("Be more honest", { exact: true }).waitFor({ timeout: 10000 });
-  await page.getByText("Turn into draft", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: /reflect|send|get my next move|get next move/i }).first().click();
+  await page.getByText(/Question:/).waitFor({ timeout: 30000 });
+  await page.getByText(/Next move/i).first().waitFor({ timeout: 10000 });
+  await page.getByText("Remember this", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByText("Smaller", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByText("More honest", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByText("Draft it", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("Did this help?", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByRole("button", { name: /^Almost$/ }).first().click();
   await page.getByText(/No message text was saved/i).waitFor({ timeout: 10000 });
