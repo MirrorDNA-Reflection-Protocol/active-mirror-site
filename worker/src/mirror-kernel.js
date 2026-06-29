@@ -458,15 +458,24 @@ function truthText(value) {
     .trim();
 }
 
+function sourceGateText(value) {
+  return truthText(value)
+    .replace(
+      /\bcurrent\s+(draft|version|message|text|sentence|page|screen|note|prompt|thread|answer|work|site|loop)\b/gi,
+      "this $1",
+    );
+}
+
 export function truthGate({ intent = "", mirror = {}, verified = false } = {}) {
   const output = truthText(`${mirror.reflection || ""} ${mirror.question || ""} ${mirror.move || ""}`);
   const input = truthText(intent);
-  const combined = `${input} ${output}`;
+  const combined = sourceGateText(`${input} ${output}`);
+  const sourceOutput = sourceGateText(output);
   const signals = [];
 
   if (CURRENT_FACT_RE.test(combined)) signals.push("current_or_external_claim");
   if (SPECIFIC_EXTERNAL_NUMBER_RE.test(combined) && EXTERNAL_NOUN_RE.test(combined)) signals.push("specific_external_number");
-  if (OVERCLAIM_RE.test(output) && (CURRENT_FACT_RE.test(combined) || EXTERNAL_NOUN_RE.test(combined))) {
+  if (OVERCLAIM_RE.test(sourceOutput) && (CURRENT_FACT_RE.test(combined) || EXTERNAL_NOUN_RE.test(combined))) {
     signals.push("unsupported_certainty");
   }
 

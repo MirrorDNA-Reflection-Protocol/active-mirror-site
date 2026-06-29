@@ -193,6 +193,20 @@ await check("truthGate does not source-gate plain action counts on paper", () =>
   assert.deepStrictEqual(truth.signals, []);
 });
 
+// 9c. "Current draft/version/message" is normal action language, not a live fact claim.
+await check("truthGate does not source-gate current draft action language", () => {
+  const truth = truthGate({
+    intent: "I am nervous about texting someone back and keep rewriting the message.",
+    mirror: {
+      reflection: "You are using rewriting to delay sending, not to improve the text.",
+      question: "What answer are you trying to avoid by rewriting the message?",
+      move: "Send the current version as-is in 10 minutes.",
+    },
+  });
+  assert.strictEqual(truth.status, "reflective");
+  assert.deepStrictEqual(truth.signals, []);
+});
+
 // 10. Truth gate marks current/external claims as needing sources instead of sounding certain.
 await check("truthGate marks current competitor claims as needing sources", () => {
   const truth = truthGate({
