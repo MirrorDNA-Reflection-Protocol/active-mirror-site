@@ -85,12 +85,22 @@ before the user sees the answer and records `"internal_tokens_removed"`.
     "signals": []
   },
   "straitjacket": [],
-  "route": { "capability": "reflection", "label": "reflection help", "fallback": null }
+  "route": {
+    "capability": "reflection",
+    "label": "reflection help",
+    "primary": "bridge",
+    "provider": "bridge",
+    "upstream_host": "bridge.activemirror.ai",
+    "fallback": null
+  }
 }
 ```
 
 - `receipt_id` — 24 hex chars (SHA-256 of the returned mirror + truth marker + turn).
 - `fallback` — `true` if a backup route/model was used (still a valid mirror).
+- `route.primary` — the configured first-choice provider family for that capability.
+- `route.provider` — the provider family that actually returned the visible mirror.
+- `route.upstream_host` — only present for the bridge route, and only contains the non-secret host used by the Worker.
 - `truth_state` — deterministic source-sensitivity marker. It does not fact-check; it tells the UI whether the turn is reflective only or needs sources before reliance.
 - `straitjacket` — array of deterministic corrections applied this turn. Possible values:
   `"flattery_removed"`, `"internal_tokens_removed"`, `"question_forced"`, `"move_made_singular"`, `"visual_dropped"`, `"truth_state_needs_sources"`.

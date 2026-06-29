@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 const GATEWAY = process.env.ACTIVE_MIRROR_GATEWAY || "https://gateway.activemirror.ai";
+const BRIDGE = process.env.ACTIVE_MIRROR_BRIDGE || "https://bridge.activemirror.ai";
+const PROXY = process.env.ACTIVE_MIRROR_PROXY || "https://proxy.activemirror.ai";
 const TIMEOUT_MS = Number(process.env.ACTIVE_MIRROR_MONITOR_TIMEOUT_MS || 30000);
 const RUN_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 const LOG_TYPES = new Set([
@@ -71,6 +73,18 @@ async function runProbeChecks(summary) {
     return { version: data.version };
   });
 
+  await check(summary, "bridge health is reachable", async () => {
+    const data = await readJson(`${BRIDGE}/health`);
+    assert(data.ok === true, "bridge health ok was not true");
+    return { host: new URL(BRIDGE).hostname };
+  });
+
+  await check(summary, "proxy health is reachable", async () => {
+    const data = await readJson(`${PROXY}/health`);
+    assert(data.ok === true, "proxy health ok was not true");
+    return { host: new URL(PROXY).hostname };
+  });
+
   await check(summary, "mirror route returns a non-fallback turn", async () => {
     const response = await fetchWithTimeout(`${GATEWAY}/v1/mirror/create`, {
       method: "POST",
@@ -89,9 +103,38 @@ async function runProbeChecks(summary) {
     assert(response.ok, `mirror status ${response.status} ${data.error || ""}`.trim());
     assert(data.ok === true, "mirror ok was not true");
     assert(data.fallback === false, `mirror used fallback ${data.route?.fallback || "unknown"}`);
+    assert(data.route?.primary === "bridge", `mirror primary was ${data.route?.primary || "missing"}`);
+    assert(data.route?.provider === "bridge", `mirror provider was ${data.route?.provider || "missing"}`);
+    assert(data.route?.upstream_host === new URL(BRIDGE).hostname, `mirror upstream host was ${data.route?.upstream_host || "missing"}`);
     assert(/^[a-f0-9]{24}$/.test(String(data.receipt_id || "")), "receipt id missing");
     assert(typeof data.mirror?.move === "string" && data.mirror.move.length > 8, "move missing");
-    return { receipt_id: data.receipt_id, truth_state: data.truth_state?.status || "unknown" };
+    return { receipt_id: data.receipt_id, truth_state: data.truth_state?.status || "unknown", provider: data.route?.provider };
+  });
+
+  await check(summary, "chat route returns a non-fallback turn", async () => {
+    const response = await fetchWithTimeout(`${GATEWAY}/v1/mirror/create`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Active-Mirror-Session": `monitor-chat-${RUN_ID}`,
+      },
+      body: JSON.stringify({
+        intent: "Rewrite this into one honest, calm sentence: I need a next move, not another plan.",
+        boundary: "personal",
+        route: "chat",
+        turn: 1,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    assert(response.ok, `chat status ${response.status} ${data.error || ""}`.trim());
+    assert(data.ok === true, "chat ok was not true");
+    assert(data.fallback === false, `chat used fallback ${data.route?.fallback || "unknown"}`);
+    assert(data.route?.capability === "chat", `chat capability was ${data.route?.capability || "missing"}`);
+    assert(data.route?.primary === "bridge", `chat primary was ${data.route?.primary || "missing"}`);
+    assert(data.route?.provider === "bridge", `chat provider was ${data.route?.provider || "missing"}`);
+    assert(data.route?.upstream_host === new URL(BRIDGE).hostname, `chat upstream host was ${data.route?.upstream_host || "missing"}`);
+    assert(typeof data.mirror?.move === "string" && data.mirror.move.length > 8, "move missing");
+    return { receipt_id: data.receipt_id, provider: data.route?.provider };
   });
 
   await check(summary, "oversized payload is rejected before provider call", async () => {

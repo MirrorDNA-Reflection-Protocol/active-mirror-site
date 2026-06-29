@@ -3,6 +3,7 @@
 const SITE = process.env.ACTIVE_MIRROR_SITE || "https://activemirror.ai";
 const IDENTITY_SITE = process.env.ACTIVE_MIRROR_IDENTITY_SITE || "https://id.activemirror.ai";
 const GATEWAY = process.env.ACTIVE_MIRROR_GATEWAY || "https://gateway.activemirror.ai";
+const BRIDGE = process.env.ACTIVE_MIRROR_BRIDGE || "https://bridge.activemirror.ai";
 const RUN_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 const TIMEOUT_MS = Number(process.env.ACTIVE_MIRROR_CANARY_TIMEOUT_MS || 30000);
 const FORBIDDEN_PUBLIC_COPY = [
@@ -105,6 +106,10 @@ async function main() {
     const data = await response.json().catch(() => ({}));
     assert(response.ok, `mirror status ${response.status} ${data.error || ""}`.trim());
     assert(data.ok === true, "mirror ok was not true");
+    assert(data.fallback === false, `mirror used fallback ${data.route?.fallback || "unknown"}`);
+    assert(data.route?.primary === "bridge", `mirror primary was ${data.route?.primary || "missing"}`);
+    assert(data.route?.provider === "bridge", `mirror provider was ${data.route?.provider || "missing"}`);
+    assert(data.route?.upstream_host === new URL(BRIDGE).hostname, `mirror upstream host was ${data.route?.upstream_host || "missing"}`);
     assert(/^[a-f0-9]{24}$/.test(String(data.receipt_id || "")), "receipt id missing");
     assert(typeof data.mirror?.reflection === "string" && data.mirror.reflection.length > 20, "reflection missing");
     assert(String(data.mirror?.question || "").endsWith("?"), "question was not enforced");

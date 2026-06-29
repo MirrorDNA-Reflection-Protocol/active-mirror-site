@@ -234,6 +234,8 @@ export default {
       // The only thing the runtime injects into the kernel: how to call a model.
       let lastFallbackReason = null;
       let lastInternalFallbackReason = null;
+      let lastProvider = null;
+      let lastUpstreamHost = null;
       const result = await reflect({
         intent: input.intent,
         boundary: input.boundary,
@@ -241,6 +243,8 @@ export default {
         capability: route.capability,
         callModel: async (prompt) => {
           const r = await runRoute(route, prompt, env);
+          lastProvider = r.provider || route.primary;
+          lastUpstreamHost = r.upstream_host || null;
           lastInternalFallbackReason = r.fallback ? cleanProviderCode(r.fallbackReason || "unknown") : null;
           lastFallbackReason = r.fallback ? publicFallbackReason(r.fallbackReason) : null;
           const routeText = r.fallback
@@ -275,6 +279,9 @@ export default {
           route: {
             capability: route.capability,
             label: publicRouteLabel(route.capability),
+            primary: route.primary,
+            provider: lastProvider || route.primary,
+            upstream_host: lastProvider === "bridge" ? lastUpstreamHost : null,
             fallback: result.fallback ? lastFallbackReason : null,
           },
         },
@@ -1002,13 +1009,13 @@ async function runRoute(route, prompt, env, attempted = []) {
     return fallbackResult(route, prompt, env, nextAttempted, `${provider}_missing_secret`);
   }
 
-  return { fallback: true, fallbackReason: "no_provider_secret_configured", model: "local-deterministic", mirror: null };
+  return { fallback: true, fallbackReason: "no_provider_secret_configured", model: "local-deterministic", mirror: null, provider: null };
 }
 
 async function fallbackResult(route, prompt, env, attempted, reason) {
   const fallbackRoute = chooseFallbackRoute(route, env, attempted);
   if (!fallbackRoute) {
-    return { fallback: true, fallbackReason: reason, model: "local-deterministic", mirror: null };
+    return { fallback: true, fallbackReason: reason, model: "local-deterministic", mirror: null, provider: null };
   }
   try {
     const result = await runRoute(fallbackRoute, prompt, env, attempted);
@@ -1035,8 +1042,9 @@ function chooseFallbackRoute(route, env, attempted) {
 }
 
 async function callBridge(prompt, route, env) {
+  const bridgeUrl = String(env.MIRROR_BRIDGE_URL).replace(/\/+$/, "");
   const response = await fetchWithTimeout(
-    `${String(env.MIRROR_BRIDGE_URL).replace(/\/+$/, "")}/v1/mirror/reflect`,
+    `${bridgeUrl}/v1/mirror/reflect`,
     {
       method: "POST",
       headers: {
@@ -1051,7 +1059,7 @@ async function callBridge(prompt, route, env) {
 
   const data = await readProviderResponse(response, "bridge");
   if (!data?.ok || !data?.mirror) throw new Error("bridge_invalid_mirror");
-  return { fallback: false, model: data.model || "mini-mirror-bridge", mirror: data.mirror };
+  return { fallback: false, model: data.model || "mini-mirror-bridge", mirror: data.mirror, provider: "bridge", upstream_host: safeUrlHost(bridgeUrl) };
 }
 
 async function callAnthropic(prompt, route, env) {
@@ -1108,7 +1116,7 @@ async function callAnthropicModel(prompt, model, env) {
   );
 
   const data = await readProviderResponse(response, "anthropic");
-  return { fallback: false, model, mirror: parseProviderMirror(extractAnthropicText(data), "anthropic") };
+  return { fallback: false, model, mirror: parseProviderMirror(extractAnthropicText(data), "anthropic"), provider: "anthropic" };
 }
 
 async function callOpenAI(prompt, route, env) {
@@ -1145,7 +1153,7 @@ async function callOpenAIModel(prompt, model, env) {
   );
 
   const data = await readProviderResponse(response, "openai");
-  return { fallback: false, model, mirror: parseProviderMirror(extractOpenAIText(data), "openai") };
+  return { fallback: false, model, mirror: parseProviderMirror(extractOpenAIText(data), "openai"), provider: "openai" };
 }
 
 function shouldUseOpenAIFastFallback(error) {
@@ -1179,7 +1187,7 @@ async function callGemini(prompt, route, env) {
 
   const data = await readProviderResponse(response, "gemini");
   const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("") || "";
-  return { fallback: false, model, mirror: parseProviderMirror(text, "gemini") };
+  return { fallback: false, model, mirror: parseProviderMirror(text, "gemini"), provider: "gemini" };
 }
 
 async function runSourceCheck(input, env, ctx) {
@@ -1776,6 +1784,14 @@ function publicGuardrails(env) {
 
 function hasSourceCheckRoute(env) {
   return Boolean(env.OPENAI_API_KEY || env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY);
+}
+
+function safeUrlHost(value) {
+  try {
+    return new URL(value).hostname || null;
+  } catch {
+    return null;
+  }
 }
 
 function safeError(error) {
