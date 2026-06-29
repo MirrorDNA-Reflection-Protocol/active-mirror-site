@@ -148,6 +148,10 @@ async function exerciseFirstInput(page) {
   await page.getByRole("button", { name: /^Almost$/ }).first().click();
   await page.getByText(/No message text was saved/i).waitFor({ timeout: 10000 });
   await page.getByRole("button", { name: /^Make it smaller$/ }).last().click();
+  await page.waitForTimeout(1500);
+  if (await page.getByText("This asks for current facts.", { exact: true }).isVisible().catch(() => false)) {
+    fail("Starter/feedback reflection leaked source-check UI.");
+  }
 
   const feedbackStore = await page.evaluate(() => localStorage.getItem("active_mirror_feedback_v1") || "");
   if (feedbackStore.includes(testText)) {
