@@ -31,11 +31,17 @@ requireFile(join("public/app", "404.html"), "/app/404.html shell fallback");
 
 const appIndex = read(join("public/app", "index.html"));
 const appFallback = read(join("public/app", "404.html"));
+const appFallbackGenerator = read("scripts/app-fallbacks.mjs");
 if (appIndex && appFallback && appIndex !== appFallback) {
   failures.push("/app/index.html and /app/404.html must match so deep links render the same app shell");
 }
 if (!appFallback.includes("/app/assets/")) {
   failures.push("/app/404.html must load app assets from /app/assets/");
+}
+for (const route of ["id", "mirrorseed", "enterprise"]) {
+  if (!appFallbackGenerator.includes(`'${route}'`)) {
+    failures.push(`App fallback generator must include /app/${route}/`);
+  }
 }
 
 const rootIndex = read("index.html");
