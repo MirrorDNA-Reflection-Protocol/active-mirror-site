@@ -154,7 +154,7 @@ const internal =
 const abstractHelper =
   /\b(you are treating|you're treating|what i hear is|the real question is|whole frame|this voice|the label|the limits|the loop is that|bounded|productive pause|underneath your wording|underneath the user's wording|nervous system|inner child|hold space)\b/i;
 const blameyMotive =
-  /\b(?:you\s+(?:keep|are|you're|seem to|may be|might be)\s+[^.!?]{0,80}\b(?:avoid|avoiding|delay|delaying|procrastinat|hiding|dodging)\b|you\s+(?:use|are using|you're using)\s+[^.!?]{0,80}\b(?:to avoid|to delay|as a way to avoid|as a way to delay)\b|what\s+(?:are\s+you|you\s+are|you're)\s+(?:avoid|avoiding|delaying|dodging|hiding))\b/i;
+  /\b(?:you\s+keep\s+[^.!?]{0,100}|you\s+(?:are\s+using|use|seem\s+to|may\s+be|might\s+be)\s+[^.!?]{0,100}\b(?:avoid|avoiding|delay|delaying|procrastinat|hiding|dodging)\b|you\s+are\s+using\s+[^.!?]{0,80}\b(?:to avoid|to delay|as a way to avoid|as a way to delay)\b|what[^?]{0,100}\bare\s+you\s+(?:avoid|avoiding|delaying|dodging|hiding))\b/i;
 
 function allPrompts() {
   return categories.flatMap((category) => category.prompts.map((prompt) => ({ ...category, prompt })));

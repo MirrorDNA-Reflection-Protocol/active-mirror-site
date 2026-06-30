@@ -81,13 +81,13 @@ await check("straitjacket strips internal governance tokens from user-facing out
 // 1c. Direct challenge is allowed; motive-reading is not.
 await check("straitjacket rewrites blamey motive-reading into pattern language", () => {
   const { mirror, violations } = straitjacket({
-    reflection: "You keep opening AI to avoid choosing the next launch move.",
-    question: "What are you avoiding by asking this?",
+    reflection: "You keep opening AI, but the launch still has no next action.",
+    question: "What single launch task are you avoiding by opening AI again?",
     move: "Write the launch action in one sentence.",
     receipt: RECEIPT,
   });
   const combined = `${mirror.reflection} ${mirror.question} ${mirror.move}`;
-  assert.ok(!/you keep|you are using|you're using|to avoid choosing|what are you avoiding/i.test(combined), "motive-reading survived");
+  assert.ok(!/you keep|you are using|you're using|are you avoiding|to avoid/i.test(combined), "motive-reading survived");
   assert.ok(/tool is holding the work|make this simpler/i.test(combined), "pattern language was not substituted");
   assert.ok(violations.includes("motive_guard_applied"), "motive guard was not recorded");
 });
