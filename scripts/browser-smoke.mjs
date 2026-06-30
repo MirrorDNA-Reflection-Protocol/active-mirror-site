@@ -21,23 +21,23 @@ const routes = [
   {
     name: "start",
     path: "/start",
-    mustSee: [/Make it feel like yours\./i, /Quick setup/i, /What do you need first\?/i],
+    mustSee: [/What do you usually need help with\?/i, /Getting unstuck/i, /Getting honest pushback/i],
     setup: true,
   },
   {
     name: "id-alias",
     path: "/id",
-    mustSee: [/Make it feel like yours\./i, /Quick setup/i, /What do you need first\?/i],
+    mustSee: [/What do you usually need help with\?/i, /Getting unstuck/i, /Getting honest pushback/i],
   },
   {
     name: "brainscan-alias",
     path: "/brainscan",
-    mustSee: [/Make it feel like yours\./i, /Quick setup/i, /What do you need first\?/i],
+    mustSee: [/What do you usually need help with\?/i, /Getting unstuck/i, /Getting honest pushback/i],
   },
   {
     name: "mirrorseed-alias",
     path: "/mirrorseed",
-    mustSee: [/Make it feel like yours\./i, /Quick setup/i, /What do you need first\?/i],
+    mustSee: [/What do you usually need help with\?/i, /Getting unstuck/i, /Getting honest pushback/i],
   },
   {
     name: "mirror",
@@ -168,21 +168,33 @@ async function exerciseFirstInput(page) {
 }
 
 async function exerciseStartFlow(page) {
-  await page.getByRole("button", { name: /I feel stuck/i }).click();
-  await page.getByText(/What helps first\?/i).waitFor({ timeout: 10000 });
-  await page.getByRole("button", { name: /One next step/i }).click();
-  await page.getByRole("button", { name: /Too much text/i }).click();
-  await page.getByRole("button", { name: /^Gentle$/i }).click();
-  await page.getByRole("button", { name: /How I like answers/i }).click();
-  await page.getByRole("button", { name: /When I am spiraling/i }).click();
-  await page.getByRole("button", { name: /It is short and useful/i }).click();
-  await page.getByText(/You're set\./i).waitFor({ timeout: 10000 });
-  await page.getByText(/Download choices/i).waitFor({ timeout: 10000 });
-  await page.getByRole("button", { name: /Save and start/i }).click();
+  await page.getByText(/What do you usually need help with\?/i).waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: /Getting unstuck/i }).click();
+  await page.getByRole("button", { name: /^Directly$/i }).click();
+  await page.getByRole("button", { name: /Agreement helps/i }).click();
+  await page.getByRole("button", { name: /One clear next step/i }).click();
+  await page.getByText(/Your mirror is ready\./i).waitFor({ timeout: 10000 });
+  await page.getByText(/Download ID/i).waitFor({ timeout: 10000 });
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: /Download ID/i }).click();
+  const download = await downloadPromise;
+  if (download.suggestedFilename() !== "active-mirror-id.json") {
+    fail(`Setup ID download used unexpected filename: ${download.suggestedFilename()}`);
+  }
+
+  await page.getByRole("button", { name: /Start chat/i }).click();
+  await page.waitForURL(/\/app\/?$/, { timeout: 10000 });
   await page.getByText(/What do you want\?/i).waitFor({ timeout: 10000 });
 
-  const state = await page.evaluate(() => localStorage.getItem("mirrorState_v1") || "");
-  if (!state.includes("mirror-id") || !state.includes("mirrorSeed") || !state.includes("preferences")) {
+  const state = await page.evaluate(() => {
+    try {
+      return JSON.parse(localStorage.getItem("mirrorState_v1") || "{}");
+    } catch {
+      return {};
+    }
+  });
+  if (!state.mirrorSeed || !Array.isArray(state.preferences) || state.preferences.length !== 4) {
     fail("Setup choices were not saved into the browser-local state.");
   }
 }
