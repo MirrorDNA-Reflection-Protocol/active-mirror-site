@@ -62,10 +62,11 @@ async function main() {
   await check("gateway health is current", async () => {
     const data = await readJson(`${GATEWAY}/health`);
     assert(data.ok === true, "health ok was not true");
-    assert(/^2026-06-30-plain-first-turn-v4$/.test(String(data.version || "")), "unexpected gateway version");
+    assert(/^2026-06-30-artifact-route-v1$/.test(String(data.version || "")), "unexpected gateway version");
     assert(data.guardrails?.event_policy === "no-prompt-content", "event policy missing");
     assert(data.guardrails?.truth_state === "enabled", "truth-state guardrail missing");
     assert(data.guardrails?.source_check === "enabled", "source-check guardrail missing");
+    assert(data.guardrails?.artifact === "enabled", "artifact guardrail missing");
     assert(data.guardrails?.mirror_rate_limit === "enabled", "mirror rate limit not enabled");
     assert(data.guardrails?.event_rate_limit === "enabled", "event rate limit not enabled");
     assert(data.guardrails?.daily_budget === "enabled", "daily budget not enabled");
@@ -136,6 +137,36 @@ async function main() {
     assert(response.ok, `mirror status ${response.status} ${data.error || ""}`.trim());
     assert(data.ok === true, "mirror ok was not true");
     assert(data.truth_state?.status === "needs_checking", `expected needs_checking, got ${data.truth_state?.status || "missing"}`);
+  });
+
+  await check("artifact route creates a usable output or safe fallback", async () => {
+    const response = await fetchWithTimeout(`${GATEWAY}/v1/mirror/artifact`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Active-Mirror-Session": `canary-${RUN_ID}`,
+      },
+      body: JSON.stringify({
+        intent: "Create a short launch memo from this reflection.",
+        artifactKind: "doc",
+        boundary: "personal",
+        mirror: {
+          reflection: "The launch needs a visible promise before another brainstorm.",
+          question: "What promise would make someone try it today?",
+          move: "Write the first user promise and send it to one person.",
+        },
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    assert(response.ok, `artifact status ${response.status} ${data.error || ""}`.trim());
+    assert(data.ok === true, "artifact ok was not true");
+    assert(/^[a-f0-9]{24}$/.test(String(data.receipt_id || "")), "artifact receipt id missing");
+    assert(["doc", "code", "image", "draft"].includes(data.artifact?.kind), "artifact kind missing");
+    assert(typeof data.artifact?.title === "string" && data.artifact.title.length > 2, "artifact title missing");
+    assert(typeof data.artifact?.body === "string" && data.artifact.body.length > 40, "artifact body too thin");
+    assert(Array.isArray(data.artifact?.checklist), "artifact checklist missing");
+    assert(data.route?.label === "artifact help", "artifact route label missing");
   });
 
   await check("source check returns cited evidence or a verification plan", async () => {

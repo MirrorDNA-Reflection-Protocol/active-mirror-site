@@ -105,6 +105,7 @@ function isIgnoredConsoleError(text) {
     // Local preview origins are intentionally not CORS-allowed by the Worker.
     || (isLocalPreview() && /Failed to load resource: the server responded with a status of 403/i.test(text))
     || (isLocalPreview() && /gateway\.activemirror\.ai\/v1\/mirror\/create.*CORS policy/i.test(text))
+    || (isLocalPreview() && /gateway\.activemirror\.ai\/v1\/mirror\/artifact.*CORS policy/i.test(text))
     || (isLocalPreview() && /gateway\.activemirror\.ai\/v1\/mirror\/enterprise-stream.*CORS policy/i.test(text))
     || (isLocalPreview() && /Failed to load resource: net::ERR_FAILED/i.test(text));
 }
@@ -142,8 +143,12 @@ async function exerciseFirstInput(page) {
   await page.getByText("Saved for next time", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("Another angle", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("Challenge it", { exact: true }).waitFor({ timeout: 10000 });
-  await page.getByText("Draft it", { exact: true }).waitFor({ timeout: 10000 });
+  const artifactButton = page.getByRole("button", { name: /^(Draft it|Make doc|Make code starter|Make visual brief)$/ }).first();
+  await artifactButton.waitFor({ timeout: 10000 });
   await page.getByText("Helpful?", { exact: true }).waitFor({ timeout: 10000 });
+  await artifactButton.click();
+  await page.getByRole("button", { name: /^Download$/ }).last().waitFor({ timeout: 30000 });
+  await page.getByRole("button", { name: /^Copy$/ }).last().waitFor({ timeout: 10000 });
   await page.getByRole("button", { name: /^Almost$/ }).first().click();
   await page.getByText(/No message text saved/i).waitFor({ timeout: 10000 });
   await page.getByRole("button", { name: /^Another angle$/ }).last().click();

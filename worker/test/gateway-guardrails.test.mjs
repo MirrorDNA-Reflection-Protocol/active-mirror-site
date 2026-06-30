@@ -121,6 +121,23 @@ function openAIMirrorResponse() {
   };
 }
 
+function openAIArtifactResponse() {
+  return {
+    output_text: JSON.stringify({
+      kind: "doc",
+      title: "Launch note",
+      body: [
+        "Launch note",
+        "",
+        "Purpose: turn the scattered launch thought into one sendable note.",
+        "",
+        "Next move: write the first user promise and send it to one person.",
+      ].join("\n"),
+      checklist: ["Remove private details.", "Send one small version first."],
+    }),
+  };
+}
+
 installEdgeCache();
 const restoreFetch = installBridgeFetch();
 
@@ -514,6 +531,129 @@ await check("provider fallback emits metadata-only monitor log", async () => {
     globalThis.fetch = originalFetch;
     console.log = originalLog;
   }
+});
+
+await check("artifact route creates a provider-backed document", async () => {
+  installEdgeCache();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("api.openai.com")) {
+      assert.strictEqual(init?.headers?.Authorization, "Bearer test-openai-key", "openai token missing");
+      const body = JSON.parse(init?.body || "{}");
+      assert.strictEqual(body.store, false, "artifact route must not store provider output");
+      assert.strictEqual(body.text?.format?.name, "active_mirror_artifact", "artifact schema missing");
+      return Response.json(openAIArtifactResponse());
+    }
+    return originalFetch(url, init);
+  };
+
+  try {
+    const response = await post(
+      "/v1/mirror/artifact",
+      {
+        intent: "Create a short launch memo from this reflection.",
+        artifactKind: "doc",
+        boundary: "personal",
+        mirror: {
+          reflection: "The launch needs a visible promise before another brainstorm.",
+          question: "What promise would make someone try it today?",
+          move: "Write the first user promise and send it to one person.",
+        },
+      },
+      {
+        MIRROR_BRIDGE_URL: "",
+        MIRROR_BRIDGE_TOKEN: "",
+        OPENAI_API_KEY: "test-openai-key",
+      },
+    );
+    const data = await response.json();
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(data.ok, true);
+    assert.strictEqual(data.fallback, false);
+    assert.match(data.receipt_id, /^[0-9a-f]{24}$/);
+    assert.strictEqual(data.artifact.kind, "doc");
+    assert.strictEqual(data.artifact.title, "Launch note");
+    assert.ok(data.artifact.body.includes("Next move"), "artifact body missing usable content");
+    assert.strictEqual(data.route.label, "artifact help");
+    assert.strictEqual(JSON.stringify(data).includes("test-openai-key"), false, "secret leaked into response");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+await check("artifact route returns a safe template instead of routing secrets", async () => {
+  installEdgeCache();
+  let providerCalls = 0;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("api.openai.com")) providerCalls++;
+    return originalFetch(url, init);
+  };
+
+  try {
+    const response = await post(
+      "/v1/mirror/artifact",
+      {
+        intent: "Make a doc with api_key: sk-testtesttesttesttesttesttesttesttest",
+        artifactKind: "doc",
+        boundary: "personal",
+        mirror: {
+          reflection: "Private details should stay out.",
+          question: "What can be shared safely?",
+          move: "Replace secrets with placeholders.",
+        },
+      },
+      {
+        MIRROR_BRIDGE_URL: "",
+        MIRROR_BRIDGE_TOKEN: "",
+        OPENAI_API_KEY: "test-openai-key",
+      },
+    );
+    const data = await response.json();
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(data.ok, true);
+    assert.strictEqual(data.fallback, true);
+    assert.strictEqual(data.artifact.title, "Safe version");
+    assert.ok(data.artifact.body.includes("[problem]"), "safe placeholder template missing");
+    assert.strictEqual(JSON.stringify(data).includes("sk-test"), false, "secret leaked into safe artifact");
+    assert.strictEqual(providerCalls, 0, "provider was called for a secret artifact");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+await check("artifact route provides deterministic fallback without provider keys", async () => {
+  installEdgeCache();
+  const response = await post(
+    "/v1/mirror/artifact",
+    {
+      intent: "Create a tiny React helper for the next move.",
+      artifactKind: "code",
+      boundary: "personal",
+      mirror: {
+        reflection: "The idea needs a small test.",
+        question: "What is the smallest version to run?",
+        move: "Create one helper and test it.",
+      },
+    },
+    {
+      MIRROR_BRIDGE_URL: "",
+      MIRROR_BRIDGE_TOKEN: "",
+      OPENAI_API_KEY: "",
+      ANTHROPIC_API_KEY: "",
+      GEMINI_API_KEY: "",
+      GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER: "",
+    },
+  );
+  const data = await response.json();
+
+  assert.strictEqual(response.status, 200);
+  assert.strictEqual(data.ok, true);
+  assert.strictEqual(data.fallback, true);
+  assert.strictEqual(data.artifact.kind, "code");
+  assert.ok(data.artifact.body.includes("export function nextStep"), "fallback code starter missing");
 });
 
 restoreFetch();

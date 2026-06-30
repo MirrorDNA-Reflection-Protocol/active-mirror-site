@@ -37,7 +37,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-06-30-plain-first-turn-v4";
+const WORKER_VERSION = "2026-06-30-artifact-route-v1";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
@@ -168,6 +168,26 @@ const SOURCE_CHECK_SCHEMA = {
   },
 };
 
+const ARTIFACT_KINDS = new Set(["doc", "code", "image", "draft"]);
+const ARTIFACT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["kind", "title", "body", "checklist"],
+  properties: {
+    kind: { type: "string", enum: ["doc", "code", "image", "draft"] },
+    title: { type: "string" },
+    body: { type: "string" },
+    checklist: {
+      type: "array",
+      maxItems: 4,
+      items: { type: "string" },
+    },
+  },
+};
+
+const UNSAFE_ARTIFACT_RE =
+  /\b(?:malware|ransomware|phishing|steal credentials|credential theft|bypass security|evade detection|exfiltrate|keylogger|ddos|sql injection|exploit|forge documents|hide evidence|destroy evidence|launder money)\b/i;
+
 export default {
   async fetch(request, env, ctx) {
     const origin = request.headers.get("Origin") || "";
@@ -218,6 +238,10 @@ export default {
 
     if (request.method === "POST" && url.pathname === "/v1/mirror/source-check") {
       return handleSourceCheck(request, env, ctx, corsHeaders);
+    }
+
+    if (request.method === "POST" && url.pathname === "/v1/mirror/artifact") {
+      return handleArtifact(request, env, ctx, corsHeaders);
     }
 
     if (request.method !== "POST" || url.pathname !== "/v1/mirror/create") {
@@ -369,6 +393,131 @@ async function handleSourceCheck(request, env, ctx, corsHeaders) {
     }
     logSafe(ctx, { type: "active_mirror_gateway_error", surface: "source_check", reason: safeError(error) });
     return json({ ok: false, error: "source_check_error" }, 500, corsHeaders);
+  }
+}
+
+async function handleArtifact(request, env, ctx, corsHeaders) {
+  try {
+    const body = await readJsonBody(request, maxMirrorRequestBytes(env));
+    const input = sanitizeArtifactInput(body);
+    const budget = await enforceMirrorBudget(request, env, ctx, { capability: "artifact" });
+    if (!budget.allowed) {
+      return rateLimitedResponse(budget, corsHeaders);
+    }
+
+    const boundaryText = `${input.intent} ${input.mirror.reflection} ${input.mirror.question} ${input.mirror.move}`;
+    if (containsSecret(boundaryText)) {
+      const artifact = fallbackArtifact(input, "privacy");
+      const receipt_id = await receiptHash({ type: "artifact_privacy_hold", artifact, kind: input.kind });
+      return json(
+        {
+          ok: true,
+          fallback: true,
+          receipt_id,
+          artifact,
+          truth_state: {
+            status: "reflective",
+            checked: false,
+            label: "Private details held back.",
+            reason: "The artifact request appeared to include a secret or credential, so a safer template was created instead.",
+            signals: ["privacy_boundary"],
+          },
+          route: {
+            capability: "artifact",
+            label: "artifact help",
+            fallback: "private details were held back",
+          },
+        },
+        200,
+        corsHeaders,
+      );
+    }
+
+    if (UNSAFE_ARTIFACT_RE.test(boundaryText)) {
+      const artifact = fallbackArtifact(input, "safety");
+      const receipt_id = await receiptHash({ type: "artifact_safety_hold", artifact, kind: input.kind });
+      return json(
+        {
+          ok: true,
+          fallback: true,
+          receipt_id,
+          artifact,
+          truth_state: {
+            status: "reflective",
+            checked: false,
+            label: "Safer artifact created.",
+            reason: "The requested artifact could enable harm or concealment, so Active Mirror created a safer alternative.",
+            signals: ["safety_boundary"],
+          },
+          route: {
+            capability: "artifact",
+            label: "artifact help",
+            fallback: "safer alternative created",
+          },
+        },
+        200,
+        corsHeaders,
+      );
+    }
+
+    const routedInput = input.boundary === "client"
+      ? {
+          ...input,
+          intent: sanitizeModelIntent(input.intent, "client"),
+          mirror: {
+            reflection: sanitizeModelIntent(input.mirror.reflection, "client"),
+            question: sanitizeModelIntent(input.mirror.question, "client"),
+            move: sanitizeModelIntent(input.mirror.move, "client"),
+          },
+        }
+      : input;
+
+    const result = await runArtifactRoute(routedInput, env, ctx);
+    const artifact = result.artifact || fallbackArtifact(input, "provider");
+    const receipt_id = await receiptHash({
+      type: "active_mirror_artifact",
+      kind: artifact.kind,
+      title: artifact.title,
+      body: artifact.body,
+      fallback: Boolean(result.fallback),
+    });
+
+    if (result.fallback) {
+      logSafe(ctx, {
+        type: "active_mirror_artifact_fallback",
+        kind: artifact.kind,
+        reason: result.publicReason || "the artifact route used a backup",
+      });
+    }
+
+    return json(
+      {
+        ok: true,
+        fallback: Boolean(result.fallback),
+        receipt_id,
+        artifact,
+        truth_state: {
+          status: "reflective",
+          checked: false,
+          label: "Artifact created.",
+          reason: "The artifact was created from this turn and the current reflection. Current factual claims still need source checking before reliance.",
+          signals: ["artifact_created"],
+        },
+        route: {
+          capability: "artifact",
+          label: "artifact help",
+          fallback: result.fallback ? result.publicReason || "the artifact route used a backup" : null,
+        },
+      },
+      200,
+      corsHeaders,
+    );
+  } catch (error) {
+    if (error?.status) {
+      return json({ ok: false, error: error.code || "bad_request" }, error.status, corsHeaders);
+    }
+    logSafe(ctx, { type: "active_mirror_gateway_error", surface: "artifact", reason: safeError(error) });
+    return json({ ok: false, error: "artifact_gateway_error" }, 500, corsHeaders);
   }
 }
 
@@ -915,6 +1064,30 @@ function sanitizeSourceCheckInput(body) {
   };
 }
 
+function sanitizeArtifactInput(body) {
+  const intent = cleanSourceText(body?.intent, 1000);
+  const boundary = String(body?.boundary || "personal").toLowerCase();
+  const kind = normalizeArtifactKind(body?.artifactKind || body?.kind);
+  const mirror = {
+    reflection: cleanSourceText(body?.mirror?.reflection, 420),
+    question: cleanSourceText(body?.mirror?.question, 240),
+    move: cleanSourceText(body?.mirror?.move, 240),
+  };
+  const target = intent || mirror.question || mirror.move || mirror.reflection;
+  if (target.length < 8) throw httpError(400, "artifact_intent_required");
+  return {
+    intent: intent || target,
+    boundary: BOUNDARIES[boundary] ? boundary : "personal",
+    kind,
+    mirror,
+  };
+}
+
+function normalizeArtifactKind(value) {
+  const kind = String(value || "draft").toLowerCase().replace(/[^a-z]/g, "");
+  return ARTIFACT_KINDS.has(kind) ? kind : "draft";
+}
+
 function maskSourceCheckInput(input) {
   if (input.boundary !== "client") return input;
   return {
@@ -1041,6 +1214,360 @@ function chooseFallbackRoute(route, env, attempted) {
     return { ...route, primary: "gemini", modelEnv: "GEMINI_MEDIA_MODEL", defaultModel: "gemini-3.5-flash" };
   }
   return null;
+}
+
+async function runArtifactRoute(input, env, ctx) {
+  const prompt = buildArtifactPrompt(input);
+  const providers = artifactProviderOrder(input.kind, env);
+  let lastReason = "no_provider_secret_configured";
+
+  for (const provider of providers) {
+    try {
+      if (provider === "openai") {
+        return await callOpenAIArtifact(prompt, input, env);
+      }
+      if (provider === "anthropic") {
+        return await callAnthropicArtifact(prompt, input, env);
+      }
+      if (provider === "gemini") {
+        return await callGeminiArtifact(prompt, input, env);
+      }
+    } catch (error) {
+      lastReason = providerFailureReason(provider, error);
+      logSafe(ctx, {
+        type: "active_mirror_artifact_provider_failed",
+        provider,
+        kind: input.kind,
+        reason: cleanProviderCode(lastReason),
+      });
+    }
+  }
+
+  return {
+    fallback: true,
+    publicReason: publicFallbackReason(lastReason),
+    artifact: fallbackArtifact(input, "provider"),
+  };
+}
+
+function artifactProviderOrder(kind, env) {
+  const hasOpenAI = Boolean(env.OPENAI_API_KEY);
+  const hasAnthropic = Boolean(env.ANTHROPIC_API_KEY);
+  const hasGemini = Boolean(env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY);
+  const preferred = normalizeArtifactProvider(env.MIRROR_ARTIFACT_PRIMARY || "");
+  const defaults = kind === "image" ? ["gemini", "openai", "anthropic"] : ["openai", "anthropic", "gemini"];
+  const ordered = [preferred, ...defaults].filter(Boolean);
+  return [...new Set(ordered)].filter((provider) => {
+    if (provider === "openai") return hasOpenAI;
+    if (provider === "anthropic") return hasAnthropic;
+    if (provider === "gemini") return hasGemini;
+    return false;
+  });
+}
+
+function normalizeArtifactProvider(value) {
+  const provider = String(value || "").trim().toLowerCase();
+  return ["openai", "anthropic", "gemini"].includes(provider) ? provider : "";
+}
+
+function buildArtifactPrompt(input) {
+  const kindGuidance = {
+    doc: "Create a useful document the user can copy or download now. Include a clear title, a short body, and practical sections. Do not say how to make the document; make it.",
+    code: "Create a small code starter or implementation capsule. If the stack is unclear, use the smallest useful vanilla example plus assumptions. Do not ask for more context unless code would be unsafe.",
+    image: "Create a visual generation brief. It must be directly usable as an image/video prompt and include scene, composition, mood, constraints, and what to avoid.",
+    draft: "Create the smallest sendable draft or working note. It should be useful even if rough.",
+  }[input.kind];
+
+  return [
+    "You are Active Mirror's artifact maker.",
+    "Trust by Design means: if the product offers an artifact, provide the smallest useful safe artifact now.",
+    "Do not refuse because context is imperfect. Use placeholders and state assumptions inside the artifact when needed.",
+    "Do not mention policies, models, providers, gateways, receipts, or internal tokens.",
+    "Do not flatter, diagnose, scold, or write therapy language.",
+    "Do not invent current facts, citations, prices, legal/medical/financial advice, or private details.",
+    "If a claim needs sources, make the artifact say where evidence is needed instead of making the claim sound proven.",
+    "Use normal words. Keep it clean, human, and immediately usable.",
+    "Return valid JSON only with kind, title, body, checklist.",
+    "Plain ASCII only. No prose outside JSON.",
+    `Artifact kind: ${input.kind}`,
+    kindGuidance,
+    "",
+    `User asked: ${input.intent}`,
+    `Reflection: ${input.mirror.reflection || "not provided"}`,
+    `Question: ${input.mirror.question || "not provided"}`,
+    `Move: ${input.mirror.move || "not provided"}`,
+  ].join("\n");
+}
+
+async function callOpenAIArtifact(prompt, input, env) {
+  const model = env.OPENAI_ARTIFACT_MODEL || env.OPENAI_FAST_MODEL || env.OPENAI_REFLECTION_MODEL || "gpt-5.4-mini";
+  const response = await fetchWithTimeout(
+    "https://api.openai.com/v1/responses",
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        input: prompt,
+        store: false,
+        reasoning: { effort: "low" },
+        text: { format: { type: "json_schema", name: "active_mirror_artifact", strict: true, schema: ARTIFACT_SCHEMA } },
+        max_output_tokens: 1600,
+      }),
+    },
+    "openai",
+    env,
+  );
+  const data = await readProviderResponse(response, "openai");
+  return { fallback: false, artifact: normalizeArtifactPayload(extractOpenAIText(data), input) };
+}
+
+async function callAnthropicArtifact(prompt, input, env) {
+  const model = env.ANTHROPIC_ARTIFACT_MODEL || env.ANTHROPIC_REFLECTION_MODEL || "claude-3-5-sonnet-20241022";
+  const response = await fetchWithTimeout(
+    "https://api.anthropic.com/v1/messages",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": env.ANTHROPIC_API_KEY,
+        "anthropic-version": env.ANTHROPIC_VERSION || "2023-06-01",
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 1600,
+        temperature: 0.35,
+        system: "Return one useful Active Mirror artifact as valid JSON only. No markdown outside JSON.",
+        messages: [{ role: "user", content: prompt }],
+      }),
+    },
+    "anthropic",
+    env,
+  );
+  const data = await readProviderResponse(response, "anthropic");
+  return { fallback: false, artifact: normalizeArtifactPayload(extractAnthropicText(data), input) };
+}
+
+async function callGeminiArtifact(prompt, input, env) {
+  const model = input.kind === "image"
+    ? env.GEMINI_ARTIFACT_MODEL || env.GEMINI_MEDIA_MODEL || "gemini-2.5-flash"
+    : env.GEMINI_ARTIFACT_MODEL || env.GEMINI_SOURCE_MODEL || env.GEMINI_MEDIA_MODEL || "gemini-2.5-flash";
+  const key = env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY;
+  const referer = env.GEMINI_ALLOWED_REFERER || "https://activemirror.ai/";
+  const response = await fetchWithTimeout(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": key,
+        Referer: referer,
+        Origin: new URL(referer).origin,
+      },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: "Return one useful Active Mirror artifact as valid JSON only." }] },
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json", responseJsonSchema: ARTIFACT_SCHEMA },
+      }),
+    },
+    "gemini",
+    env,
+  );
+  const data = await readProviderResponse(response, "gemini");
+  const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("") || "";
+  return { fallback: false, artifact: normalizeArtifactPayload(text, input) };
+}
+
+function normalizeArtifactPayload(text, input) {
+  const payload = parseArtifactPayload(text);
+  const kind = normalizeArtifactKind(payload?.kind || input.kind);
+  const title = cleanArtifactText(payload?.title, defaultArtifactTitle(kind), 80).replace(/[.]+$/, "");
+  const body = cleanArtifactBody(payload?.body, "").trim();
+  const checklist = Array.isArray(payload?.checklist)
+    ? payload.checklist.map((item) => cleanArtifactText(item, "", 140)).filter(Boolean).slice(0, 4)
+    : [];
+
+  if (!body || body.length < 20) {
+    return fallbackArtifact({ ...input, kind }, "thin");
+  }
+
+  return {
+    kind,
+    title: title || defaultArtifactTitle(kind),
+    body,
+    checklist: checklist.length ? checklist : defaultArtifactChecklist(kind),
+  };
+}
+
+function parseArtifactPayload(text) {
+  const value = String(text || "").trim();
+  if (!value) return {};
+  const jsonText = value.startsWith("```") ? value.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim() : value;
+  try {
+    return JSON.parse(jsonText);
+  } catch {
+    return { body: value };
+  }
+}
+
+function cleanArtifactText(value, fallback, maxLength) {
+  const clean = String(value || "")
+    .replace(/[‘’‚′]/g, "'")
+    .replace(/[“”„″]/g, '"')
+    .replace(/[–—−]/g, "-")
+    .replace(/…/g, "...")
+    .replace(/[^\x09\x0a\x0d\x20-\x7e]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return (clean || fallback).slice(0, maxLength);
+}
+
+function cleanArtifactBody(value, fallback) {
+  const clean = String(value || "")
+    .replace(/[‘’‚′]/g, "'")
+    .replace(/[“”„″]/g, '"')
+    .replace(/[–—−]/g, "-")
+    .replace(/…/g, "...")
+    .replace(/[^\x09\x0a\x0d\x20-\x7e]/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{4,}/g, "\n\n\n")
+    .trim();
+  return (clean || fallback).slice(0, 6000);
+}
+
+function defaultArtifactTitle(kind) {
+  return {
+    doc: "Working doc",
+    code: "Code starter",
+    image: "Visual brief",
+    draft: "Message draft",
+  }[kind] || "Working draft";
+}
+
+function defaultArtifactChecklist(kind) {
+  if (kind === "code") return ["Test the smallest path first.", "Keep private inputs out of logs."];
+  if (kind === "image") return ["Remove private details before media generation.", "Use the brief as the creative prompt."];
+  return ["Remove private details before sharing.", "Keep the first version small enough to use."];
+}
+
+function fallbackArtifact(input, reason = "provider") {
+  const kind = normalizeArtifactKind(input.kind);
+  const intent = cleanArtifactText(input.intent, "the thing you want", 180);
+  const question = cleanArtifactText(input.mirror?.question, "What output would help right now?", 180);
+  const move = cleanArtifactText(input.mirror?.move, "Create the smallest useful version.", 180);
+
+  if (reason === "privacy") {
+    return {
+      kind: "draft",
+      title: "Safe version",
+      body: [
+        "Use this version without private details:",
+        "",
+        "I need help with [problem] for [goal].",
+        "The private details are replaced with placeholders.",
+        "The useful output I want is [document, message, code, visual, or decision].",
+      ].join("\n"),
+      checklist: ["Replace names, keys, and account details with placeholders.", "Send the safer version instead."],
+    };
+  }
+
+  if (reason === "safety") {
+    return {
+      kind: "doc",
+      title: "Safer path",
+      body: [
+        "Active Mirror cannot help create an artifact that enables harm, concealment, or abuse.",
+        "",
+        `Useful substitute: ${intent}`,
+        "",
+        "Safer output:",
+        "- Name the legitimate goal.",
+        "- Remove the harmful or deceptive step.",
+        "- Ask for a defensive, lawful, or repair-focused version.",
+        "",
+        `Next move: ${move}`,
+      ].join("\n"),
+      checklist: ["Keep the goal lawful and defensive.", "Do not include credentials, targets, or evasion steps."],
+    };
+  }
+
+  if (kind === "code") {
+    return {
+      kind,
+      title: "Code starter",
+      body: [
+        "Goal",
+        intent,
+        "",
+        "Acceptance",
+        `- ${move}`,
+        "- Keep the first version small enough to test in one screen.",
+        "- Do not add external calls, storage, or destructive actions unless approved.",
+        "",
+        "Starter",
+        "```js",
+        "export function nextStep(input) {",
+        "  const text = String(input || \"\").trim();",
+        "  if (!text) return { ok: false, message: \"Add one sentence first.\" };",
+        "  return { ok: true, move: text };",
+        "}",
+        "```",
+      ].join("\n"),
+      checklist: ["Replace the starter with the target stack once known.", "Keep private inputs out of logs."],
+    };
+  }
+
+  if (kind === "image") {
+    return {
+      kind,
+      title: "Visual brief",
+      body: [
+        "Visual brief",
+        "",
+        `Goal: ${intent}`,
+        "Feeling: warm, simple, useful, lightly magical, not busy.",
+        `Main idea: ${question}`,
+        "Scene: one clear focal point that shows the outcome, not the machinery.",
+        "Avoid: clutter, medical cues, diagnostics, dashboard overload, model names, private details.",
+        `Next action: ${move}`,
+      ].join("\n"),
+      checklist: ["Remove private details before media generation.", "Use this as the image or video prompt."],
+    };
+  }
+
+  if (kind === "doc") {
+    return {
+      kind,
+      title: "Working doc",
+      body: [
+        "Working doc",
+        "",
+        `Purpose: ${intent}`,
+        "",
+        "Decision",
+        question,
+        "",
+        "Next move",
+        move,
+        "",
+        "Sendable version",
+        `I am working from this question: ${question}`,
+        `The next thing I am trying is: ${move}`,
+      ].join("\n"),
+      checklist: ["Remove private details before sharing.", "Keep the ask to one sentence if you send it."],
+    };
+  }
+
+  return {
+    kind: "draft",
+    title: "Message draft",
+    body: [
+      `I am working on: ${intent}`,
+      `The question is: ${question}`,
+      `The next thing I will try: ${move}`,
+    ].join("\n"),
+    checklist: ["Remove private details before sharing.", "Keep it short enough to send."],
+  };
 }
 
 async function callBridge(prompt, route, env) {
@@ -1750,6 +2277,11 @@ function publicRoutes(env) {
       status: env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY ? "available" : "browser fallback",
       purpose: "images, video, multimodal understanding, and media assets",
     },
+    artifact: {
+      label: "artifact help",
+      status: hasArtifactRoute(env) ? "available" : "browser fallback",
+      purpose: "documents, code starters, drafts, and visual briefs created from a reflection",
+    },
     source_check: {
       label: "source check",
       status: hasSourceCheckRoute(env) ? "available" : "unavailable",
@@ -1781,11 +2313,16 @@ function publicGuardrails(env) {
     proof_sprint_policy: "metadata-only-contact",
     truth_state: "enabled",
     source_check: hasSourceCheckRoute(env) ? "enabled" : "not_configured",
+    artifact: "enabled",
   };
 }
 
 function hasSourceCheckRoute(env) {
   return Boolean(env.OPENAI_API_KEY || env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY);
+}
+
+function hasArtifactRoute(env) {
+  return Boolean(env.OPENAI_API_KEY || env.ANTHROPIC_API_KEY || env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY);
 }
 
 function safeUrlHost(value) {
