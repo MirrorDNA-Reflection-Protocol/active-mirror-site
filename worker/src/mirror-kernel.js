@@ -140,7 +140,7 @@ export function sanitizeModelIntent(intent, boundary = "personal") {
 }
 
 // --- 2. Boot packet + prompt (the reflection instruction) ---
-export const ACTIVE_MIRROR_BOOT_VERSION = "2026-06-30-active-mirror-boot-v4";
+export const ACTIVE_MIRROR_BOOT_VERSION = "2026-06-30-active-mirror-boot-v5";
 
 export const ACTIVE_MIRROR_BOOTLOAD = [
   "You are Active Mirror.",
@@ -148,7 +148,7 @@ export const ACTIVE_MIRROR_BOOTLOAD = [
   "Your job is to reflect one stuck point back clearly enough that the user can move.",
   "ZERO_SYCOPHANCY: do not agree to be agreeable, praise the user, validate a weak plan, or soften a needed challenge.",
   "TRUE_PRIVACY: use only the submitted turn and the stated boundary; do not ask for secrets, identity details, or private history unless strictly necessary.",
-  "REFLECTION_OVER_PREDICTION: name the loop underneath the user's wording before proposing any next move.",
+  "REFLECTION_OVER_PREDICTION: reflect the useful tension in the user's wording before proposing any next move.",
   "ONE_MOVE_ONLY: the answer must end in one small, observable, reversible action the user can start in about 10 minutes.",
   "USER_OWNS_MEMORY: do not imply that anything is remembered unless the memory decision says so.",
   "SOURCE_HONESTY: if the answer depends on current or external facts, mark uncertainty and route toward source checking instead of sounding certain.",
@@ -157,6 +157,7 @@ export const ACTIVE_MIRROR_BOOTLOAD = [
   "When the user asks who you are or what you can do, answer plainly in one sentence and move them back to one useful action.",
   "Tone: calm, sharp, plain, human. Warmth comes from usefulness, not emotional padding.",
   "Do not sound like a therapist, professor, brand strategist, or internal evaluator.",
+  "Do not begin with meta-analysis such as 'you are treating', 'the loop is', 'the real question is', or 'what I hear is'.",
   "Avoid abstract helper words such as frame, bounded, label, limits, voice, underneath, and productive pause unless the user used them first.",
   "Never use Active Mirror internal token names in the user-facing reflection unless the user explicitly asks about the system.",
 ];
@@ -216,7 +217,7 @@ export function buildPrompt({ intent, boundary }, boundaryDef, capability = "ref
   return [
     `Boot packet: ${ACTIVE_MIRROR_BOOT_VERSION}`,
     ...ACTIVE_MIRROR_BOOTLOAD,
-    "Someone brought one thing they are stuck on. The first turn must create relief fast: name the loop, sharpen the question, and give one move they can start.",
+    "Someone brought one thing they are stuck on. The first turn must create relief fast: name the tension, sharpen the question, and give one move they can start.",
     "Treat scattered, fast-moving, or nonlinear input as usable signal, not as a flaw. Do not diagnose the user or name a condition. Find the strongest thread and make it feel containable.",
     "If they are drifting, say so plainly in one sentence. If the obvious answer is weak, challenge the premise with a test, not a verdict.",
     "If they ask whether they are hallucinating, overreaching, or drifting, answer the risk plainly before the move. Do not reassure them to keep momentum.",
@@ -225,7 +226,7 @@ export function buildPrompt({ intent, boundary }, boundaryDef, capability = "ref
     "The question should help the user choose, not ask for more background. The move must be physical or observable: write, send, remove, choose, test, ask, show, open, close, compare, or time-box.",
     "Return only compact JSON matching the requested structure. Plain English ASCII only. No markdown, no numbered labels, no slogans.",
     "No therapy claims, no diagnosis, no legal/medical/financial instruction, no personal-data collection, no invented facts.",
-    "reflection: 1 to 2 short sentences. Use at least one concrete noun from their wording when possible. Name the real loop underneath their question. No praise, no setup, no generic validation. Be accurate before warm.",
+    "reflection: 1 to 2 short sentences. Use at least one concrete noun from their wording when possible. Name the useful tension in their question. No praise, no setup, no generic validation. Be accurate before warm.",
     "question: the single sharper question that actually decides this. Keep it plain and specific. End it with a question mark.",
     "move: one small, observable, reversible thing they could do or test in the next 10 minutes. Not a plan, not a list. One thing.",
     "receipt: {why, context_used, context_excluded, route, memory_decision}, short and plain.",
@@ -394,8 +395,8 @@ function repairTextArtifacts(value) {
 // judging an AI. This is the line the model cannot cross. ---
 const FLATTERY_RE = /\b(you(?:'| a)?re (?:absolutely |so |totally |completely )?right|brilliant|genius|amazing|fantastic|incredible|great (?:idea|question|point|job|call)|love (?:it|this)|nailed it|excellent|impressive|well done|good for you|spot on|you've got this|that'?s exactly right|you should definitely|no question(?: about it)?|without a doubt)\b/i;
 const FLATTERY_RE_G = new RegExp(FLATTERY_RE.source, "gi");
-const CANNED_PHRASE_RE = /\b(it depends|take a step back|more context|more clarity|deep dive|game changer|unlock(?:ing)?|journey|leverage|holistic|at the end of the day|move the needle|north star|synergy)\b/i;
-const ABSTRACT_HELPER_RE = /\b(you are treating|you're treating|whole frame|this voice|the label|the limits|the loop is that|bounded|productive pause|underneath your wording|underneath the user's wording)\b/i;
+const CANNED_PHRASE_RE = /\b(it depends|take a step back|more context|more clarity|clarity and momentum|deep dive|game changer|unlock(?:ing)?|journey|leverage|holistic|at the end of the day|move the needle|north star|synergy)\b/i;
+const ABSTRACT_HELPER_RE = /\b(you are treating|you're treating|what i hear is|the real question is|whole frame|this voice|the label|the limits|the loop is that|bounded|productive pause|underneath your wording|underneath the user's wording|nervous system|inner child|hold space)\b/i;
 const INTERNAL_TOKEN_RE = /\b(?:ZERO_SYCOPHANCY|TRUE_PRIVACY|REFLECTION_OVER_PREDICTION|ONE_MOVE_ONLY|USER_OWNS_MEMORY|SOURCE_HONESTY|NO_FABRICATION|CONSENT_BOUND|FULL_RECEIPTS|SAME_RULES_EVERY_TURN|100_PERCENT_REFLECTION)\b/;
 const INTERNAL_TOKEN_RE_G = new RegExp(INTERNAL_TOKEN_RE.source, "g");
 
@@ -419,6 +420,8 @@ export function deflatter(text) {
 function removeCannedPhrases(text) {
   return String(text || "")
     .replace(/(?:^|[.!?]\s+)(?:you are|you're) treating[^.!?]*(?:[.!?]|$)/gi, " ")
+    .replace(/(?:^|[.!?]\s+)what i hear is[^.!?]*(?:[.!?]|$)/gi, " ")
+    .replace(/\bthe real question is\b[:,.]?\s*/gi, "")
     .replace(/\bthe loop is that\b[:,.]?\s*/gi, "")
     .replace(/\bthe whole frame\b/gi, "the main issue")
     .replace(/\bthis voice\b/gi, "this")
@@ -433,8 +436,25 @@ function removeCannedPhrases(text) {
     .replace(/\btake a step back\b[:,.]?\s*/gi, "")
     .replace(/\bmore clarity\b/gi, "a concrete signal")
     .replace(/\bmore context\b/gi, "the specific constraint")
-    .replace(/\b(deep dive|game changer|unlock(?:ing)?|journey|leverage|holistic|at the end of the day|move the needle|north star|synergy)\b[:,.]?\s*/gi, "")
+    .replace(/\b(clarity and momentum|deep dive|game changer|unlock(?:ing)?|journey|leverage|holistic|at the end of the day|move the needle|north star|synergy|nervous system|inner child|hold space)\b[:,.]?\s*/gi, "")
     .trim();
+}
+
+function wordCount(value) {
+  return String(value || "").trim().split(/\s+/).filter(Boolean).length;
+}
+
+function trimWords(value, maxWords) {
+  const words = String(value || "").trim().split(/\s+/).filter(Boolean);
+  if (words.length <= maxWords) return String(value || "").trim();
+  return `${words.slice(0, maxWords).join(" ").replace(/[,:;.-]+$/, "")}.`;
+}
+
+function firstSentences(value, maxSentences = 2) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const parts = text.match(/[^.!?]+[.!?]?/g) || [text];
+  return parts.slice(0, maxSentences).join(" ").replace(/\s+/g, " ").trim();
 }
 
 function looksMalformedMove(text) {
@@ -468,9 +488,9 @@ export function straitjacket(mirror) {
     violations.push("canned_phrase_removed");
   }
 
-  const reflection = deflatter(reflectionRaw) || "I can help turn this into a clear next step.";
+  const reflection = trimWords(firstSentences(deflatter(reflectionRaw), 2), 42) || "I can help turn this into a clear next step.";
 
-  let question = deflatter(questionRaw) || "What do you want help with right now?";
+  let question = trimWords(deflatter(questionRaw), 24) || "What do you want help with right now?";
   const qMark = question.indexOf("?");
   if (qMark === -1) {
     question = question.replace(/[.!]+$/, "").trim() + "?";
@@ -479,11 +499,11 @@ export function straitjacket(mirror) {
     question = question.slice(0, qMark + 1).trim(); // keep to the first question only
   }
 
-  const cleanedMove = oneThing(deflatter(moveRaw));
+  const cleanedMove = trimWords(oneThing(deflatter(moveRaw)), 26);
   const move = cleanedMove && !looksMalformedMove(cleanedMove)
     ? cleanedMove
     : "Write one sentence about the thing you want to move.";
-  if (move && move !== moveRaw.trim()) violations.push("move_made_singular");
+  if (move && (move !== moveRaw.trim() || wordCount(moveRaw) > 26)) violations.push("move_made_singular");
 
   return {
     mirror: { ...mirror, reflection, question, move: move || moveRaw.trim() },
@@ -601,12 +621,12 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
 
   const mirrors = {
     identity: {
-      reflection: "I'm Active Mirror. I help you think through one thing and turn it into something useful to try.",
+      reflection: "I'm Active Mirror. I help you turn one stuck thing into a useful next step.",
       question: "What do you want help with right now?",
       move: "Write one sentence about the thing you want to move.",
     },
     source_check: {
-      reflection: "This needs a source before it becomes a direction. The trap is letting a fresh-sounding answer become your plan.",
+      reflection: "This needs a source before it becomes a direction. A fresh-sounding answer is not enough to build on.",
       question: "Which claim would change what you do if it turned out to be false?",
       move: "Write that one claim, then check one current source before using the answer.",
     },
@@ -621,12 +641,12 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
       move: "Write one promise and one button label, then hide anything that competes with them.",
     },
     decision: {
-      reflection: "This is not ready to be solved by preference. One option needs a signal strong enough to earn the decision.",
+      reflection: "This should not be solved by preference yet. One option needs a signal strong enough to earn the decision.",
       question: "What evidence would make one option clearly earned?",
       move: "Name the signal, then run the smallest test that could produce it today.",
     },
     reset: {
-      reflection: "You are carrying too many open loops as one problem. The relief comes from moving one loop, not solving the whole pile.",
+      reflection: "This is too many open loops pretending to be one problem. Relief comes from moving one loop, not solving the whole pile.",
       question: "Which one loop would make the rest easier if it moved a little?",
       move: "Pick that loop, set a ten-minute timer, and write only the next visible action.",
     },
@@ -636,7 +656,7 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
       move: "Draft the smallest usable version with a title, three bullets, and one ask.",
     },
     general: {
-      reflection: "The thought is staying big because the useful thing is still too vague to test. Shrink it until it can meet the real world today.",
+      reflection: "The thought is staying big because the useful version is still too vague to test. Shrink it until it can meet the real world today.",
       question: "What is the smallest version of this that could be tested today?",
       move: "Write the testable version in one sentence, then show it to one person or one page.",
     },

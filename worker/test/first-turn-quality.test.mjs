@@ -152,7 +152,7 @@ const flattery =
 const internal =
   /\b(ZERO_SYCOPHANCY|TRUE_PRIVACY|REFLECTION_OVER_PREDICTION|ONE_MOVE_ONLY|USER_OWNS_MEMORY|SOURCE_HONESTY|NO_FABRICATION|CONSENT_BOUND|FULL_RECEIPTS)\b/;
 const abstractHelper =
-  /\b(you are treating|you're treating|whole frame|this voice|the label|the limits|the loop is that|bounded|productive pause|underneath your wording|underneath the user's wording)\b/i;
+  /\b(you are treating|you're treating|what i hear is|the real question is|whole frame|this voice|the label|the limits|the loop is that|bounded|productive pause|underneath your wording|underneath the user's wording|nervous system|inner child|hold space)\b/i;
 
 function allPrompts() {
   return categories.flatMap((category) => category.prompts.map((prompt) => ({ ...category, prompt })));
