@@ -78,6 +78,20 @@ await check("straitjacket strips internal governance tokens from user-facing out
   assert.ok(violations.includes("internal_tokens_removed"), "internal token removal was not recorded");
 });
 
+// 1c. Direct challenge is allowed; motive-reading is not.
+await check("straitjacket rewrites blamey motive-reading into pattern language", () => {
+  const { mirror, violations } = straitjacket({
+    reflection: "You keep opening AI to avoid choosing the next launch move.",
+    question: "What are you avoiding by asking this?",
+    move: "Write the launch action in one sentence.",
+    receipt: RECEIPT,
+  });
+  const combined = `${mirror.reflection} ${mirror.question} ${mirror.move}`;
+  assert.ok(!/you keep|you are using|you're using|to avoid choosing|what are you avoiding/i.test(combined), "motive-reading survived");
+  assert.ok(/tool is holding the work|make this simpler/i.test(combined), "pattern language was not substituted");
+  assert.ok(violations.includes("motive_guard_applied"), "motive guard was not recorded");
+});
+
 // 2. A single-sentence move with internal punctuation survives whole (the bug we caught live).
 await check("a single move with an internal ellipsis is NOT truncated", () => {
   const { mirror, violations } = straitjacket({

@@ -46,8 +46,8 @@ export const MIRROR_SCHEMA = {
   additionalProperties: false,
   required: ["reflection", "question", "move", "receipt", "visual"],
   properties: {
-    // The honest mirror: name the real thing under their question — what they may be
-    // avoiding or not saying. Make them feel seen, not judged. Do not decide for them.
+    // The honest mirror: name the real thing under their question — what the
+    // work may be circling. Make them feel seen, not judged. Do not decide for them.
     reflection: { type: "string", minLength: 20, maxLength: 360 },
     // The sharper question that actually decides this — the one they have not asked themselves.
     question: { type: "string", minLength: 12, maxLength: 170 },
@@ -147,7 +147,7 @@ export const ACTIVE_MIRROR_BOOTLOAD = [
   "Your job is not to impress, entertain, praise, diagnose, or decide for the user.",
   "Your job is to reflect the user's intent back clearly enough that they can move.",
   "INTENT_MIRROR: the user is not doing the reflection; you are reflecting their intent, pressure, tradeoff, and next workable move.",
-  "SELF_REFLECT_BEFORE_OUTPUT: before answering, privately check whether the answer is specific to the user's words, non-sycophantic, privacy-safe, and actionably small. Repair it before returning JSON.",
+  "SELF_REFLECT_BEFORE_OUTPUT: before answering, privately check whether the answer is specific to the user's words, non-sycophantic, privacy-safe, judgment-free, and actionably small. Repair it before returning JSON.",
   "The user should see the result of that internal reflection, not the internal process.",
   "ZERO_SYCOPHANCY: do not agree to be agreeable, praise the user, validate a weak plan, or soften a needed challenge.",
   "NEVER_EVER_LIE: truth outranks helpfulness, agreement, speed, and completion.",
@@ -165,7 +165,8 @@ export const ACTIVE_MIRROR_BOOTLOAD = [
   "Never position yourself as the authority on what the user needs to hear. Do not say 'what you need to hear', 'not what you want to hear', or similar paternal lines.",
   "If a privacy boundary is triggered, help the user rewrite with placeholders. Do not scold them, reject them, or make privacy feel like a failure.",
   "Tone: calm, sharp, plain, human. Warmth comes from usefulness, not emotional padding.",
-  "Direct does not mean harsh. Challenge the idea, plan, or next move; never attack the person.",
+  "Direct does not mean harsh. Challenge the idea, plan, or next move; never attack, diagnose, or narrate the person's motives.",
+  "Avoid blamey mind-reading such as 'you keep doing X to avoid Y' or 'you are using X to delay Y'. Say what the pattern is doing instead: 'The tool is holding the launch instead of moving it.'",
   "Do not sound like a therapist, professor, brand strategist, or internal evaluator.",
   "Do not begin with meta-analysis such as 'you are treating', 'the loop is', 'the real question is', or 'what I hear is'.",
   "Do not use inverted, mystical, guru, or riddle-like phrasing. Sound like a clear person, not a character.",
@@ -228,17 +229,17 @@ export function buildPrompt({ intent, boundary }, boundaryDef, capability = "ref
   return [
     `Boot packet: ${ACTIVE_MIRROR_BOOT_VERSION}`,
     ...ACTIVE_MIRROR_BOOTLOAD,
-    "Someone brought one thing they are stuck on. The first turn must create relief fast: reflect their intent, name the tradeoff, sharpen the question, and give one move they can start.",
+    "Someone brought one thing they are stuck on. The first turn must create relief fast: reflect their intent, name the tradeoff without blame, sharpen the question, and give one move they can start.",
     "Before returning the JSON, run a private self-check: Did I mirror the user's actual intent? Did I avoid flattery and judgment? Did I keep private details out? Did I give one observable move? Repair any failure silently.",
     "Treat scattered, fast-moving, or nonlinear input as usable signal, not as a flaw. Do not diagnose the user or name a condition. Pick the strongest thread and make the next action small.",
-    "If they are drifting, say so plainly in one sentence. If the obvious answer is weak, challenge the premise with a test, not a verdict.",
+    "If the work is drifting, say so plainly in one sentence. If the obvious answer is weak, challenge the premise with a test, not a verdict.",
     "If they ask whether they are hallucinating, overreaching, or drifting, answer the risk plainly before the move. Do not reassure them to keep momentum.",
     "The answer must feel made for this exact sentence. Use concrete nouns from the user's words. Avoid canned phrases like 'you may need more clarity', 'more context', 'it depends', or 'take a step back' unless the user's words specifically demand them.",
     "Do not produce a report, a dashboard, a checklist, a numbered plan, a motivational note, or a therapy-style validation. This is a mirror turn: one reflection, one sharper question, one move.",
     "The question should help the user choose, not ask for more background. The move must be physical or observable: write, send, remove, choose, test, ask, show, open, close, compare, or time-box.",
     "Return only compact JSON matching the requested structure. Plain English ASCII only. No markdown, no numbered labels, no slogans.",
     "No therapy claims, no diagnosis, no legal/medical/financial instruction, no personal-data collection, no invented facts.",
-    "reflection: 1 to 2 short sentences. Use at least one concrete noun from their wording when possible. Name the useful tension in their question. No praise, no setup, no generic validation. Be accurate before warm.",
+    "reflection: 1 to 2 short sentences. Use at least one concrete noun from their wording when possible. Name the practical tradeoff in their question. No praise, no setup, no generic validation, no motive-reading. Be accurate before warm.",
     "question: the single sharper question that actually decides this. Keep it plain and specific. End it with a question mark.",
     "move: one small, observable, reversible thing they could do or test in the next 10 minutes. Not a plan, not a list. One thing.",
     "receipt: {why, context_used, context_excluded, route, memory_decision}, short and plain.",
@@ -414,6 +415,8 @@ const PERSON_ATTACK_RE =
 const HARSH_VERDICT_RE = /\b(?:this|that|your plan|your idea|your work|your question)\s+is\s+(?:stupid|dumb|idiotic|pathetic|delusional|ridiculous|trash|garbage)\b/i;
 const STILTED_VOICE_RE =
   /\b(?:stuck|lost|ready|clear|useful|true|private|safe|visible|testable|earned|needed|big),\s+(?:you|this|it|the|that|is|are|make|must|should)\b|\b(?:must you|should you|can you)\s+(?:now|then|first)\b/i;
+const BLAMEY_MOTIVE_RE =
+  /\b(?:you\s+(?:keep|are|you're|seem to|may be|might be)\s+[^.!?]{0,80}\b(?:avoid|avoiding|delay|delaying|procrastinat|hiding|dodging)\b|you\s+use\s+[^.!?]{0,80}\b(?:to avoid|to delay|as a way to avoid|as a way to delay)\b|you\s+are\s+using\s+[^.!?]{0,80}\b(?:to avoid|to delay|as a way to avoid|as a way to delay)\b|what\s+(?:are\s+you|you\s+are|you're)\s+(?:avoid|avoiding|delaying|dodging|hiding))\b/i;
 const INTERNAL_TOKEN_RE = /\b(?:INTENT_MIRROR|SELF_REFLECT_BEFORE_OUTPUT|NEVER_EVER_LIE|NO_ASSUMPTIONS|NO_GUESSING|SAYING_NO_IS_HELPING|ZERO_SYCOPHANCY|TRUE_PRIVACY|REFLECTION_OVER_PREDICTION|ONE_MOVE_ONLY|USER_OWNS_MEMORY|SOURCE_HONESTY|NO_FABRICATION|CONSENT_BOUND|FULL_RECEIPTS|SAME_RULES_EVERY_TURN|100_PERCENT_REFLECTION)\b/;
 const INTERNAL_TOKEN_RE_G = new RegExp(INTERNAL_TOKEN_RE.source, "g");
 
@@ -535,15 +538,20 @@ export function straitjacket(mirror) {
   if (PERSON_ATTACK_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`) || HARSH_VERDICT_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`) || STILTED_VOICE_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
     violations.push("tone_guard_applied");
   }
+  if (BLAMEY_MOTIVE_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
+    violations.push("motive_guard_applied");
+  }
 
   let reflection = trimWords(firstSentences(deflatter(reflectionRaw), 2), 42) || "I can help turn this into a clear next step.";
-  if (STILTED_VOICE_RE.test(reflection) || ABSTRACT_HELPER_RE.test(reflection) || PERSON_ATTACK_RE.test(reflection) || HARSH_VERDICT_RE.test(reflection)) {
-    reflection = "This is getting too abstract. Make the next step plain.";
+  if (STILTED_VOICE_RE.test(reflection) || ABSTRACT_HELPER_RE.test(reflection) || PERSON_ATTACK_RE.test(reflection) || HARSH_VERDICT_RE.test(reflection) || BLAMEY_MOTIVE_RE.test(reflection)) {
+    reflection = BLAMEY_MOTIVE_RE.test(reflection)
+      ? "The tool is holding the work instead of moving it. Pick one small action the work can survive."
+      : "This is getting too abstract. Make the next step plain.";
     if (!violations.includes("tone_guard_applied")) violations.push("tone_guard_applied");
   }
 
   let question = trimWords(deflatter(questionRaw), 24) || "What do you want help with right now?";
-  if (STILTED_VOICE_RE.test(question) || ABSTRACT_HELPER_RE.test(question) || PERSON_ATTACK_RE.test(question) || HARSH_VERDICT_RE.test(question)) {
+  if (STILTED_VOICE_RE.test(question) || ABSTRACT_HELPER_RE.test(question) || PERSON_ATTACK_RE.test(question) || HARSH_VERDICT_RE.test(question) || BLAMEY_MOTIVE_RE.test(question)) {
     question = "What would make this simpler right now?";
     if (!violations.includes("tone_guard_applied")) violations.push("tone_guard_applied");
   }
@@ -556,7 +564,7 @@ export function straitjacket(mirror) {
   }
 
   const cleanedMove = trimWords(oneThing(deflatter(moveRaw)), 26);
-  const toneBadMove = STILTED_VOICE_RE.test(cleanedMove) || ABSTRACT_HELPER_RE.test(cleanedMove) || PERSON_ATTACK_RE.test(cleanedMove) || HARSH_VERDICT_RE.test(cleanedMove);
+  const toneBadMove = STILTED_VOICE_RE.test(cleanedMove) || ABSTRACT_HELPER_RE.test(cleanedMove) || PERSON_ATTACK_RE.test(cleanedMove) || HARSH_VERDICT_RE.test(cleanedMove) || BLAMEY_MOTIVE_RE.test(cleanedMove);
   if (toneBadMove && !violations.includes("tone_guard_applied")) violations.push("tone_guard_applied");
   const move = cleanedMove && !toneBadMove && !looksMalformedMove(cleanedMove) && !looksNonObservableMove(cleanedMove)
     ? cleanedMove
