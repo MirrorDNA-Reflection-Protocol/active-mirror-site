@@ -463,6 +463,13 @@ function looksMalformedMove(text) {
   return words.length < 3 || /\b(?:do|take|make)\s+(?:a|an|the)\s+(?:into|for|of|to)\b/i.test(s);
 }
 
+const OBSERVABLE_MOVE_RE =
+  /\b(write|rewrite|send|remove|choose|test|ask|show|open|close|compare|set|pick|put|name|replace|draft|run|circle|contact|call|check|copy|paste|delete|schedule|start|cross out|time-box)\b|\bdo\s+\d+\s*(?:minutes?|mins?|seconds?)\b/i;
+
+function looksNonObservableMove(text) {
+  return !OBSERVABLE_MOVE_RE.test(String(text || ""));
+}
+
 export function oneThing(text) {
   let s = String(text || "").trim();
   s = s.replace(/^\s*(?:\d+[.)]|[-*•])\s*/, ""); // strip a leading list marker
@@ -500,10 +507,10 @@ export function straitjacket(mirror) {
   }
 
   const cleanedMove = trimWords(oneThing(deflatter(moveRaw)), 26);
-  const move = cleanedMove && !looksMalformedMove(cleanedMove)
+  const move = cleanedMove && !looksMalformedMove(cleanedMove) && !looksNonObservableMove(cleanedMove)
     ? cleanedMove
     : "Write one sentence about the thing you want to move.";
-  if (move && (move !== moveRaw.trim() || wordCount(moveRaw) > 26)) violations.push("move_made_singular");
+  if (move && (move !== moveRaw.trim() || wordCount(moveRaw) > 26 || looksNonObservableMove(moveRaw))) violations.push("move_made_singular");
 
   return {
     mirror: { ...mirror, reflection, question, move: move || moveRaw.trim() },

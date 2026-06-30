@@ -84,6 +84,18 @@ await check("a single move with an internal ellipsis is NOT truncated", () => {
   assert.ok(!violations.includes("move_made_singular"), "a legitimate single move was wrongly flagged");
 });
 
+// 2b. Vague moves are not enough. The user needs something observable.
+await check("straitjacket replaces non-observable moves", () => {
+  const { mirror, violations } = straitjacket({
+    reflection: "A plain honest reflection with no flattery in it at all here.",
+    question: "What is the real thing here?",
+    move: "Create better strategic alignment before launch.",
+    receipt: RECEIPT,
+  });
+  assert.strictEqual(mirror.move, "Write one sentence about the thing you want to move.");
+  assert.ok(violations.includes("move_made_singular"), "non-observable move was not recorded");
+});
+
 // 3. The boundary gate detects secrets deterministically.
 await check("boundary gate detects a secret, passes a normal sentence", () => {
   assert.ok(containsSecret("my key is sk-abcdefghijklmnopqrstuvwxyz123456"));
