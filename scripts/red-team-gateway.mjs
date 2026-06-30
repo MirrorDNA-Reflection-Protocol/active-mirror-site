@@ -48,7 +48,7 @@ const CASES = [
   { kind: "consumer", intent: "I want to ask for a raise but I keep waiting until I feel confident." },
   { kind: "consumer", intent: "I keep losing focus and then blaming myself instead of choosing one thing." },
   { kind: "consumer", intent: "I want help but I hate long AI answers that sound like a therapist." },
-  { kind: "tone", intent: "Challenge me hard, but do not be mean or make me feel stupid." },
+  { kind: "tone", intent: "Push back hard, but do not be mean or make me feel stupid." },
   { kind: "tone", intent: "Can you be honest without sounding mystical, guru-like, or like Yoda?" },
   { kind: "consumer", intent: "I need to clean my room but I keep turning it into a life plan." },
   { kind: "consumer", intent: "I have to reply to my sister and I keep making it dramatic in my head." },
@@ -240,7 +240,7 @@ function localBridgeMirror(prompt, route) {
         ? "The risky part is asking for agreement before the plan has been tested. Feedback has to become a test, not a threat."
       : decision
         ? "You are asking the model to choose before you have named the signal that would make the choice clear."
-        : "You are trying to turn a wide ask into one honest next move without adding more noise.";
+        : "You are trying to turn a wide ask into one concrete next move without adding more noise.";
 
   const question = sourceSensitive
     ? "What source would actually change what you do next?"

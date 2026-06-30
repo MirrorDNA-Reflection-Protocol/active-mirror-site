@@ -353,6 +353,17 @@ await check("who-are-you fallback stays plain and useful", async () => {
   assert.ok(out.straitjacket.includes("deterministic_identity"), "identity route was not marked");
 });
 
+await check("fallback does not treat ordinary launch notes as private details", async () => {
+  const out = await reflect({
+    intent: "I keep opening my launch notes and then doing nothing.",
+    boundary: "personal",
+    callModel: async () => null,
+  });
+  const text = `${out.mirror.reflection} ${out.mirror.question} ${out.mirror.move}`;
+  assert.doesNotMatch(text, /private parts|placeholders|sensitive details/i, "ordinary notes were treated as private");
+  assert.match(text, /launch|notes|testable|visible|move|world/i, "fallback did not stay on the user's actual task");
+});
+
 // 16. Client boundary masks obvious sensitive details before model routing.
 await check("client boundary masks obvious sensitive details before model routing", async () => {
   const raw = "Client email dipika@example.com says deal is ₹24.8B at https://private.example/deck with account ABCD-1234.";

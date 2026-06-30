@@ -137,17 +137,16 @@ async function exerciseFirstInput(page) {
   await page.goto(routeUrl("/"), { waitUntil: "domcontentloaded", timeout: 20000 });
   await page.locator("textarea, input[type='text'], [contenteditable='true']").first().fill(testText);
   await page.getByRole("button", { name: /^Send$/ }).first().click();
-  await page.getByText(/Ask this:/).waitFor({ timeout: 30000 });
-  await page.getByText(/^Try this$/i).waitFor({ timeout: 10000 });
+  await page.getByText("Remember this", { exact: true }).waitFor({ timeout: 30000 });
   await page.getByText("Remember this", { exact: true }).click();
   await page.getByText("Saved for next time", { exact: true }).waitFor({ timeout: 10000 });
-  await page.getByText("What else?", { exact: true }).waitFor({ timeout: 10000 });
-  await page.getByText("Challenge me", { exact: true }).waitFor({ timeout: 10000 });
-  await page.getByText("Make it sendable", { exact: true }).waitFor({ timeout: 10000 });
-  await page.getByText("Did this help?", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByText("Another angle", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByText("Push back", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByText("Draft it", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByText("Helpful?", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByRole("button", { name: /^Almost$/ }).first().click();
-  await page.getByText(/No message text was saved/i).waitFor({ timeout: 10000 });
-  await page.getByRole("button", { name: /^What else\?$/ }).last().click();
+  await page.getByText(/No message text saved/i).waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: /^Another angle$/ }).last().click();
   await page.waitForTimeout(1500);
   if (await page.getByText("This asks for current facts.", { exact: true }).isVisible().catch(() => false)) {
     fail("Starter/feedback reflection leaked source-check UI.");
