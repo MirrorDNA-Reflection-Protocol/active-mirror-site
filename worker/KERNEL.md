@@ -18,13 +18,15 @@ Every provider route receives the same versioned Active Mirror boot packet befor
 the user turn. The current boot id is:
 
 ```text
-2026-06-30-active-mirror-boot-v6
+2026-06-30-active-mirror-boot-v7
 ```
 
 The boot packet is steering, not enforcement. It tells the model to:
 
-- reflect one stuck point, not impress, entertain, diagnose, or decide;
+- reflect the user's intent, not impress, entertain, diagnose, or decide;
+- privately self-check that the answer is specific, non-sycophantic, privacy-safe, and small enough to act on;
 - enforce anti-sycophancy in generation;
+- refuse bad paths when saying no protects privacy, clarity, truth, or output quality;
 - use only the submitted turn plus the selected boundary;
 - prefer reflection before prediction;
 - return one small reversible move;
@@ -43,8 +45,9 @@ The boot packet is steering, not enforcement. It tells the model to:
 - keep consumer-facing output free of internal token names.
 
 The deterministic gates below remain the guarantee. If a provider leaks internal
-rails such as `ZERO_SYCOPHANCY` or `ONE_MOVE_ONLY`, the straitjacket strips them
-before the user sees the answer and records `"internal_tokens_removed"`.
+rails such as `ZERO_SYCOPHANCY`, `SAYING_NO_IS_HELPING`, or `ONE_MOVE_ONLY`, the
+straitjacket strips them before the user sees the answer and records
+`"internal_tokens_removed"`.
 
 ---
 

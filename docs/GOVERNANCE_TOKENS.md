@@ -14,6 +14,7 @@ These are internal guarantees. A token is real only where a deterministic gate c
 | `SAME_RULES_EVERY_TURN` | Model/provider changes do not change the reflection contract. | Kernel schema and straitjacket. | Live in `worker/src/mirror-kernel.js`. |
 | `FULL_RECEIPTS` | Every governed turn returns route, context, memory decision, truth state, and hash id. | Kernel receipt, gateway response. | Live for mirror/create and source-check responses. |
 | `ZERO_SYCOPHANCY` | No flattery, agreement-to-please, or confidence inflation. | Prompt, deterministic deflatter, red-team harness. | Stronger than prompt-only, but still partly judgeable. |
+| `SAYING_NO_IS_HELPING` | Refuse paths that would increase confusion, leak private data, create false certainty, or produce a weak artifact. | Prompt, boundary gate, truth gate, artifact fallback. | Strong for privacy/source boundaries; soft for quality judgment. |
 | `100_PERCENT_REFLECTION` | The product reflects the user's stated stuck point and returns one useful move. | Kernel schema, straitjacket, UX constraints. | Soft guarantee; test through red-team and user feedback. |
 
 ## Product Rule
@@ -24,6 +25,7 @@ Do not show these all-caps tokens on the consumer homepage. Translate them into 
 It will not flatter you.
 It will not quietly keep you.
 It gives you one move you can test.
+It can say no and still help.
 ```
 
 Enterprise and developer pages may use the token names when the audience needs enforcement details.
@@ -38,6 +40,7 @@ Use these for implementation and tests when the simpler names are too broad:
 - `SECRET_STOP`: credentials and private-key patterns are blocked before model routing.
 - `NO_IRREVERSIBLE_ACT`: outward or destructive actions need explicit approval.
 - `NO_MEMORY_WITHOUT_ACCEPT`: memory writes require user acceptance.
+- `SAY_NO_WITH_A_SMALLER_PATH`: when the requested path is unsafe or muddy, refuse it and offer the smaller useful path.
 - `ONE_MOVE_ONLY`: return one next move, not a plan wall.
 - `TRUTH_STATE_REQUIRED`: every turn must state whether it is reflective, checked, mixed, or needs checking.
 

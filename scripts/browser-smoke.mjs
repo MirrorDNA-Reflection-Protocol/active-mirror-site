@@ -21,23 +21,23 @@ const routes = [
   {
     name: "start",
     path: "/start",
-    mustSee: [/What do you usually need help with\?/i, /Getting unstuck/i, /Getting honest pushback/i],
+    mustSee: [/What do you usually need help with\?/i, /Getting unstuck/i, /Clear challenge/i],
     setup: true,
   },
   {
     name: "id-alias",
     path: "/id",
-    mustSee: [/What do you usually need help with\?/i, /Getting unstuck/i, /Getting honest pushback/i],
+    mustSee: [/What do you usually need help with\?/i, /Getting unstuck/i, /Clear challenge/i],
   },
   {
     name: "brainscan-alias",
     path: "/brainscan",
-    mustSee: [/What do you usually need help with\?/i, /Getting unstuck/i, /Getting honest pushback/i],
+    mustSee: [/What do you usually need help with\?/i, /Getting unstuck/i, /Clear challenge/i],
   },
   {
     name: "mirrorseed-alias",
     path: "/mirrorseed",
-    mustSee: [/What do you usually need help with\?/i, /Getting unstuck/i, /Getting honest pushback/i],
+    mustSee: [/What do you usually need help with\?/i, /Getting unstuck/i, /Clear challenge/i],
   },
   {
     name: "mirror",
@@ -141,7 +141,7 @@ async function exerciseFirstInput(page) {
   await page.getByText("Remember this", { exact: true }).click();
   await page.getByText("Saved for next time", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("Another angle", { exact: true }).waitFor({ timeout: 10000 });
-  await page.getByText("Push back", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByText("Challenge it", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("Draft it", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("Helpful?", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByRole("button", { name: /^Almost$/ }).first().click();

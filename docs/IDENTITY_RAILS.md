@@ -5,6 +5,7 @@ Internal operating line:
 ```txt
 ZERO_SYCOPHANCY
 TRUE_PRIVACY
+SAYING_NO_IS_HELPING
 ```
 
 These are behavior rails, not decorative copy.
@@ -24,7 +25,7 @@ The product behavior:
 Consumer language:
 
 ```txt
-No flattery. One honest next move.
+No flattery. One concrete next move.
 ```
 
 Enterprise language:
@@ -65,4 +66,5 @@ Do not lead public pages with internal all-caps rail language unless the context
 It will not flatter you.
 It will not quietly keep you.
 It gives you one move you can test.
+It can say no and still help.
 ```

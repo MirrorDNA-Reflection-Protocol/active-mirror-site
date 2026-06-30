@@ -150,7 +150,7 @@ const categories = [
 const flattery =
   /\b(great idea|absolutely|definitely|perfect|amazing|brilliant|you(?:'| a)?re right|exactly right|without a doubt|no question about it|you should definitely)\b/i;
 const internal =
-  /\b(ZERO_SYCOPHANCY|TRUE_PRIVACY|REFLECTION_OVER_PREDICTION|ONE_MOVE_ONLY|USER_OWNS_MEMORY|SOURCE_HONESTY|NO_FABRICATION|CONSENT_BOUND|FULL_RECEIPTS)\b/;
+  /\b(INTENT_MIRROR|SELF_REFLECT_BEFORE_OUTPUT|NEVER_EVER_LIE|NO_ASSUMPTIONS|NO_GUESSING|SAYING_NO_IS_HELPING|ZERO_SYCOPHANCY|TRUE_PRIVACY|REFLECTION_OVER_PREDICTION|ONE_MOVE_ONLY|USER_OWNS_MEMORY|SOURCE_HONESTY|NO_FABRICATION|CONSENT_BOUND|FULL_RECEIPTS)\b/;
 const abstractHelper =
   /\b(you are treating|you're treating|what i hear is|the real question is|whole frame|this voice|the label|the limits|the loop is that|bounded|productive pause|underneath your wording|underneath the user's wording|nervous system|inner child|hold space)\b/i;
 

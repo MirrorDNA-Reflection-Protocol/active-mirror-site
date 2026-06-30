@@ -33,6 +33,10 @@ const patterns = [
   { label: "protocol-first copy", regex: /\bprotocol\b/i },
   { label: "early-access framing", regex: /early access/i },
   { label: "demo framing", regex: /\bdemo\b/i },
+  { label: "paternal promise", regex: /need to hear|want to hear/i },
+  { label: "wordy honesty phrasing", regex: /honest next move/i },
+  { label: "internal setup copy", regex: /Getting honest pushback|How should I push back|Push back/i },
+  { label: "diagnostic audience language", regex: /\bADHD\b|neurodivergent|neuroD/i },
 ];
 
 const runtimePatterns = [

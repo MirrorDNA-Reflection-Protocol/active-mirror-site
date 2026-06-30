@@ -54,10 +54,10 @@
 <body>
   <header>
     <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.4 19.5 7.7v8.6L12 20.6 4.5 16.3V7.7L12 3.4Z"/><path d="M12 7.8 16 10v4l-4 2.2L8 14v-4l4-2.2Z"/></svg>
-    <b>Active Mirror</b><span>tells you what you need to hear</span>
+    <b>Active Mirror</b><span>reflects your intent into a next move</span>
   </header>
   <main><div id="thread">
-    <div class="turn mirror"><div class="reflection">Bring one thing you're actually stuck on. I won't tell you what you want to hear — I'll hand you back the real question.</div></div>
+    <div class="turn mirror"><div class="reflection">Bring one thing you're stuck on. I'll reflect the useful shape and give you one move.</div></div>
   </div></main>
   <footer>
     <form id="composer">
@@ -98,7 +98,7 @@ async function ask(text){
       body:JSON.stringify({intent:text,boundary:"personal",route:"reflection",turn})});
     const d = await r.json();
     if(!d.ok){
-      pending.innerHTML = `<div class="reflection">I held this one back — it looked like it carried a secret, so nothing was sent to a model.</div>`;
+      pending.innerHTML = `<div class="reflection">Keep the secret with you. Try the same sentence with private details replaced by placeholders.</div>`;
       return;
     }
     const m = d.mirror||{};

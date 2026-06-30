@@ -40,6 +40,12 @@ await check("buildPrompt includes the versioned Active Mirror boot packet", () =
     },
   );
   assert.ok(prompt.includes(`Boot packet: ${ACTIVE_MIRROR_BOOT_VERSION}`), "boot version missing");
+  assert.ok(prompt.includes("INTENT_MIRROR"), "intent mirror rail missing");
+  assert.ok(prompt.includes("SELF_REFLECT_BEFORE_OUTPUT"), "private self-reflection rail missing");
+  assert.ok(prompt.includes("NEVER_EVER_LIE"), "truth rail missing");
+  assert.ok(prompt.includes("NO_ASSUMPTIONS"), "no-assumptions rail missing");
+  assert.ok(prompt.includes("NO_GUESSING"), "no-guessing rail missing");
+  assert.ok(prompt.includes("SAYING_NO_IS_HELPING"), "useful refusal rail missing");
   assert.ok(prompt.includes("ZERO_SYCOPHANCY"), "anti-sycophancy rail missing");
   assert.ok(prompt.includes("REFLECTION_OVER_PREDICTION"), "reflection rail missing");
   assert.ok(prompt.includes("ONE_MOVE_ONLY"), "one-move rail missing");
@@ -63,12 +69,12 @@ await check("straitjacket strips flattery, forces a question, makes one move", (
 // 1b. Internal governance tokens are allowed in the boot packet, not the consumer answer.
 await check("straitjacket strips internal governance tokens from user-facing output", () => {
   const { mirror, violations } = straitjacket({
-    reflection: "ZERO_SYCOPHANCY says you are using polish to avoid contact.",
-    question: "TRUE_PRIVACY asks what detail can stay out",
-    move: "ONE_MOVE_ONLY: write one plain sentence.",
+    reflection: "SELF_REFLECT_BEFORE_OUTPUT and ZERO_SYCOPHANCY say you are using polish to avoid contact.",
+    question: "TRUE_PRIVACY and NO_ASSUMPTIONS ask what detail can stay out",
+    move: "SAYING_NO_IS_HELPING and ONE_MOVE_ONLY: write one plain sentence.",
     receipt: RECEIPT,
   });
-  assert.ok(!/ZERO_SYCOPHANCY|TRUE_PRIVACY|ONE_MOVE_ONLY/.test(`${mirror.reflection} ${mirror.question} ${mirror.move}`), "internal token leaked");
+  assert.ok(!/SELF_REFLECT_BEFORE_OUTPUT|ZERO_SYCOPHANCY|TRUE_PRIVACY|NO_ASSUMPTIONS|SAYING_NO_IS_HELPING|ONE_MOVE_ONLY|NEVER_EVER_LIE/.test(`${mirror.reflection} ${mirror.question} ${mirror.move}`), "internal token leaked");
   assert.ok(violations.includes("internal_tokens_removed"), "internal token removal was not recorded");
 });
 
