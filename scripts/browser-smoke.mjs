@@ -12,11 +12,9 @@ const routes = [
     path: "/",
     mustSee: [
       /What do you want\?/i,
-      /Not sure how to ask\? Start here\./i,
-      /Get unstuck/i,
-      /Make this sendable/i,
-      /Check my thinking/i,
-      /Reflect/i,
+      /Start here/i,
+      /Already have ID\?/i,
+      /Send/i,
     ],
     interact: true,
   },
@@ -44,7 +42,7 @@ const routes = [
   {
     name: "mirror",
     path: "/mirror",
-    mustSee: [/What do you want\?/i, /Not sure how to ask\? Start here\./i, /Reflect/i],
+    mustSee: [/What do you want\?/i, /Start here/i, /Already have ID\?/i, /Send/i],
   },
   {
     name: "enterprise",
@@ -121,7 +119,7 @@ async function exerciseFirstInput(page) {
     fail("Home route did not expose a usable first input.");
   }
 
-  const testText = "I need one clear next move for launch copy.";
+  const testText = "I need one clear thing to try for launch copy.";
   await input.fill(testText);
 
   const tagName = await input.evaluate((node) => node.tagName.toLowerCase());
@@ -137,7 +135,8 @@ async function exerciseFirstInput(page) {
   if (!submitFirstTurn) return;
 
   await page.goto(routeUrl("/"), { waitUntil: "domcontentloaded", timeout: 20000 });
-  await page.getByRole("button", { name: /^Get unstuck$/ }).first().click();
+  await page.locator("textarea, input[type='text'], [contenteditable='true']").first().fill(testText);
+  await page.getByRole("button", { name: /^Send$/ }).first().click();
   await page.getByText(/Ask this:/).waitFor({ timeout: 30000 });
   await page.getByText(/^Try this$/i).waitFor({ timeout: 10000 });
   await page.getByText("Remember this", { exact: true }).click();
