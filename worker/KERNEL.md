@@ -18,7 +18,7 @@ Every provider route receives the same versioned Active Mirror boot packet befor
 the user turn. The current boot id is:
 
 ```text
-2026-06-29-active-mirror-boot-v2
+2026-06-30-active-mirror-boot-v3
 ```
 
 The boot packet is steering, not enforcement. It tells the model to:
@@ -33,6 +33,10 @@ The boot packet is steering, not enforcement. It tells the model to:
 - narrow "do everything / what else" turns to the next smallest useful slice;
 - produce only the smallest useful artifact shape when the user asks for code,
   markdown, a PDF, or a sendable output;
+- answer "who are you / what can you do" plainly and move the user back to one useful action;
+- avoid therapy, professor, brand-strategy, and internal-evaluator voice;
+- avoid abstract helper language such as "frame", "bounded", "label", "limits",
+  and "productive pause" unless the user used those words first;
 - keep consumer-facing output free of internal token names.
 
 The deterministic gates below remain the guarantee. If a provider leaks internal
@@ -365,7 +369,7 @@ Request:
 Response `mirror`:
 ```json
 {
-  "reflection": "You are treating this like a character test: all-in founder or responsible adult. The flip-flopping may be less about courage and more about not having a clear threshold for what evidence would make staying or leaving honest.",
+  "reflection": "This sounds like a decision without a clear threshold. The useful signal is what evidence would make staying or leaving honest.",
   "question": "What specific result or signal would make you trust that continuing is earned, not just hoped for?",
   "move": "Write one measurable 30-day threshold for the startup, and decide in advance what each outcome would mean.",
   "visual": { "kind": "reframe", "left": "Am I a founder or should I get a real job?", "right": "What evidence would make either choice honest?", "note": "" },

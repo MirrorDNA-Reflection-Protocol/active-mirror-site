@@ -23,23 +23,23 @@ const routes = [
   {
     name: "start",
     path: "/start",
-    mustSee: [/Start with you/i, /Six quick choices\. Better answers/i, /What are you bringing first/i],
+    mustSee: [/Make it feel like yours\./i, /Quick setup/i, /What do you need first\?/i],
     setup: true,
   },
   {
     name: "id-alias",
     path: "/id",
-    mustSee: [/Start with you/i, /Six quick choices\. Better answers/i, /What are you bringing first/i],
+    mustSee: [/Make it feel like yours\./i, /Quick setup/i, /What do you need first\?/i],
   },
   {
     name: "brainscan-alias",
     path: "/brainscan",
-    mustSee: [/Start with you/i, /BrainScan/i, /What are you bringing first/i],
+    mustSee: [/Make it feel like yours\./i, /Quick setup/i, /What do you need first\?/i],
   },
   {
     name: "mirrorseed-alias",
     path: "/mirrorseed",
-    mustSee: [/Start with you/i, /BrainScan/i, /What are you bringing first/i],
+    mustSee: [/Make it feel like yours\./i, /Quick setup/i, /What do you need first\?/i],
   },
   {
     name: "mirror",
@@ -73,6 +73,8 @@ const routes = [
 ];
 
 const forbiddenVisibleText = [
+  /\bBrainScan\b/i,
+  /\bMirror ID\b/i,
   /\bMirrorSeed\b/i,
   /\blocal seed\b/i,
   /\bcognitive assessment\b/i,
@@ -136,8 +138,8 @@ async function exerciseFirstInput(page) {
 
   await page.goto(routeUrl("/"), { waitUntil: "domcontentloaded", timeout: 20000 });
   await page.getByRole("button", { name: /^Get unstuck$/ }).first().click();
-  await page.getByText(/Real question:/).waitFor({ timeout: 30000 });
-  await page.getByText(/^NEXT MOVE$/i).waitFor({ timeout: 10000 });
+  await page.getByText(/Ask this:/).waitFor({ timeout: 30000 });
+  await page.getByText(/^Try this$/i).waitFor({ timeout: 10000 });
   await page.getByText("Remember this", { exact: true }).click();
   await page.getByText("Saved for next time", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("What else?", { exact: true }).waitFor({ timeout: 10000 });
@@ -168,7 +170,7 @@ async function exerciseFirstInput(page) {
 
 async function exerciseStartFlow(page) {
   await page.getByRole("button", { name: /I feel stuck/i }).click();
-  await page.getByText(/What do you want from the first answer\?/i).waitFor({ timeout: 10000 });
+  await page.getByText(/What helps first\?/i).waitFor({ timeout: 10000 });
   await page.getByRole("button", { name: /One next step/i }).click();
   await page.getByRole("button", { name: /Too much text/i }).click();
   await page.getByRole("button", { name: /^Gentle$/i }).click();
@@ -176,13 +178,13 @@ async function exerciseStartFlow(page) {
   await page.getByRole("button", { name: /When I am spiraling/i }).click();
   await page.getByRole("button", { name: /It is short and useful/i }).click();
   await page.getByText(/You're set\./i).waitFor({ timeout: 10000 });
-  await page.getByText(/Download Mirror ID/i).waitFor({ timeout: 10000 });
-  await page.getByRole("button", { name: /Save and reflect/i }).click();
+  await page.getByText(/Download choices/i).waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: /Save and start/i }).click();
   await page.getByText(/What do you want\?/i).waitFor({ timeout: 10000 });
 
   const state = await page.evaluate(() => localStorage.getItem("mirrorState_v1") || "");
   if (!state.includes("mirror-id") || !state.includes("mirrorSeed") || !state.includes("preferences")) {
-    fail("BrainScan choices were not saved into the browser-local Mirror ID state.");
+    fail("Setup choices were not saved into the browser-local state.");
   }
 }
 

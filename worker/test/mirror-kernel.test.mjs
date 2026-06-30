@@ -286,14 +286,21 @@ await check("reflect() redirects professional-risk advice before model routing",
 // 15. Canned helper phrases are removed before the answer reaches the user.
 await check("straitjacket removes canned helper phrasing", () => {
   const { mirror, violations } = straitjacket({
-    reflection: "It depends. You need more clarity about the launch page.",
-    question: "Can you take a step back and find the north star?",
+    reflection: "You are treating who are you like it should be the whole frame.",
+    question: "Do you want the label, the limits, or the next move this voice should make?",
     move: "Do a deep dive into the journey.",
     receipt: RECEIPT,
   });
   const text = `${mirror.reflection} ${mirror.question} ${mirror.move}`;
-  assert.ok(!/it depends|take a step back|more clarity|deep dive|journey|north star/i.test(text), "canned phrase survived");
+  assert.ok(!/you are treating|whole frame|this voice|label|limits|deep dive|journey|north star/i.test(text), "canned phrase survived");
   assert.ok(violations.includes("canned_phrase_removed"), "canned phrase removal was not recorded");
+});
+
+await check("who-are-you fallback stays plain and useful", async () => {
+  const out = await reflect({ intent: "Who are you?", boundary: "personal", callModel: async () => null });
+  const text = `${out.mirror.reflection} ${out.mirror.question} ${out.mirror.move}`;
+  assert.match(text, /Active Mirror|help|next step/i, "identity answer did not explain the product plainly");
+  assert.doesNotMatch(text, /you are treating|whole frame|this voice|label|limits/i, "identity answer became abstract");
 });
 
 // 16. Client boundary masks obvious sensitive details before model routing.

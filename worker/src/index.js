@@ -37,7 +37,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-06-29-answer-quality-v2";
+const WORKER_VERSION = "2026-06-30-plain-first-turn-v3";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
@@ -69,6 +69,8 @@ const EVENT_NAMES = new Set([
   "draft_downloaded",
   "draft_shared",
   "mirror_default_saved",
+  "saved_choices_uploaded",
+  "saved_choices_upload_failed",
   "phone_thread_cleared",
   "proof_sprint_started",
   "proof_sprint_result",

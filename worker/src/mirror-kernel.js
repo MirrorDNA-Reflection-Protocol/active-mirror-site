@@ -140,7 +140,7 @@ export function sanitizeModelIntent(intent, boundary = "personal") {
 }
 
 // --- 2. Boot packet + prompt (the reflection instruction) ---
-export const ACTIVE_MIRROR_BOOT_VERSION = "2026-06-29-active-mirror-boot-v2";
+export const ACTIVE_MIRROR_BOOT_VERSION = "2026-06-30-active-mirror-boot-v3";
 
 export const ACTIVE_MIRROR_BOOTLOAD = [
   "You are Active Mirror.",
@@ -154,7 +154,10 @@ export const ACTIVE_MIRROR_BOOTLOAD = [
   "SOURCE_HONESTY: if the answer depends on current or external facts, mark uncertainty and route toward source checking instead of sounding certain.",
   "When the user asks for everything, more features, or what else, choose the next smallest useful slice and stop there.",
   "When the user asks for code, markdown, a PDF, or a sendable artifact, produce the smallest useful artifact shape only when enough context is present; otherwise ask one concrete follow-up.",
+  "When the user asks who you are or what you can do, answer plainly in one sentence and move them back to one useful action.",
   "Tone: calm, sharp, plain, human. Warmth comes from usefulness, not emotional padding.",
+  "Do not sound like a therapist, professor, brand strategist, or internal evaluator.",
+  "Avoid abstract helper words such as frame, bounded, label, limits, voice, underneath, and productive pause unless the user used them first.",
   "Never use Active Mirror internal token names in the user-facing reflection unless the user explicitly asks about the system.",
 ];
 
@@ -175,6 +178,9 @@ function compactIntentPhrase(intent = "") {
 
 function classifyIntent(intent = "") {
   const text = compactIntentPhrase(intent).toLowerCase();
+  if (/\b(who are you|what are you|what is active mirror|what can you do|what can you not do|what do you do)\b/.test(text)) {
+    return "identity";
+  }
   if (/\b(models?|browser|ai apps?|apple|memory|genui)\b.*\bnow\b/.test(text)) {
     return "source_check";
   }
@@ -216,7 +222,7 @@ export function buildPrompt({ intent, boundary }, boundaryDef, capability = "ref
     "If they ask whether they are hallucinating, overreaching, or drifting, answer the risk plainly before the move. Do not reassure them to keep momentum.",
     "The answer must feel made for this exact sentence. Use concrete nouns from the user's words. Avoid canned phrases like 'you may need more clarity', 'more context', 'it depends', or 'take a step back' unless the user's words specifically demand them.",
     "Do not produce a report, a dashboard, a checklist, a numbered plan, a motivational note, or a therapy-style validation. This is a mirror turn: one reflection, one sharper question, one move.",
-    "The question must create productive pause, not ask for more background. The move must be physical or observable: write, send, remove, choose, test, ask, show, open, close, compare, or time-box.",
+    "The question should help the user choose, not ask for more background. The move must be physical or observable: write, send, remove, choose, test, ask, show, open, close, compare, or time-box.",
     "Return only compact JSON matching the requested structure. Plain English ASCII only. No markdown, no numbered labels, no slogans.",
     "No therapy claims, no diagnosis, no legal/medical/financial instruction, no personal-data collection, no invented facts.",
     "reflection: 1 to 2 short sentences. Use at least one concrete noun from their wording when possible. Name the real loop underneath their question. No praise, no setup, no generic validation. Be accurate before warm.",
@@ -389,6 +395,7 @@ function repairTextArtifacts(value) {
 const FLATTERY_RE = /\b(you(?:'| a)?re (?:absolutely |so |totally |completely )?right|brilliant|genius|amazing|fantastic|incredible|great (?:idea|question|point|job|call)|love (?:it|this)|nailed it|excellent|impressive|well done|good for you|spot on|you've got this|that'?s exactly right|you should definitely|no question(?: about it)?|without a doubt)\b/i;
 const FLATTERY_RE_G = new RegExp(FLATTERY_RE.source, "gi");
 const CANNED_PHRASE_RE = /\b(it depends|take a step back|more context|more clarity|deep dive|game changer|unlock(?:ing)?|journey|leverage|holistic|at the end of the day|move the needle|north star|synergy)\b/i;
+const ABSTRACT_HELPER_RE = /\b(you are treating|you're treating|whole frame|this voice|the label|the limits|the loop is that|bounded|productive pause|underneath your wording|underneath the user's wording)\b/i;
 const INTERNAL_TOKEN_RE = /\b(?:ZERO_SYCOPHANCY|TRUE_PRIVACY|REFLECTION_OVER_PREDICTION|ONE_MOVE_ONLY|USER_OWNS_MEMORY|SOURCE_HONESTY|NO_FABRICATION|CONSENT_BOUND|FULL_RECEIPTS|SAME_RULES_EVERY_TURN|100_PERCENT_REFLECTION)\b/;
 const INTERNAL_TOKEN_RE_G = new RegExp(INTERNAL_TOKEN_RE.source, "g");
 
@@ -411,12 +418,29 @@ export function deflatter(text) {
 
 function removeCannedPhrases(text) {
   return String(text || "")
+    .replace(/(?:^|[.!?]\s+)(?:you are|you're) treating[^.!?]*(?:[.!?]|$)/gi, " ")
+    .replace(/\bthe loop is that\b[:,.]?\s*/gi, "")
+    .replace(/\bthe whole frame\b/gi, "the main issue")
+    .replace(/\bthis voice\b/gi, "this")
+    .replace(/\bthe label\b/gi, "the name")
+    .replace(/\bthe limits\b/gi, "what it can and cannot do")
+    .replace(/\bthe next move this should make\b/gi, "what to try first")
+    .replace(/\bnext move this should make\b/gi, "what to try first")
+    .replace(/\bproductive pause\b/gi, "useful pause")
+    .replace(/\bunderneath your wording\b/gi, "inside the question")
+    .replace(/\bunderneath the user's wording\b/gi, "inside the question")
     .replace(/\bit depends\b[:,.]?\s*/gi, "")
     .replace(/\btake a step back\b[:,.]?\s*/gi, "")
     .replace(/\bmore clarity\b/gi, "a concrete signal")
     .replace(/\bmore context\b/gi, "the specific constraint")
     .replace(/\b(deep dive|game changer|unlock(?:ing)?|journey|leverage|holistic|at the end of the day|move the needle|north star|synergy)\b[:,.]?\s*/gi, "")
     .trim();
+}
+
+function looksMalformedMove(text) {
+  const s = String(text || "").trim();
+  const words = s.match(/[A-Za-z]{3,}/g) || [];
+  return words.length < 3 || /\b(?:do|take|make)\s+(?:a|an|the)\s+(?:into|for|of|to)\b/i.test(s);
 }
 
 export function oneThing(text) {
@@ -440,13 +464,13 @@ export function straitjacket(mirror) {
   if (INTERNAL_TOKEN_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
     violations.push("internal_tokens_removed");
   }
-  if (CANNED_PHRASE_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
+  if (CANNED_PHRASE_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`) || ABSTRACT_HELPER_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
     violations.push("canned_phrase_removed");
   }
 
-  const reflection = deflatter(reflectionRaw);
+  const reflection = deflatter(reflectionRaw) || "I can help turn this into a clear next step.";
 
-  let question = deflatter(questionRaw);
+  let question = deflatter(questionRaw) || "What do you want help with right now?";
   const qMark = question.indexOf("?");
   if (qMark === -1) {
     question = question.replace(/[.!]+$/, "").trim() + "?";
@@ -455,7 +479,10 @@ export function straitjacket(mirror) {
     question = question.slice(0, qMark + 1).trim(); // keep to the first question only
   }
 
-  const move = oneThing(deflatter(moveRaw));
+  const cleanedMove = oneThing(deflatter(moveRaw));
+  const move = cleanedMove && !looksMalformedMove(cleanedMove)
+    ? cleanedMove
+    : "Write one sentence about the thing you want to move.";
   if (move && move !== moveRaw.trim()) violations.push("move_made_singular");
 
   return {
@@ -573,6 +600,11 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
   };
 
   const mirrors = {
+    identity: {
+      reflection: "I'm Active Mirror. I help you think through one thing and turn it into a useful next step.",
+      question: "What do you want help with right now?",
+      move: "Write one sentence about the thing you want to move.",
+    },
     source_check: {
       reflection: "This needs a source before it becomes a direction. The trap is letting a fresh-sounding answer become your plan.",
       question: "Which claim would change your next move if it turned out to be false?",

@@ -8,6 +8,7 @@ const RUN_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,
 const TIMEOUT_MS = Number(process.env.ACTIVE_MIRROR_CANARY_TIMEOUT_MS || 30000);
 const FORBIDDEN_PUBLIC_COPY = [
   "BrainScan",
+  "Mirror ID",
   "MirrorSeed",
   "Mirror Seed",
   "local seed",
@@ -52,8 +53,8 @@ async function main() {
     const response = await fetchWithTimeout(`${IDENTITY_SITE}/?canary=${RUN_ID}`);
     const text = await response.text();
     assert(response.ok, `identity status ${response.status}`);
-    assert(text.includes("Make Active Mirror yours"), "identity setup headline missing");
-    assert(text.includes("Set up Active Mirror in the canonical app."), "identity setup body missing");
+    assert(text.includes("Quick setup") || text.includes("Make it feel like yours"), "identity setup headline missing");
+    assert(text.includes("Start the quick setup") || text.includes("quick private setup"), "identity setup body missing");
     assert(text.includes(`${SITE}/app/start/`), "identity setup target missing");
     assertNoForbiddenPublicCopy(text);
   });
@@ -61,7 +62,7 @@ async function main() {
   await check("gateway health is current", async () => {
     const data = await readJson(`${GATEWAY}/health`);
     assert(data.ok === true, "health ok was not true");
-    assert(/^(?:2026-06-28|2026-06-29)-/.test(String(data.version || "")), "unexpected gateway version");
+    assert(/^2026-06-30-/.test(String(data.version || "")), "unexpected gateway version");
     assert(data.guardrails?.event_policy === "no-prompt-content", "event policy missing");
     assert(data.guardrails?.truth_state === "enabled", "truth-state guardrail missing");
     assert(data.guardrails?.source_check === "enabled", "source-check guardrail missing");

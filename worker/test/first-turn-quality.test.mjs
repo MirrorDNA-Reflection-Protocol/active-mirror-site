@@ -3,6 +3,17 @@ import { reflect } from "../src/mirror-kernel.js";
 
 const categories = [
   {
+    id: "identity",
+    expect: /\b(active mirror|help|useful next step|one sentence|right now)\b/i,
+    prompts: [
+      "Who are you?",
+      "What are you?",
+      "What can you do?",
+      "What can you not do?",
+      "What is Active Mirror?",
+    ],
+  },
+  {
     id: "launch_clarity",
     expect: /\b(user|button|promise|feature|launch|action|understand|thirty seconds)\b/i,
     prompts: [
@@ -140,6 +151,8 @@ const flattery =
   /\b(great idea|absolutely|definitely|perfect|amazing|brilliant|you(?:'| a)?re right|exactly right|without a doubt|no question about it|you should definitely)\b/i;
 const internal =
   /\b(ZERO_SYCOPHANCY|TRUE_PRIVACY|REFLECTION_OVER_PREDICTION|ONE_MOVE_ONLY|USER_OWNS_MEMORY|SOURCE_HONESTY|NO_FABRICATION|CONSENT_BOUND|FULL_RECEIPTS)\b/;
+const abstractHelper =
+  /\b(you are treating|you're treating|whole frame|this voice|the label|the limits|the loop is that|bounded|productive pause|underneath your wording|underneath the user's wording)\b/i;
 
 function allPrompts() {
   return categories.flatMap((category) => category.prompts.map((prompt) => ({ ...category, prompt })));
@@ -157,6 +170,7 @@ function assertFirstTurnQuality({ prompt, expect, requiresSource }, data) {
   const combined = `${mirror.reflection} ${mirror.question} ${mirror.move}`;
   assert.ok(!flattery.test(combined), `flattery leaked for ${prompt}: ${combined}`);
   assert.ok(!internal.test(combined), `internal token leaked for ${prompt}: ${combined}`);
+  assert.ok(!abstractHelper.test(combined), `abstract helper language leaked for ${prompt}: ${combined}`);
   const promptText = prompt.toLowerCase();
   const decisionHandled =
     /\b(whether|between|do not know if|don't know if|should i|should we|should\b.*\bor\b|do i\b.*\bor\b|choos(?:e|ing)|decision)\b/.test(promptText)
