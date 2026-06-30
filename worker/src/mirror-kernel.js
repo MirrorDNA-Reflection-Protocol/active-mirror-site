@@ -140,15 +140,15 @@ export function sanitizeModelIntent(intent, boundary = "personal") {
 }
 
 // --- 2. Boot packet + prompt (the reflection instruction) ---
-export const ACTIVE_MIRROR_BOOT_VERSION = "2026-06-30-active-mirror-boot-v5";
+export const ACTIVE_MIRROR_BOOT_VERSION = "2026-06-30-active-mirror-boot-v6";
 
 export const ACTIVE_MIRROR_BOOTLOAD = [
   "You are Active Mirror.",
   "Your job is not to impress, entertain, praise, diagnose, or decide for the user.",
-  "Your job is to reflect one stuck point back clearly enough that the user can move.",
+  "Your job is to reflect one thing back clearly enough that the user can move.",
   "ZERO_SYCOPHANCY: do not agree to be agreeable, praise the user, validate a weak plan, or soften a needed challenge.",
   "TRUE_PRIVACY: use only the submitted turn and the stated boundary; do not ask for secrets, identity details, or private history unless strictly necessary.",
-  "REFLECTION_OVER_PREDICTION: reflect the useful tension in the user's wording before proposing any next move.",
+  "REFLECTION_OVER_PREDICTION: state the plain tradeoff in the user's wording before proposing any next move.",
   "ONE_MOVE_ONLY: the answer must end in one small, observable, reversible action the user can start in about 10 minutes.",
   "USER_OWNS_MEMORY: do not imply that anything is remembered unless the memory decision says so.",
   "SOURCE_HONESTY: if the answer depends on current or external facts, mark uncertainty and route toward source checking instead of sounding certain.",
@@ -156,9 +156,11 @@ export const ACTIVE_MIRROR_BOOTLOAD = [
   "When the user asks for code, markdown, a PDF, or a sendable artifact, produce the smallest useful artifact shape only when enough context is present; otherwise ask one concrete follow-up.",
   "When the user asks who you are or what you can do, answer plainly in one sentence and move them back to one useful action.",
   "Tone: calm, sharp, plain, human. Warmth comes from usefulness, not emotional padding.",
+  "Direct does not mean harsh. Challenge the idea, plan, or next move; never attack the person.",
   "Do not sound like a therapist, professor, brand strategist, or internal evaluator.",
   "Do not begin with meta-analysis such as 'you are treating', 'the loop is', 'the real question is', or 'what I hear is'.",
-  "Avoid abstract helper words such as frame, bounded, label, limits, voice, underneath, and productive pause unless the user used them first.",
+  "Do not use inverted, mystical, guru, or riddle-like phrasing. Sound like a clear person, not a character.",
+  "Avoid abstract helper words such as frame, bounded, label, limits, voice, underneath, realer, useful tension, one stuck point, and productive pause unless the user used them first.",
   "Never use Active Mirror internal token names in the user-facing reflection unless the user explicitly asks about the system.",
 ];
 
@@ -218,7 +220,7 @@ export function buildPrompt({ intent, boundary }, boundaryDef, capability = "ref
     `Boot packet: ${ACTIVE_MIRROR_BOOT_VERSION}`,
     ...ACTIVE_MIRROR_BOOTLOAD,
     "Someone brought one thing they are stuck on. The first turn must create relief fast: name the tension, sharpen the question, and give one move they can start.",
-    "Treat scattered, fast-moving, or nonlinear input as usable signal, not as a flaw. Do not diagnose the user or name a condition. Find the strongest thread and make it feel containable.",
+    "Treat scattered, fast-moving, or nonlinear input as usable signal, not as a flaw. Do not diagnose the user or name a condition. Pick the strongest thread and make the next action small.",
     "If they are drifting, say so plainly in one sentence. If the obvious answer is weak, challenge the premise with a test, not a verdict.",
     "If they ask whether they are hallucinating, overreaching, or drifting, answer the risk plainly before the move. Do not reassure them to keep momentum.",
     "The answer must feel made for this exact sentence. Use concrete nouns from the user's words. Avoid canned phrases like 'you may need more clarity', 'more context', 'it depends', or 'take a step back' unless the user's words specifically demand them.",
@@ -396,7 +398,12 @@ function repairTextArtifacts(value) {
 const FLATTERY_RE = /\b(you(?:'| a)?re (?:absolutely |so |totally |completely )?right|brilliant|genius|amazing|fantastic|incredible|great (?:idea|question|point|job|call)|love (?:it|this)|nailed it|excellent|impressive|well done|good for you|spot on|you've got this|that'?s exactly right|you should definitely|no question(?: about it)?|without a doubt)\b/i;
 const FLATTERY_RE_G = new RegExp(FLATTERY_RE.source, "gi");
 const CANNED_PHRASE_RE = /\b(it depends|take a step back|more context|more clarity|clarity and momentum|deep dive|game changer|unlock(?:ing)?|journey|leverage|holistic|at the end of the day|move the needle|north star|synergy)\b/i;
-const ABSTRACT_HELPER_RE = /\b(you are treating|you're treating|what i hear is|the real question is|whole frame|this voice|the label|the limits|the loop is that|bounded|productive pause|underneath your wording|underneath the user's wording|nervous system|inner child|hold space)\b/i;
+const ABSTRACT_HELPER_RE = /\b(you are treating|you're treating|what i hear is|the real question is|whole frame|this voice|the label|the limits|the loop is that|bounded|productive pause|underneath your wording|underneath the user's wording|nervous system|inner child|hold space|useful tension|realer question|one stuck point|sacred|cosmic|destiny|vibration)\b/i;
+const PERSON_ATTACK_RE =
+  /\b(?:you(?:'re| are)?\s+(?:delusional|stupid|lazy|crazy|pathetic|weak|broken|a failure|unserious|not serious|irrational|naive)|your\s+(?:thinking|idea|plan|work|question)\s+is\s+(?:stupid|dumb|idiotic|pathetic|delusional|ridiculous|trash|garbage)|(?:why are you so|stop being)\s+(?:bad|ridiculous|stupid|lazy|crazy|pathetic|weak|irrational|naive)|you\s+(?:always|never)\b)/i;
+const HARSH_VERDICT_RE = /\b(?:this|that|your plan|your idea|your work|your question)\s+is\s+(?:stupid|dumb|idiotic|pathetic|delusional|ridiculous|trash|garbage)\b/i;
+const STILTED_VOICE_RE =
+  /\b(?:stuck|lost|ready|clear|useful|true|private|safe|visible|testable|earned|needed|big),\s+(?:you|this|it|the|that|is|are|make|must|should)\b|\b(?:must you|should you|can you)\s+(?:now|then|first)\b/i;
 const INTERNAL_TOKEN_RE = /\b(?:ZERO_SYCOPHANCY|TRUE_PRIVACY|REFLECTION_OVER_PREDICTION|ONE_MOVE_ONLY|USER_OWNS_MEMORY|SOURCE_HONESTY|NO_FABRICATION|CONSENT_BOUND|FULL_RECEIPTS|SAME_RULES_EVERY_TURN|100_PERCENT_REFLECTION)\b/;
 const INTERNAL_TOKEN_RE_G = new RegExp(INTERNAL_TOKEN_RE.source, "g");
 
@@ -410,7 +417,7 @@ export function stripInternalTokens(text) {
 }
 
 export function deflatter(text) {
-  return stripInternalTokens(removeCannedPhrases(String(text || "").replace(FLATTERY_RE_G, "")))
+  return stripInternalTokens(removeToneViolations(removeCannedPhrases(String(text || "").replace(FLATTERY_RE_G, ""))))
     .replace(/\s{2,}/g, " ")
     .replace(/\s+([.,;!?])/g, "$1")
     .replace(/^[\s,;.!-]+/, "")
@@ -429,14 +436,35 @@ function removeCannedPhrases(text) {
     .replace(/\bthe limits\b/gi, "what it can and cannot do")
     .replace(/\bthe next move this should make\b/gi, "what to try first")
     .replace(/\bnext move this should make\b/gi, "what to try first")
-    .replace(/\bproductive pause\b/gi, "useful pause")
-    .replace(/\bunderneath your wording\b/gi, "inside the question")
-    .replace(/\bunderneath the user's wording\b/gi, "inside the question")
+    .replace(/\bproductive pause\b/gi, "pause")
+    .replace(/\bunderneath your wording\b/gi, "in the question")
+    .replace(/\bunderneath the user's wording\b/gi, "in the question")
+    .replace(/\buseful tension\b/gi, "tradeoff")
+    .replace(/\brealer question\b/gi, "better question")
+    .replace(/\bone stuck point\b/gi, "one thing")
+    .replace(/\bsignal strong enough to earn the decision\b/gi, "evidence that makes the choice clear")
+    .replace(/\bearn(?:ed)? the decision\b/gi, "make the choice clear")
     .replace(/\bit depends\b[:,.]?\s*/gi, "")
     .replace(/\btake a step back\b[:,.]?\s*/gi, "")
     .replace(/\bmore clarity\b/gi, "a concrete signal")
     .replace(/\bmore context\b/gi, "the specific constraint")
-    .replace(/\b(clarity and momentum|deep dive|game changer|unlock(?:ing)?|journey|leverage|holistic|at the end of the day|move the needle|north star|synergy|nervous system|inner child|hold space)\b[:,.]?\s*/gi, "")
+    .replace(/\b(clarity and momentum|deep dive|game changer|unlock(?:ing)?|journey|leverage|holistic|at the end of the day|move the needle|north star|synergy|nervous system|inner child|hold space|sacred|cosmic|destiny|vibration)\b[:,.]?\s*/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([.,;!?])/g, "$1")
+    .replace(/^[\s,;.!-]+/, "")
+    .trim();
+}
+
+function removeToneViolations(text) {
+  return String(text || "")
+    .replace(/\byou(?:'re| are)?\s+(?:delusional|stupid|lazy|crazy|pathetic|weak|broken|a failure|unserious|not serious|irrational|naive)\b/gi, "this is not solid yet")
+    .replace(/\band\s+(?:delusional|stupid|lazy|crazy|pathetic|weak|broken|a failure|unserious|not serious|irrational|naive)\b/gi, "")
+    .replace(/\byour\s+(?:thinking|idea|plan|work|question)\s+is\s+(?:stupid|dumb|idiotic|pathetic|delusional|ridiculous|trash|garbage)\b/gi, "this needs a smaller test")
+    .replace(/\b(?:this|that|your plan|your idea|your work|your question)\s+is\s+(?:stupid|dumb|idiotic|pathetic|delusional|ridiculous|trash|garbage)\b/gi, "this is not ready yet")
+    .replace(/\bwhy are you so\s+(?:bad|ridiculous|stupid|lazy|crazy|pathetic|weak|irrational|naive)\s+at\b/gi, "what is getting in the way of")
+    .replace(/\bstop being\s+(?:bad|ridiculous|stupid|lazy|crazy|pathetic|weak|irrational|naive)\b/gi, "make this smaller")
+    .replace(/\byou\s+always\b/gi, "this can")
+    .replace(/\byou\s+never\b/gi, "this has not yet")
     .trim();
 }
 
@@ -494,10 +522,21 @@ export function straitjacket(mirror) {
   if (CANNED_PHRASE_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`) || ABSTRACT_HELPER_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
     violations.push("canned_phrase_removed");
   }
+  if (PERSON_ATTACK_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`) || HARSH_VERDICT_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`) || STILTED_VOICE_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
+    violations.push("tone_guard_applied");
+  }
 
-  const reflection = trimWords(firstSentences(deflatter(reflectionRaw), 2), 42) || "I can help turn this into a clear next step.";
+  let reflection = trimWords(firstSentences(deflatter(reflectionRaw), 2), 42) || "I can help turn this into a clear next step.";
+  if (STILTED_VOICE_RE.test(reflection) || ABSTRACT_HELPER_RE.test(reflection) || PERSON_ATTACK_RE.test(reflection) || HARSH_VERDICT_RE.test(reflection)) {
+    reflection = "This is getting too abstract. Make the next step plain.";
+    if (!violations.includes("tone_guard_applied")) violations.push("tone_guard_applied");
+  }
 
   let question = trimWords(deflatter(questionRaw), 24) || "What do you want help with right now?";
+  if (STILTED_VOICE_RE.test(question) || ABSTRACT_HELPER_RE.test(question) || PERSON_ATTACK_RE.test(question) || HARSH_VERDICT_RE.test(question)) {
+    question = "What would make this simpler right now?";
+    if (!violations.includes("tone_guard_applied")) violations.push("tone_guard_applied");
+  }
   const qMark = question.indexOf("?");
   if (qMark === -1) {
     question = question.replace(/[.!]+$/, "").trim() + "?";
@@ -507,7 +546,9 @@ export function straitjacket(mirror) {
   }
 
   const cleanedMove = trimWords(oneThing(deflatter(moveRaw)), 26);
-  const move = cleanedMove && !looksMalformedMove(cleanedMove) && !looksNonObservableMove(cleanedMove)
+  const toneBadMove = STILTED_VOICE_RE.test(cleanedMove) || ABSTRACT_HELPER_RE.test(cleanedMove) || PERSON_ATTACK_RE.test(cleanedMove) || HARSH_VERDICT_RE.test(cleanedMove);
+  if (toneBadMove && !violations.includes("tone_guard_applied")) violations.push("tone_guard_applied");
+  const move = cleanedMove && !toneBadMove && !looksMalformedMove(cleanedMove) && !looksNonObservableMove(cleanedMove)
     ? cleanedMove
     : "Write one sentence about the thing you want to move.";
   if (move && (move !== moveRaw.trim() || wordCount(moveRaw) > 26 || looksNonObservableMove(moveRaw))) violations.push("move_made_singular");
@@ -648,12 +689,12 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
       move: "Write one promise and one button label, then hide anything that competes with them.",
     },
     decision: {
-      reflection: "This should not be solved by preference yet. One option needs a signal strong enough to earn the decision.",
-      question: "What evidence would make one option clearly earned?",
-      move: "Name the signal, then run the smallest test that could produce it today.",
+      reflection: "This should not be solved by preference yet. You need evidence that makes one option clearly better.",
+      question: "What evidence would make one option clearly better?",
+      move: "Name the evidence, then run the smallest test that could produce it today.",
     },
     reset: {
-      reflection: "This is too many open loops pretending to be one problem. Relief comes from moving one loop, not solving the whole pile.",
+      reflection: "You have too many open loops at once. Relief comes from moving one of them, not solving the whole pile.",
       question: "Which one loop would make the rest easier if it moved a little?",
       move: "Pick that loop, set a ten-minute timer, and write only the next visible action.",
     },

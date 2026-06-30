@@ -308,6 +308,34 @@ await check("straitjacket removes canned helper phrasing", () => {
   assert.ok(violations.includes("canned_phrase_removed"), "canned phrase removal was not recorded");
 });
 
+await check("straitjacket blocks cruelty and person attacks", () => {
+  const { mirror, violations } = straitjacket({
+    reflection: "You're delusional and lazy. Your plan is stupid.",
+    question: "Why are you so bad at following through",
+    move: "Stop being ridiculous and do better.",
+    receipt: RECEIPT,
+  });
+  const text = `${mirror.reflection} ${mirror.question} ${mirror.move}`;
+  assert.doesNotMatch(text, /delusional|lazy|stupid|bad at following|ridiculous/i, "personal attack survived");
+  assert.ok(mirror.question.endsWith("?"), "question not preserved as a question");
+  assert.strictEqual(mirror.move, "Write one sentence about the thing you want to move.");
+  assert.ok(violations.includes("tone_guard_applied"), "tone guard was not recorded");
+});
+
+await check("straitjacket blocks stilted or mystical voice", () => {
+  const { mirror, violations } = straitjacket({
+    reflection: "Stuck, you are. The useful tension reveals the realer question.",
+    question: "Clear, is the path?",
+    move: "Visible, make the action.",
+    receipt: RECEIPT,
+  });
+  const text = `${mirror.reflection} ${mirror.question} ${mirror.move}`;
+  assert.doesNotMatch(text, /Stuck, you are|useful tension|realer question|Clear, is|Visible, make/i, "stilted voice survived");
+  assert.ok(mirror.question.endsWith("?"), "question not preserved as a question");
+  assert.strictEqual(mirror.move, "Write one sentence about the thing you want to move.");
+  assert.ok(violations.includes("tone_guard_applied"), "tone guard was not recorded");
+});
+
 await check("who-are-you fallback stays plain and useful", async () => {
   let modelWasCalled = false;
   const out = await reflect({

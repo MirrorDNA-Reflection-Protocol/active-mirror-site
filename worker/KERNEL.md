@@ -18,7 +18,7 @@ Every provider route receives the same versioned Active Mirror boot packet befor
 the user turn. The current boot id is:
 
 ```text
-2026-06-30-active-mirror-boot-v5
+2026-06-30-active-mirror-boot-v6
 ```
 
 The boot packet is steering, not enforcement. It tells the model to:
@@ -35,9 +35,11 @@ The boot packet is steering, not enforcement. It tells the model to:
   markdown, a PDF, or a sendable output;
 - answer "who are you / what can you do" plainly and move the user back to one useful action;
 - avoid therapy, professor, brand-strategy, and internal-evaluator voice;
+- challenge the idea, plan, or next move without attacking the person;
 - avoid meta-analysis openings such as "you are treating", "the loop is", "the real question is", or "what I hear is";
+- avoid inverted, mystical, guru-like, or riddle-like phrasing;
 - avoid abstract helper language such as "frame", "bounded", "label", "limits",
-  and "productive pause" unless the user used those words first;
+  "realer", "useful tension", "one stuck point", and "productive pause" unless the user used those words first;
 - keep consumer-facing output free of internal token names.
 
 The deterministic gates below remain the guarantee. If a provider leaks internal
@@ -111,7 +113,7 @@ before the user sees the answer and records `"internal_tokens_removed"`.
 - `route.upstream_host` — only present for the bridge route, and only contains the non-secret host used by the Worker.
 - `truth_state` — deterministic source-sensitivity marker. It does not fact-check; it tells the UI whether the turn is reflective only or needs sources before reliance.
 - `straitjacket` — array of deterministic corrections applied this turn. Possible values:
-  `"flattery_removed"`, `"canned_phrase_removed"`, `"internal_tokens_removed"`, `"question_forced"`, `"move_made_singular"`, `"visual_dropped"`, `"truth_state_needs_sources"`, `"deterministic_identity"`.
+  `"flattery_removed"`, `"canned_phrase_removed"`, `"internal_tokens_removed"`, `"tone_guard_applied"`, `"question_forced"`, `"move_made_singular"`, `"visual_dropped"`, `"truth_state_needs_sources"`, `"deterministic_identity"`.
   `"client_boundary_redacted"` appears when obvious client-boundary sensitive patterns were masked before model routing.
   `"professional_redirect"` appears when medical, legal, financial, or regulatory-risk advice was framed before model routing.
   `"deterministic_identity"` appears when product identity prompts such as "who are you?" or "what can you do?" are answered by the stable kernel path instead of a provider.
