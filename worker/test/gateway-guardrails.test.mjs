@@ -276,6 +276,23 @@ await check("id origin is allowed for MirrorSeed entry point", async () => {
   assert.strictEqual(response.headers.get("Access-Control-Allow-Origin"), "https://id.activemirror.ai");
 });
 
+await check("vite verification origin is allowed for local first-turn smoke", async () => {
+  const response = await worker.fetch(
+    new Request("https://gateway.activemirror.ai/v1/mirror/create", {
+      method: "OPTIONS",
+      headers: {
+        Origin: "http://127.0.0.1:8984",
+        "Access-Control-Request-Method": "POST",
+      },
+    }),
+    env(),
+    ctx(),
+  );
+
+  assert.strictEqual(response.status, 204);
+  assert.strictEqual(response.headers.get("Access-Control-Allow-Origin"), "http://127.0.0.1:8984");
+});
+
 await check("proof sprint request returns metadata-only receipt", async () => {
   installEdgeCache();
   const originalLog = console.log;

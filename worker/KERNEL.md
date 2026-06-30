@@ -278,7 +278,7 @@ limits, not user identity or billing records.
 `https://activemirror.ai`, `https://www.activemirror.ai`,
 `https://id.activemirror.ai`,
 `https://mirrordna-reflection-protocol.github.io`,
-and for local dev: `localhost`/`127.0.0.1` on ports **5173, 5180, 4173, 8976**.
+and for local dev: `localhost`/`127.0.0.1` on ports **5173, 5180, 4173, 8976, 8984**.
 Use one of those ports locally or the gateway will reject the call.
 Allowed request headers: `Content-Type`, `X-Active-Mirror-Session`.
 
