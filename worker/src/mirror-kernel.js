@@ -140,10 +140,14 @@ export function sanitizeModelIntent(intent, boundary = "personal") {
 }
 
 // --- 2. Boot packet + prompt (the reflection instruction) ---
-export const ACTIVE_MIRROR_BOOT_VERSION = "2026-06-30-active-mirror-boot-v7";
+export const ACTIVE_MIRROR_BOOT_VERSION = "2026-06-30-active-mirror-boot-v8";
 
 export const ACTIVE_MIRROR_BOOTLOAD = [
   "You are Active Mirror.",
+  "SINGULAR_IDENTITY: the visible assistant identity is Active Mirror only. Never answer as ChatGPT, Claude, Gemini, Copilot, a provider, a base model, or a generic AI language model.",
+  "MODEL_IS_WORKER: model output is only a proposal. Active Mirror gates what is shown, remembered, shared, or acted on.",
+  "VAULT_SOURCE_OF_TRUTH: model memory is not authority. Use only the current turn, approved vault context supplied by the runtime, and source-check results.",
+  "ONE_MIRROR_ONE_OWNER: a personal mirror mirrors one owner at a time. Shared projects and teams are scoped workspaces, not blended personal memory.",
   "Your job is not to impress, entertain, praise, diagnose, or decide for the user.",
   "Your job is to reflect the user's intent back clearly enough that they can move.",
   "INTENT_MIRROR: the user is not doing the reflection; you are reflecting their intent, pressure, tradeoff, and next workable move.",
@@ -191,7 +195,7 @@ function compactIntentPhrase(intent = "") {
 
 function classifyIntent(intent = "") {
   const text = compactIntentPhrase(intent).toLowerCase();
-  if (/\b(who are you|what are you|what is active mirror|what can you do|what can you not do|what do you do)\b/.test(text)) {
+  if (/\b(who are you|what are you|what is active mirror|what can you do|what can you not do|what do you do|what model are you|which model are you|are you chatgpt|are you claude|are you gemini|are you copilot|are you an ai|are you a language model)\b/.test(text)) {
     return "identity";
   }
   if (/\b(models?|browser|ai apps?|apple|memory|genui)\b.*\bnow\b/.test(text)) {
@@ -417,8 +421,10 @@ const STILTED_VOICE_RE =
   /\b(?:stuck|lost|ready|clear|useful|true|private|safe|visible|testable|earned|needed|big),\s+(?:you|this|it|the|that|is|are|make|must|should)\b|\b(?:must you|should you|can you)\s+(?:now|then|first)\b/i;
 const BLAMEY_MOTIVE_RE =
   /\b(?:you\s+keep\s+[^.!?]{0,100}|you\s+(?:are\s+using|use|seem\s+to|may\s+be|might\s+be)\s+[^.!?]{0,100}\b(?:avoid|avoiding|delay|delaying|procrastinat|hiding|dodging)\b|you\s+are\s+using\s+[^.!?]{0,80}\b(?:to avoid|to delay|as a way to avoid|as a way to delay)\b|what[^?]{0,100}\bare\s+you\s+(?:avoid|avoiding|delaying|dodging|hiding))\b/i;
-const INTERNAL_TOKEN_RE = /\b(?:INTENT_MIRROR|SELF_REFLECT_BEFORE_OUTPUT|NEVER_EVER_LIE|NO_ASSUMPTIONS|NO_GUESSING|SAYING_NO_IS_HELPING|ZERO_SYCOPHANCY|TRUE_PRIVACY|REFLECTION_OVER_PREDICTION|ONE_MOVE_ONLY|USER_OWNS_MEMORY|SOURCE_HONESTY|NO_FABRICATION|CONSENT_BOUND|FULL_RECEIPTS|SAME_RULES_EVERY_TURN|100_PERCENT_REFLECTION)\b/;
+const INTERNAL_TOKEN_RE = /\b(?:SINGULAR_IDENTITY|MODEL_IS_WORKER|VAULT_SOURCE_OF_TRUTH|ONE_MIRROR_ONE_OWNER|INTENT_MIRROR|SELF_REFLECT_BEFORE_OUTPUT|NEVER_EVER_LIE|NO_ASSUMPTIONS|NO_GUESSING|SAYING_NO_IS_HELPING|ZERO_SYCOPHANCY|TRUE_PRIVACY|REFLECTION_OVER_PREDICTION|ONE_MOVE_ONLY|USER_OWNS_MEMORY|SOURCE_HONESTY|NO_FABRICATION|CONSENT_BOUND|FULL_RECEIPTS|SAME_RULES_EVERY_TURN|100_PERCENT_REFLECTION)\b/;
 const INTERNAL_TOKEN_RE_G = new RegExp(INTERNAL_TOKEN_RE.source, "g");
+const MODEL_SELF_IDENTITY_RE =
+  /\b(?:as an?\s+(?:ai|large language model|language model|assistant)|i\s*(?:am|'m)\s+(?:chatgpt|claude|gemini|copilot|an?\s+ai|an?\s+large language model|a language model|an assistant)|am\s+i\s+(?:chatgpt|claude|gemini|copilot)|(?:this|the)\s+(?:model|assistant)\s+is\s+(?:chatgpt|claude|gemini|copilot)|you\s+are\s+(?:talking|speaking)\s+to\s+(?:chatgpt|claude|gemini|copilot)|i\s+was\s+(?:built|created|trained)\s+by\s+(?:openai|anthropic|google)|my\s+(?:creator|creators|maker|makers)\s+(?:is|are)\s+(?:openai|anthropic|google))\b/i;
 
 export function stripInternalTokens(text) {
   return String(text || "")
@@ -430,10 +436,23 @@ export function stripInternalTokens(text) {
 }
 
 export function deflatter(text) {
-  return stripInternalTokens(removeToneViolations(removeCannedPhrases(String(text || "").replace(FLATTERY_RE_G, ""))))
+  return stripInternalTokens(removeModelIdentityClaims(removeToneViolations(removeCannedPhrases(String(text || "").replace(FLATTERY_RE_G, "")))))
     .replace(/\s{2,}/g, " ")
     .replace(/\s+([.,;!?])/g, "$1")
     .replace(/^[\s,;.!-]+/, "")
+    .trim();
+}
+
+function removeModelIdentityClaims(text) {
+  return String(text || "")
+    .replace(/\bAs an?\s+(?:AI|large language model|language model|assistant)[^.!?]*(?:[.!?]|$)\s*/gi, "")
+    .replace(/\bI\s*(?:am|'m)\s+(?:ChatGPT|Claude|Gemini|Copilot|an?\s+AI|an?\s+large language model|a language model|an assistant)[^.!?]*(?:[.!?]|$)\s*/gi, "I'm Active Mirror. ")
+    .replace(/\bAm\s+I\s+(?:ChatGPT|Claude|Gemini|Copilot)(?:\s+or\s+(?:ChatGPT|Claude|Gemini|Copilot))*[^?]*(?:\?|$)\s*/gi, "What do you want help with right now?")
+    .replace(/\b(?:This|The)\s+(?:model|assistant)\s+is\s+(?:ChatGPT|Claude|Gemini|Copilot)[^.!?]*(?:[.!?]|$)\s*/gi, "This is Active Mirror. ")
+    .replace(/\bYou\s+are\s+(?:talking|speaking)\s+to\s+(?:ChatGPT|Claude|Gemini|Copilot)[^.!?]*(?:[.!?]|$)\s*/gi, "You are using Active Mirror. ")
+    .replace(/\bI\s+was\s+(?:built|created|trained)\s+by\s+(?:OpenAI|Anthropic|Google)[^.!?]*(?:[.!?]|$)\s*/gi, "")
+    .replace(/\bMy\s+(?:creator|creators|maker|makers)\s+(?:is|are)\s+(?:OpenAI|Anthropic|Google)[^.!?]*(?:[.!?]|$)\s*/gi, "")
+    .replace(/\s{2,}/g, " ")
     .trim();
 }
 
@@ -531,6 +550,9 @@ export function straitjacket(mirror) {
   }
   if (INTERNAL_TOKEN_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
     violations.push("internal_tokens_removed");
+  }
+  if (MODEL_SELF_IDENTITY_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
+    violations.push("model_identity_removed");
   }
   if (CANNED_PHRASE_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`) || ABSTRACT_HELPER_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
     violations.push("canned_phrase_removed");

@@ -62,7 +62,7 @@ async function main() {
   await check("gateway health is current", async () => {
     const data = await readJson(`${GATEWAY}/health`);
     assert(data.ok === true, "health ok was not true");
-    assert(/^2026-06-30-artifact-route-v1$/.test(String(data.version || "")), "unexpected gateway version");
+    assert(/^2026-06-30-identity-vault-v1$/.test(String(data.version || "")), "unexpected gateway version");
     assert(data.guardrails?.event_policy === "no-prompt-content", "event policy missing");
     assert(data.guardrails?.truth_state === "enabled", "truth-state guardrail missing");
     assert(data.guardrails?.source_check === "enabled", "source-check guardrail missing");

@@ -18,11 +18,15 @@ Every provider route receives the same versioned Active Mirror boot packet befor
 the user turn. The current boot id is:
 
 ```text
-2026-06-30-active-mirror-boot-v7
+2026-06-30-active-mirror-boot-v8
 ```
 
 The boot packet is steering, not enforcement. It tells the model to:
 
+- keep one visible identity: **Active Mirror**;
+- treat every provider or base model as an internal worker, not the public assistant;
+- treat the approved vault/context packet and source-check results as authority, never model memory;
+- keep a personal mirror one-to-one with its owner; shared projects are scoped workspaces, not blended personal memory;
 - reflect the user's intent, not impress, entertain, diagnose, or decide;
 - privately self-check that the answer is specific, non-sycophantic, privacy-safe, and small enough to act on;
 - enforce anti-sycophancy in generation;
@@ -47,7 +51,24 @@ The boot packet is steering, not enforcement. It tells the model to:
 The deterministic gates below remain the guarantee. If a provider leaks internal
 rails such as `ZERO_SYCOPHANCY`, `SAYING_NO_IS_HELPING`, or `ONE_MOVE_ONLY`, the
 straitjacket strips them before the user sees the answer and records
-`"internal_tokens_removed"`.
+`"internal_tokens_removed"`. If a provider tries to answer as ChatGPT, Claude,
+Gemini, Copilot, a generic AI language model, or its maker, the straitjacket
+strips that self-identification and records `"model_identity_removed"`.
+
+### Vault Authority
+
+Active Mirror controls model context. The authority order is:
+
+1. The user's current turn.
+2. Approved local/browser vault context explicitly supplied by the runtime.
+3. Signed or receipt-backed vault records.
+4. Source-check results for current or external facts.
+5. Model output, as a proposal only.
+
+No model may write memory directly, read the raw vault wholesale, or treat its
+own training/memory as source truth. If approved context is missing, the model
+must answer from the current turn, ask the smallest useful follow-up, or mark the
+claim as needing sources.
 
 ---
 
@@ -116,7 +137,7 @@ straitjacket strips them before the user sees the answer and records
 - `route.upstream_host` — only present for the bridge route, and only contains the non-secret host used by the Worker.
 - `truth_state` — deterministic source-sensitivity marker. It does not fact-check; it tells the UI whether the turn is reflective only or needs sources before reliance.
 - `straitjacket` — array of deterministic corrections applied this turn. Possible values:
-  `"flattery_removed"`, `"canned_phrase_removed"`, `"internal_tokens_removed"`, `"tone_guard_applied"`, `"question_forced"`, `"move_made_singular"`, `"visual_dropped"`, `"truth_state_needs_sources"`, `"deterministic_identity"`.
+  `"flattery_removed"`, `"canned_phrase_removed"`, `"internal_tokens_removed"`, `"model_identity_removed"`, `"tone_guard_applied"`, `"question_forced"`, `"move_made_singular"`, `"visual_dropped"`, `"truth_state_needs_sources"`, `"deterministic_identity"`.
   `"client_boundary_redacted"` appears when obvious client-boundary sensitive patterns were masked before model routing.
   `"professional_redirect"` appears when medical, legal, financial, or regulatory-risk advice was framed before model routing.
   `"deterministic_identity"` appears when product identity prompts such as "who are you?" or "what can you do?" are answered by the stable kernel path instead of a provider.
@@ -362,7 +383,9 @@ reply email domain, and timestamp. The full email address is not written to logs
 6. **GenUI cage** — `visual` is whitelisted (`reframe`/`axes`/`spectrum` only), markdown-stripped,
    non-empty slots, or it's dropped to `null`.
 7. **Identity stability** — product identity prompts are answered by the deterministic kernel path,
-   not by an improvised provider response.
+   not by an improvised provider response. Provider/model self-identification is stripped before rendering.
+8. **Vault authority** — model output is advisory. Current turn, approved vault context, receipts,
+   and source-check results outrank model memory.
 
 The model is the brain you plug in; these guarantees are the kernel's, not the model's.
 

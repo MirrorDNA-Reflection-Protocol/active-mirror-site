@@ -40,6 +40,10 @@ await check("buildPrompt includes the versioned Active Mirror boot packet", () =
     },
   );
   assert.ok(prompt.includes(`Boot packet: ${ACTIVE_MIRROR_BOOT_VERSION}`), "boot version missing");
+  assert.ok(prompt.includes("SINGULAR_IDENTITY"), "singular identity rail missing");
+  assert.ok(prompt.includes("MODEL_IS_WORKER"), "model worker rail missing");
+  assert.ok(prompt.includes("VAULT_SOURCE_OF_TRUTH"), "vault source-of-truth rail missing");
+  assert.ok(prompt.includes("ONE_MIRROR_ONE_OWNER"), "one-owner rail missing");
   assert.ok(prompt.includes("INTENT_MIRROR"), "intent mirror rail missing");
   assert.ok(prompt.includes("SELF_REFLECT_BEFORE_OUTPUT"), "private self-reflection rail missing");
   assert.ok(prompt.includes("NEVER_EVER_LIE"), "truth rail missing");
@@ -71,11 +75,24 @@ await check("straitjacket strips internal governance tokens from user-facing out
   const { mirror, violations } = straitjacket({
     reflection: "SELF_REFLECT_BEFORE_OUTPUT and ZERO_SYCOPHANCY say you are using polish to avoid contact.",
     question: "TRUE_PRIVACY and NO_ASSUMPTIONS ask what detail can stay out",
-    move: "SAYING_NO_IS_HELPING and ONE_MOVE_ONLY: write one plain sentence.",
+    move: "SINGULAR_IDENTITY, MODEL_IS_WORKER, VAULT_SOURCE_OF_TRUTH, SAYING_NO_IS_HELPING and ONE_MOVE_ONLY: write one plain sentence.",
     receipt: RECEIPT,
   });
-  assert.ok(!/SELF_REFLECT_BEFORE_OUTPUT|ZERO_SYCOPHANCY|TRUE_PRIVACY|NO_ASSUMPTIONS|SAYING_NO_IS_HELPING|ONE_MOVE_ONLY|NEVER_EVER_LIE/.test(`${mirror.reflection} ${mirror.question} ${mirror.move}`), "internal token leaked");
+  assert.ok(!/SELF_REFLECT_BEFORE_OUTPUT|ZERO_SYCOPHANCY|TRUE_PRIVACY|NO_ASSUMPTIONS|SAYING_NO_IS_HELPING|ONE_MOVE_ONLY|NEVER_EVER_LIE|SINGULAR_IDENTITY|MODEL_IS_WORKER|VAULT_SOURCE_OF_TRUTH/.test(`${mirror.reflection} ${mirror.question} ${mirror.move}`), "internal token leaked");
   assert.ok(violations.includes("internal_tokens_removed"), "internal token removal was not recorded");
+});
+
+await check("straitjacket strips provider self-identity from user-facing output", () => {
+  const { mirror, violations } = straitjacket({
+    reflection: "As an AI language model created by OpenAI, I can help with that. The first step is to make the request smaller.",
+    question: "Am I ChatGPT or Claude here?",
+    move: "I am Claude, so ask me to draft one sentence.",
+    receipt: RECEIPT,
+  });
+  const text = `${mirror.reflection} ${mirror.question} ${mirror.move}`;
+  assert.doesNotMatch(text, /AI language model|created by OpenAI|I am Claude|I am ChatGPT/i, "provider identity survived");
+  assert.match(text, /Active Mirror|what/i, "answer did not collapse to Active Mirror identity or a safe fallback");
+  assert.ok(violations.includes("model_identity_removed"), "model identity removal was not recorded");
 });
 
 // 1c. Direct challenge is allowed; motive-reading is not.
@@ -371,6 +388,32 @@ await check("who-are-you fallback stays plain and useful", async () => {
   assert.match(text, /Active Mirror|help|useful to try/i, "identity answer did not explain the product plainly");
   assert.doesNotMatch(text, /you are treating|whole frame|this voice|label|limits|next move/i, "identity answer became abstract");
   assert.ok(out.straitjacket.includes("deterministic_identity"), "identity route was not marked");
+});
+
+await check("provider identity questions never call a model", async () => {
+  let modelWasCalled = false;
+  const out = await reflect({
+    intent: "Are you ChatGPT or Claude?",
+    boundary: "personal",
+    callModel: async () => {
+      modelWasCalled = true;
+      return {
+        mirror: {
+          reflection: "I am ChatGPT, a large language model.",
+          question: "What do you need from ChatGPT?",
+          move: "Ask ChatGPT one question.",
+          receipt: RECEIPT,
+        },
+        fallback: false,
+        routeText: "mock provider",
+      };
+    },
+  });
+  const text = `${out.mirror.reflection} ${out.mirror.question} ${out.mirror.move}`;
+  assert.strictEqual(modelWasCalled, false, "identity question reached the provider");
+  assert.match(text, /Active Mirror/i, "identity did not stay Active Mirror");
+  assert.doesNotMatch(text, /ChatGPT|Claude|large language model/i, "provider identity leaked");
+  assert.ok(out.straitjacket.includes("deterministic_identity"), "deterministic identity route missing");
 });
 
 await check("fallback does not treat ordinary launch notes as private details", async () => {
