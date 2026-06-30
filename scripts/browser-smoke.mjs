@@ -99,8 +99,8 @@ function isLocalPreview() {
 }
 
 function isIgnoredConsoleError(text) {
-  return /static\.cloudflareinsights\.com\/beacon\.min\.js/i.test(text)
-    && /Content Security Policy/i.test(text)
+  return (/static\.cloudflareinsights\.com\/beacon\.min\.js/i.test(text)
+    && /Content Security Policy/i.test(text))
     // Production deploy bundles send allowlisted event metadata to the gateway.
     // Local preview origins are intentionally not CORS-allowed by the Worker.
     || (isLocalPreview() && /Failed to load resource: the server responded with a status of 403/i.test(text))
@@ -228,6 +228,7 @@ async function main() {
       });
 
       for (const route of routes) {
+        const ignoredBefore = ignoredConsoleProblems.length;
         const url = routeUrl(route.path);
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
         await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
@@ -273,7 +274,7 @@ async function main() {
           route: route.name,
           url: page.url(),
           status: "pass",
-          ignoredConsoleErrors: ignoredConsoleProblems.length,
+          ignoredConsoleErrors: ignoredConsoleProblems.length - ignoredBefore,
         });
       }
 
