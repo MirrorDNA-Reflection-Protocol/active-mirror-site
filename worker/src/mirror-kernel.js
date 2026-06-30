@@ -140,7 +140,7 @@ export function sanitizeModelIntent(intent, boundary = "personal") {
 }
 
 // --- 2. Boot packet + prompt (the reflection instruction) ---
-export const ACTIVE_MIRROR_BOOT_VERSION = "2026-06-30-active-mirror-boot-v3";
+export const ACTIVE_MIRROR_BOOT_VERSION = "2026-06-30-active-mirror-boot-v4";
 
 export const ACTIVE_MIRROR_BOOTLOAD = [
   "You are Active Mirror.",
@@ -601,13 +601,13 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
 
   const mirrors = {
     identity: {
-      reflection: "I'm Active Mirror. I help you think through one thing and turn it into a useful next step.",
+      reflection: "I'm Active Mirror. I help you think through one thing and turn it into something useful to try.",
       question: "What do you want help with right now?",
       move: "Write one sentence about the thing you want to move.",
     },
     source_check: {
       reflection: "This needs a source before it becomes a direction. The trap is letting a fresh-sounding answer become your plan.",
-      question: "Which claim would change your next move if it turned out to be false?",
+      question: "Which claim would change what you do if it turned out to be false?",
       move: "Write that one claim, then check one current source before using the answer.",
     },
     private_output: {
@@ -636,7 +636,7 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
       move: "Draft the smallest usable version with a title, three bullets, and one ask.",
     },
     general: {
-      reflection: "The thought is staying big because the next move would make it testable. Shrink it until it can meet the real world today.",
+      reflection: "The thought is staying big because the useful thing is still too vague to test. Shrink it until it can meet the real world today.",
       question: "What is the smallest version of this that could be tested today?",
       move: "Write the testable version in one sentence, then show it to one person or one page.",
     },
@@ -726,6 +726,21 @@ export async function reflect({ intent, boundary = "personal", turn = 1, capabil
 
   const modelIntent = sanitizeModelIntent(intent, boundary);
   const redactedForModel = modelIntent !== String(intent || "");
+
+  if (classifyIntent(modelIntent) === "identity") {
+    const normalized = normalizeMirror(null, { intent: modelIntent, boundary }, boundaryDef, "Plain product answer; no external model was needed.");
+    const { mirror, violations } = straitjacket(normalized);
+    const truth_state = truthGate({ intent, mirror });
+    const receipt_id = await receiptHash({ mirror, truth_state, turn });
+    return {
+      ok: true,
+      fallback: false,
+      receipt_id,
+      mirror,
+      truth_state,
+      straitjacket: [...violations, "deterministic_identity"],
+    };
+  }
 
   // 2. A prompt the model can only answer as a reflection.
   const prompt = buildPrompt({ intent: modelIntent, boundary }, boundaryDef, capability);

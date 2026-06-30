@@ -297,10 +297,20 @@ await check("straitjacket removes canned helper phrasing", () => {
 });
 
 await check("who-are-you fallback stays plain and useful", async () => {
-  const out = await reflect({ intent: "Who are you?", boundary: "personal", callModel: async () => null });
+  let modelWasCalled = false;
+  const out = await reflect({
+    intent: "Who are you?",
+    boundary: "personal",
+    callModel: async () => {
+      modelWasCalled = true;
+      return null;
+    },
+  });
   const text = `${out.mirror.reflection} ${out.mirror.question} ${out.mirror.move}`;
-  assert.match(text, /Active Mirror|help|next step/i, "identity answer did not explain the product plainly");
-  assert.doesNotMatch(text, /you are treating|whole frame|this voice|label|limits/i, "identity answer became abstract");
+  assert.strictEqual(modelWasCalled, false, "identity answer should not require a model call");
+  assert.match(text, /Active Mirror|help|useful to try/i, "identity answer did not explain the product plainly");
+  assert.doesNotMatch(text, /you are treating|whole frame|this voice|label|limits|next move/i, "identity answer became abstract");
+  assert.ok(out.straitjacket.includes("deterministic_identity"), "identity route was not marked");
 });
 
 // 16. Client boundary masks obvious sensitive details before model routing.

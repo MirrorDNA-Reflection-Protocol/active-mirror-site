@@ -18,7 +18,7 @@ Every provider route receives the same versioned Active Mirror boot packet befor
 the user turn. The current boot id is:
 
 ```text
-2026-06-30-active-mirror-boot-v3
+2026-06-30-active-mirror-boot-v4
 ```
 
 The boot packet is steering, not enforcement. It tells the model to:
@@ -110,9 +110,10 @@ before the user sees the answer and records `"internal_tokens_removed"`.
 - `route.upstream_host` — only present for the bridge route, and only contains the non-secret host used by the Worker.
 - `truth_state` — deterministic source-sensitivity marker. It does not fact-check; it tells the UI whether the turn is reflective only or needs sources before reliance.
 - `straitjacket` — array of deterministic corrections applied this turn. Possible values:
-  `"flattery_removed"`, `"canned_phrase_removed"`, `"internal_tokens_removed"`, `"question_forced"`, `"move_made_singular"`, `"visual_dropped"`, `"truth_state_needs_sources"`.
+  `"flattery_removed"`, `"canned_phrase_removed"`, `"internal_tokens_removed"`, `"question_forced"`, `"move_made_singular"`, `"visual_dropped"`, `"truth_state_needs_sources"`, `"deterministic_identity"`.
   `"client_boundary_redacted"` appears when obvious client-boundary sensitive patterns were masked before model routing.
   `"professional_redirect"` appears when medical, legal, financial, or regulatory-risk advice was framed before model routing.
+  `"deterministic_identity"` appears when product identity prompts such as "who are you?" or "what can you do?" are answered by the stable kernel path instead of a provider.
   (Empty array = the model stayed inside the cage on its own.)
 
 ### `truth_state` — the hallucination rail
@@ -354,6 +355,8 @@ reply email domain, and timestamp. The full email address is not written to logs
 5. **Record** — `receipt_id` is a content hash of exactly what was returned.
 6. **GenUI cage** — `visual` is whitelisted (`reframe`/`axes`/`spectrum` only), markdown-stripped,
    non-empty slots, or it's dropped to `null`.
+7. **Identity stability** — product identity prompts are answered by the deterministic kernel path,
+   not by an improvised provider response.
 
 The model is the brain you plug in; these guarantees are the kernel's, not the model's.
 
