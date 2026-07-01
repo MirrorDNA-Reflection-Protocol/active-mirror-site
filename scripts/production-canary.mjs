@@ -62,7 +62,7 @@ async function main() {
   await check("gateway health is current", async () => {
     const data = await readJson(`${GATEWAY}/health`);
     assert(data.ok === true, "health ok was not true");
-    assert(/^2026-07-01-council-control-plane-v1$/.test(String(data.version || "")), "unexpected gateway version");
+    assert(/^2026-07-01-artifact-quality-v1$/.test(String(data.version || "")), "unexpected gateway version");
     assert(data.guardrails?.event_policy === "no-prompt-content", "event policy missing");
     assert(data.guardrails?.truth_state === "enabled", "truth-state guardrail missing");
     assert(data.guardrails?.mirrordash_glass === "enabled", "MirrorDash Glass guardrail missing");
@@ -252,6 +252,7 @@ async function main() {
     assert(["doc", "code", "image", "draft"].includes(data.artifact?.kind), "artifact kind missing");
     assert(typeof data.artifact?.title === "string" && data.artifact.title.length > 2, "artifact title missing");
     assert(typeof data.artifact?.body === "string" && data.artifact.body.length > 40, "artifact body too thin");
+    assert(!/\b(I can help|you could|consider adding|here is how|template for)\b/i.test(data.artifact.body), "artifact returned weak helper prose");
     assert(Array.isArray(data.artifact?.checklist), "artifact checklist missing");
     assert(data.route?.label === "artifact help", "artifact route label missing");
   });

@@ -138,6 +138,17 @@ function openAIArtifactResponse() {
   };
 }
 
+function openAIWeakArtifactResponse() {
+  return {
+    output_text: JSON.stringify({
+      kind: "doc",
+      title: "Weak artifact",
+      body: "I can help create a launch memo. You could start by writing your audience, then consider adding a next step.",
+      checklist: ["Consider adding details."],
+    }),
+  };
+}
+
 function openAISourceCheckResponse() {
   return {
     output_text: JSON.stringify({
@@ -879,8 +890,54 @@ await check("artifact route creates a provider-backed document", async () => {
     assert.strictEqual(data.artifact.kind, "doc");
     assert.strictEqual(data.artifact.title, "Launch note");
     assert.ok(data.artifact.body.includes("Next move"), "artifact body missing usable content");
+    assert.doesNotMatch(data.artifact.body, /\b(I can help|you could|consider adding|here is how)\b/i, "weak artifact phrasing leaked");
     assert.strictEqual(data.route.label, "artifact help");
     assert.strictEqual(JSON.stringify(data).includes("test-openai-key"), false, "secret leaked into response");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+await check("artifact route replaces weak provider prose with a finished fallback", async () => {
+  installEdgeCache();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("api.openai.com")) {
+      const body = JSON.parse(init?.body || "{}");
+      assert.strictEqual(body.store, false, "artifact route must not store provider output");
+      return Response.json(openAIWeakArtifactResponse());
+    }
+    return originalFetch(url, init);
+  };
+
+  try {
+    const response = await post(
+      "/v1/mirror/artifact",
+      {
+        intent: "Create a short launch memo from this reflection.",
+        artifactKind: "doc",
+        boundary: "personal",
+        mirror: {
+          reflection: "The launch needs a visible promise before another brainstorm.",
+          question: "What promise would make someone try it today?",
+          move: "Write the first user promise and send it to one person.",
+        },
+      },
+      {
+        MIRROR_BRIDGE_URL: "",
+        MIRROR_BRIDGE_TOKEN: "",
+        OPENAI_API_KEY: "test-openai-key",
+      },
+    );
+    const data = await response.json();
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(data.ok, true);
+    assert.strictEqual(data.fallback, true);
+    assert.strictEqual(data.artifact.kind, "doc");
+    assert.strictEqual(data.artifact.title, "Working doc");
+    assert.match(data.artifact.body, /Sendable version/);
+    assert.doesNotMatch(data.artifact.body, /\b(I can help|you could|consider adding|here is how)\b/i, "weak provider phrasing survived");
   } finally {
     globalThis.fetch = originalFetch;
   }

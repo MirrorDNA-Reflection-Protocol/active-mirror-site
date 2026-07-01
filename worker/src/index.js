@@ -38,7 +38,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-07-01-council-control-plane-v1";
+const WORKER_VERSION = "2026-07-01-artifact-quality-v1";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
@@ -240,6 +240,10 @@ const ARTIFACT_SCHEMA = {
 
 const UNSAFE_ARTIFACT_RE =
   /\b(?:malware|ransomware|phishing|steal credentials|credential theft|bypass security|evade detection|exfiltrate|keylogger|ddos|sql injection|exploit|forge documents|hide evidence|destroy evidence|launder money)\b/i;
+const WEAK_ARTIFACT_RE =
+  /\b(?:i can help|i can create|i can draft|here'?s how|here is how|you could|you should|you may want to|consider (?:writing|adding|including)|steps? to create|template for)\b/i;
+const ARTIFACT_INTERNAL_RE =
+  /\b(?:provider|gateway|model route|internal token|policy|receipt id|hash chain)\b/i;
 
 export default {
   async fetch(request, env, ctx) {
@@ -1510,10 +1514,10 @@ function normalizeArtifactProvider(value) {
 
 function buildArtifactPrompt(input) {
   const kindGuidance = {
-    doc: "Create a useful document the user can copy or download now. Include a clear title, a short body, and practical sections. Do not say how to make the document; make it.",
-    code: "Create a small code starter or implementation capsule. If the stack is unclear, use the smallest useful vanilla example plus assumptions. Do not ask for more context unless code would be unsafe.",
-    image: "Create a visual generation brief. It must be directly usable as an image/video prompt and include scene, composition, mood, constraints, and what to avoid.",
-    draft: "Create the smallest sendable draft or working note. It should be useful even if rough.",
+    doc: "Create a useful document the user can copy or download now. Include the finished document body, a one-sentence purpose, a short draft, and a concrete ask or next step. Do not explain how to make the document; make it.",
+    code: "Create a small code starter or implementation capsule. If the stack is unclear, use the smallest useful vanilla JavaScript example plus assumptions. Include code, acceptance checks, and how to run or adapt it. Do not ask for more context unless code would be unsafe.",
+    image: "Create a visual generation brief. It must be directly usable as an image/video prompt and include scene, composition, feeling, constraints, and what to avoid.",
+    draft: "Create the smallest sendable draft or working note. It should be useful even if rough, with placeholders where needed.",
   }[input.kind];
 
   return [
@@ -1521,6 +1525,7 @@ function buildArtifactPrompt(input) {
     "Trust by Design means: if the product offers an artifact, provide the smallest useful safe artifact now.",
     "Do not refuse because context is imperfect. Use placeholders and state assumptions inside the artifact when needed.",
     "Do not mention policies, models, providers, gateways, receipts, or internal tokens.",
+    "Do not start with meta-help such as 'I can help', 'you could', 'here is how', or 'consider'. Start with the artifact itself.",
     "Do not flatter, diagnose, scold, or write therapy language.",
     "Do not invent current facts, citations, prices, legal/medical/financial advice, or private details.",
     "If a claim needs sources, make the artifact say where evidence is needed instead of making the claim sound proven.",
@@ -1557,7 +1562,7 @@ async function callOpenAIArtifact(prompt, input, env) {
     env,
   );
   const data = await readProviderResponse(response, "openai");
-  return { fallback: false, artifact: normalizeArtifactPayload(extractOpenAIText(data), input) };
+  return normalizeArtifactResult(extractOpenAIText(data), input);
 }
 
 async function callAnthropicArtifact(prompt, input, env) {
@@ -1583,7 +1588,7 @@ async function callAnthropicArtifact(prompt, input, env) {
     env,
   );
   const data = await readProviderResponse(response, "anthropic");
-  return { fallback: false, artifact: normalizeArtifactPayload(extractAnthropicText(data), input) };
+  return normalizeArtifactResult(extractAnthropicText(data), input);
 }
 
 async function callGeminiArtifact(prompt, input, env) {
@@ -1613,10 +1618,10 @@ async function callGeminiArtifact(prompt, input, env) {
   );
   const data = await readProviderResponse(response, "gemini");
   const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("") || "";
-  return { fallback: false, artifact: normalizeArtifactPayload(text, input) };
+  return normalizeArtifactResult(text, input);
 }
 
-function normalizeArtifactPayload(text, input) {
+function normalizeArtifactResult(text, input) {
   const payload = parseArtifactPayload(text);
   const kind = normalizeArtifactKind(payload?.kind || input.kind);
   const title = cleanArtifactText(payload?.title, defaultArtifactTitle(kind), 80).replace(/[.]+$/, "");
@@ -1625,16 +1630,28 @@ function normalizeArtifactPayload(text, input) {
     ? payload.checklist.map((item) => cleanArtifactText(item, "", 140)).filter(Boolean).slice(0, 4)
     : [];
 
-  if (!body || body.length < 20) {
-    return fallbackArtifact({ ...input, kind }, "thin");
+  if (!body || body.length < 20 || artifactNeedsFallback(body)) {
+    return {
+      fallback: true,
+      publicReason: "the live artifact needed a cleaner backup",
+      artifact: fallbackArtifact({ ...input, kind }, "thin"),
+    };
   }
 
   return {
-    kind,
-    title: title || defaultArtifactTitle(kind),
-    body,
-    checklist: checklist.length ? checklist : defaultArtifactChecklist(kind),
+    fallback: false,
+    artifact: {
+      kind,
+      title: title || defaultArtifactTitle(kind),
+      body,
+      checklist: checklist.length ? checklist : defaultArtifactChecklist(kind),
+    },
   };
+}
+
+function artifactNeedsFallback(body) {
+  const text = String(body || "");
+  return WEAK_ARTIFACT_RE.test(text) || ARTIFACT_INTERNAL_RE.test(text);
 }
 
 function parseArtifactPayload(text) {
@@ -1714,11 +1731,11 @@ function fallbackArtifact(input, reason = "provider") {
       kind: "doc",
       title: "Safer path",
       body: [
-        "Active Mirror cannot help create an artifact that enables harm, concealment, or abuse.",
+        "That request crosses a safety line.",
         "",
         `Useful substitute: ${intent}`,
         "",
-        "Safer output:",
+        "Safer output",
         "- Name the legitimate goal.",
         "- Remove the harmful or deceptive step.",
         "- Ask for a defensive, lawful, or repair-focused version.",
@@ -1736,6 +1753,9 @@ function fallbackArtifact(input, reason = "provider") {
       body: [
         "Goal",
         intent,
+        "",
+        "Assumption",
+        "Use this as a tiny browser-safe starter until the exact stack is known.",
         "",
         "Acceptance",
         `- ${move}`,
@@ -1760,16 +1780,25 @@ function fallbackArtifact(input, reason = "provider") {
       kind,
       title: "Visual brief",
       body: [
-        "Visual brief",
+        "Prompt",
         "",
-        `Goal: ${intent}`,
+        `Create one polished visual for: ${intent}`,
+        "",
+        "Scene",
+        "A clear human moment where the result is visible immediately. One focal point, warm light, clean composition, subtle glow, no clutter.",
+        "",
+        "Feeling",
         "Feeling: warm, simple, useful, lightly magical, not busy.",
-        `Main idea: ${question}`,
-        "Scene: one clear focal point that shows the outcome, not the machinery.",
+        "",
+        "Message",
+        question,
+        "",
+        "Avoid",
         "Avoid: clutter, medical cues, diagnostics, dashboard overload, model names, private details.",
+        "",
         `Next action: ${move}`,
       ].join("\n"),
-      checklist: ["Remove private details before media generation.", "Use this as the image or video prompt."],
+      checklist: ["Remove private details before generation.", "Use this as the image or video prompt."],
     };
   }
 
@@ -1778,19 +1807,25 @@ function fallbackArtifact(input, reason = "provider") {
       kind,
       title: "Working doc",
       body: [
-        "Working doc",
+        "Title",
+        intent,
         "",
-        `Purpose: ${intent}`,
+        "Purpose",
+        `Turn this into one usable output: ${question}`,
         "",
-        "Decision",
-        question,
+        "Draft",
+        `The clearest version is: ${move}`,
+        "",
+        "Ask",
+        "Please react to the promise, the next step, and anything that feels unclear.",
         "",
         "Next move",
         move,
         "",
         "Sendable version",
-        `I am working from this question: ${question}`,
+        `I am working on this: ${intent}`,
         `The next thing I am trying is: ${move}`,
+        "What would make this stronger or easier to act on?",
       ].join("\n"),
       checklist: ["Remove private details before sharing.", "Keep the ask to one sentence if you send it."],
     };
@@ -1800,9 +1835,13 @@ function fallbackArtifact(input, reason = "provider") {
     kind: "draft",
     title: "Message draft",
     body: [
-      `I am working on: ${intent}`,
-      `The question is: ${question}`,
-      `The next thing I will try: ${move}`,
+      `I am working on ${intent}.`,
+      "",
+      `The useful question is: ${question}`,
+      "",
+      `My next step is: ${move}`,
+      "",
+      "Can you give me one honest reaction and one improvement?",
     ].join("\n"),
     checklist: ["Remove private details before sharing.", "Keep it short enough to send."],
   };
