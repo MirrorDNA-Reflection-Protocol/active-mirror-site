@@ -140,14 +140,14 @@ async function exerciseFirstInput(page) {
   await page.getByRole("button", { name: /^Send$/ }).first().click();
   await page.getByRole("button", { name: /^Save$/ }).waitFor({ timeout: 30000 });
   await page.getByRole("button", { name: /^Save$/ }).click();
-  await page.getByText("Saved for next time", { exact: true }).waitFor({ timeout: 10000 });
-  await page.getByText("Another angle", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: /^Saved$/ }).waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: /^(Different angle|Another angle)$/ }).last().waitFor({ timeout: 10000 });
   const artifactButton = page.getByRole("button", { name: /^(Draft it|Make doc|Make code starter|Make visual brief)$/ }).first();
   await artifactButton.waitFor({ timeout: 10000 });
   await artifactButton.click();
-  await page.getByRole("button", { name: /^Download$/ }).last().waitFor({ timeout: 30000 });
+  await page.getByRole("button", { name: /^Download(?: \.[a-z0-9]+| brief| code)?$/ }).last().waitFor({ timeout: 30000 });
   await page.getByRole("button", { name: /^Copy$/ }).last().waitFor({ timeout: 10000 });
-  await page.getByRole("button", { name: /^Another angle$/ }).last().click();
+  await page.getByRole("button", { name: /^(Different angle|Another angle)$/ }).last().click();
   await page.waitForTimeout(1500);
   if (await page.getByText("This asks for current facts.", { exact: true }).isVisible().catch(() => false)) {
     fail("Starter/feedback reflection leaked source-check UI.");
@@ -159,8 +159,8 @@ async function exerciseFirstInput(page) {
   }
 
   const eventBuffer = await page.evaluate(() => sessionStorage.getItem("active_mirror_event_buffer_v1") || "");
-  if (!eventBuffer.includes("feedback_repair")) {
-    fail("Feedback repair was not recorded as metadata.");
+  if (!eventBuffer.includes("sendable_created")) {
+    fail("Artifact creation was not recorded as metadata.");
   }
   if (eventBuffer.includes(testText)) {
     fail("Privacy event buffer leaked prompt text.");
