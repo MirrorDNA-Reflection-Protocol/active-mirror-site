@@ -14,6 +14,13 @@ These are internal guarantees. A token is real only where a deterministic gate c
 | `SAME_RULES_EVERY_TURN` | Model/provider changes do not change the reflection contract. | Kernel schema and straitjacket. | Live in `worker/src/mirror-kernel.js`. |
 | `SINGULAR_IDENTITY` | The public assistant identity is Active Mirror, regardless of provider or base model. | Deterministic identity route, output straitjacket. | Live for identity prompts and provider self-ID leakage. |
 | `MODEL_IS_WORKER` | A model proposes; Active Mirror gates, records, and decides what is shown, remembered, shared, or acted on. | Kernel boot packet, gateway adapter, receipt. | Live as boot and route contract; deeper local-agent enforcement remains separate. |
+| `MIRROR_IS_FILTER` | User, vault, and source material must pass through the Active Mirror filter before any model sees it. | Boot packet, MirrorDash Glass egress facts, vault boot contract. | Live as gateway/kernel contract; full local vault enforcement remains control-plane work. |
+| `MIRROR_ONLY_TRAINING` | Fine-tunes, LoRAs, and adapters train only on approved mirror examples with consent, receipts, and evals, never raw vault dumps. | Boot packet, vault boot contract, local training firewall. | Contracted here; training execution remains local-control-plane work. |
+| `LORA_IS_CANDIDATE_NOT_AUTHORITY` | A local adapter can be a candidate worker but never becomes source truth or product identity. | Boot packet, route contract, source-check policy. | Live in kernel prompts and tests; adapter registry gating remains separate. |
+| `MIRRORDASH_GLASS` | The product exposes router facts: why a prompt went where, which provider/model answered, tools used, memory scope, and what remains opaque. | `/v1/mirror/create` response, health guardrails, canary. | Live for mirror/create; other surfaces should add the same receipt shape as they mature. |
+| `COUNCIL_CONTROL_PLANE` | Broad intent routes through thread, source, runtime, ops, design, security, state, or promotion ownership before promotion. | MirrorDash Glass, health guardrails, tests, canary, council contract doc. | Live as gateway metadata and operator contract; council-specific tools remain per-surface implementations. |
+| `CURRENT_FACTS_REQUIRE_SOURCE_CHECK` | Current, external, market, legal, pricing, API, model, news, or research claims require source-check routing or a `needs_checking` marker. | Boot packet, truth gate, source-check route, canary. | Live for public gateway truth state; deep local research automation remains a control-plane lane. |
+| `FAILSAFE_EGRESS_OFF` | Operator or policy fail-safe disables model/tool egress and returns deterministic guarded output. | Worker env gates, route status, Glass egress facts, tests. | Live in gateway route and health contract. |
 | `VAULT_SOURCE_OF_TRUTH` | Current turn, approved vault context, receipts, and source checks outrank model memory. | Boot packet, memory layer, source-check route, receipt. | Contracted in the public gateway kernel; full vault-wide enforcement remains control-plane work. |
 | `ONE_MIRROR_ONE_OWNER` | A personal mirror mirrors one owner at a time; shared work is scoped, not blended into personal identity. | Boot packet, memory namespace, future account/workspace boundary. | Contracted now; account-level namespace enforcement not launched. |
 | `FULL_RECEIPTS` | Every governed turn returns route, context, memory decision, truth state, and hash id. | Kernel receipt, gateway response. | Live for mirror/create and source-check responses. |
@@ -50,11 +57,16 @@ Use these for implementation and tests when the simpler names are too broad:
 - `SAY_NO_WITH_A_SMALLER_PATH`: when the requested path is unsafe or muddy, refuse it and offer the smaller useful path.
 - `ONE_MOVE_ONLY`: return one next move, not a plan wall.
 - `TRUTH_STATE_REQUIRED`: every turn must state whether it is reflective, checked, mixed, or needs checking.
+- `WHITELISTED_SOURCE_TOOLS_ONLY`: source routes may use only approved web-grounding tool names and optional approved source domains.
+- `NO_AMBIENT_BROWSING`: a model does not "have the internet"; Active Mirror invokes source tools and records the result.
+- `FAILSAFE_EGRESS_OFF`: when fail-safe is active, no model or source tool route is used.
+- `COUNCIL_BEFORE_PROMOTION`: choose the responsible council, gather evidence, produce a receipt, and pass the promotion gate before calling a candidate promoted.
 
 ## Current Gap List
 
 - Account-level consent and delete/export flows are not launched.
 - Enterprise audit exports are not public.
 - Provider-specific data handling must be documented per deployment before paid contracts.
+- Web/source domain allowlists are optional in the public Worker today; configure them before narrow regulated or client-specific research lanes.
 - Soft tokens need continuous red-team and user testing; do not market them as perfect guarantees.
 - Client-boundary masking is best-effort for obvious sensitive patterns; arbitrary names or screenshots need stronger upload-time controls before enterprise use.

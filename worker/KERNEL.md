@@ -18,15 +18,17 @@ Every provider route receives the same versioned Active Mirror boot packet befor
 the user turn. The current boot id is:
 
 ```text
-2026-06-30-active-mirror-boot-v8
+2026-06-30-active-mirror-boot-v9
 ```
 
 The boot packet is steering, not enforcement. It tells the model to:
 
 - keep one visible identity: **Active Mirror**;
 - treat every provider or base model as an internal worker, not the public assistant;
+- treat the mirror as the filter; raw user or vault material never routes directly to a model or trainer;
 - treat the approved vault/context packet and source-check results as authority, never model memory;
 - keep a personal mirror one-to-one with its owner; shared projects are scoped workspaces, not blended personal memory;
+- allow future local LoRA/adapters only as candidate workers trained on approved mirror examples with consent, receipts, and evals, never raw vault dumps;
 - reflect the user's intent, not impress, entertain, diagnose, or decide;
 - privately self-check that the answer is specific, non-sycophantic, privacy-safe, and small enough to act on;
 - enforce anti-sycophancy in generation;
@@ -54,6 +56,33 @@ straitjacket strips them before the user sees the answer and records
 `"internal_tokens_removed"`. If a provider tries to answer as ChatGPT, Claude,
 Gemini, Copilot, a generic AI language model, or its maker, the straitjacket
 strips that self-identification and records `"model_identity_removed"`.
+
+### Mirror Loop v1
+
+Every governed turn follows one algorithm: `mirror_loop_v1`.
+
+The invariant is `truth_before_helpfulness`.
+
+The loop order is:
+
+1. `boundary`
+2. `consent`
+3. `source_truth`
+4. `route`
+5. `reflect`
+6. `challenge`
+7. `one_move`
+8. `receipt`
+9. `learning_candidate`
+
+The gateway exposes this algorithm in MirrorDash Glass so clients can verify the
+answer was produced through the Active Mirror loop instead of only trusting model
+copy. The full contract lives in `docs/ACTIVE_MIRROR_ALGORITHM.md`.
+
+The gateway also exposes `active_mirror_council_control_plane_v1`, which routes
+work through thread, source, runtime, ops, design, security, state, or promotion
+councils before a candidate can pass `reflection_promotion_v1`. The council
+contract lives in `docs/ACTIVE_MIRROR_COUNCIL_CONTROL_PLANE.md`.
 
 ### Vault Authority
 
@@ -124,8 +153,64 @@ claim as needing sources.
     "label": "reflection help",
     "primary": "bridge",
     "provider": "bridge",
+    "model": "mini-mirror-bridge",
     "upstream_host": "bridge.activemirror.ai",
     "fallback": null
+  },
+  "glass": {
+    "surface": "MirrorDash Glass",
+    "contract": "transparent_router",
+    "identity": {
+      "visible": "Active Mirror",
+      "user_role": "the user's mirror",
+      "worker_role": "model worker"
+    },
+    "algorithm": {
+      "id": "mirror_loop_v1",
+      "invariant": "truth_before_helpfulness",
+      "steps": ["boundary", "consent", "source_truth", "route", "reflect", "challenge", "one_move", "receipt", "learning_candidate"]
+    },
+    "router": {
+      "selected_capability": "reflection",
+      "selected_primary": "bridge",
+      "answered_provider": "bridge",
+      "answered_model": "mini-mirror-bridge",
+      "attempts": ["bridge"],
+      "fallback": false,
+      "deterministic": false
+    },
+    "prompt": {
+      "boot_id": "2026-06-30-active-mirror-boot-v9",
+      "prompt_hash": "24 hex chars",
+      "body_disclosed": false,
+      "disclosure": "hash_only",
+      "sent_to": "bridge"
+    },
+    "tools": { "used": [], "disclosure": "none" },
+    "source_policy": {
+      "current_or_external_claims": "source_check_or_needs_checking",
+      "internet_access": "source_tool_live_with_receipts",
+      "source_tool_allowlist": "enabled",
+      "allowed_tools": {
+        "openai": ["web_search", "web_search_preview"],
+        "gemini": ["google_search", "google_search_retrieval"]
+      },
+      "domain_allowlist": "not_configured",
+      "if_tool_unavailable": "mark_needs_checking"
+    },
+    "memory": {
+      "mode": "scoped",
+      "used": ["current_turn", "boundary_personal"],
+      "excluded": ["raw_vault", "model_memory", "unapproved_memory"],
+      "write_policy": "model_cannot_write_memory"
+    },
+    "gates": {
+      "straitjacket": [],
+      "truth_state": "reflective",
+      "mirror_filter": "enabled",
+      "model_identity_filter": "enabled"
+    },
+    "opaque": ["provider_weights", "provider_hidden_reasoning", "provider_infrastructure"]
   }
 }
 ```
@@ -134,7 +219,12 @@ claim as needing sources.
 - `fallback` — `true` if a backup route/model was used (still a valid mirror).
 - `route.primary` — the configured first-choice provider family for that capability.
 - `route.provider` — the provider family that actually returned the visible mirror.
+- `route.model` — the model id reported by the answering route, or `"none"` for deterministic identity turns.
 - `route.upstream_host` — only present for the bridge route, and only contains the non-secret host used by the Worker.
+- `glass` — the MirrorDash Glass transparency receipt. It shows why the prompt went where, which provider/model answered, route attempts, tools, memory scope, deterministic gates, and what remains opaque.
+- `glass.algorithm` — the product loop that governed the answer. Current id: `mirror_loop_v1`.
+- `glass.source_policy` — the web/source route policy. The model does not receive ambient internet access; Active Mirror invokes whitelisted source tools and records the result.
+- `glass.prompt.body_disclosed` is `false` by default. Public responses disclose the prompt hash and destination, not the full model prompt.
 - `truth_state` — deterministic source-sensitivity marker. It does not fact-check; it tells the UI whether the turn is reflective only or needs sources before reliance.
 - `straitjacket` — array of deterministic corrections applied this turn. Possible values:
   `"flattery_removed"`, `"canned_phrase_removed"`, `"internal_tokens_removed"`, `"model_identity_removed"`, `"tone_guard_applied"`, `"question_forced"`, `"move_made_singular"`, `"visual_dropped"`, `"truth_state_needs_sources"`, `"deterministic_identity"`.
@@ -165,6 +255,12 @@ Provider keys stay in the Worker. The browser sends only the current intent,
 question, and next move.
 For `boundary: "client"`, obvious emails, URLs, phone numbers, account-like IDs,
 and money terms are masked before the source-check provider route.
+
+Source access is whitelisted. The gateway may use OpenAI `web_search` /
+`web_search_preview` or Gemini `google_search` / `google_search_retrieval`.
+Configured tool names outside that list are ignored. If
+`ACTIVE_MIRROR_SOURCE_DOMAIN_ALLOWLIST` is configured, only citations from those
+domains count as evidence; everything else leaves the turn in `needs_checking`.
 
 **Request body**:
 

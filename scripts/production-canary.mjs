@@ -62,10 +62,35 @@ async function main() {
   await check("gateway health is current", async () => {
     const data = await readJson(`${GATEWAY}/health`);
     assert(data.ok === true, "health ok was not true");
-    assert(/^2026-06-30-identity-vault-v1$/.test(String(data.version || "")), "unexpected gateway version");
+    assert(/^2026-07-01-council-control-plane-v1$/.test(String(data.version || "")), "unexpected gateway version");
     assert(data.guardrails?.event_policy === "no-prompt-content", "event policy missing");
     assert(data.guardrails?.truth_state === "enabled", "truth-state guardrail missing");
+    assert(data.guardrails?.mirrordash_glass === "enabled", "MirrorDash Glass guardrail missing");
+    assert(data.guardrails?.router_transparency === "enabled", "router transparency guardrail missing");
+    assert(data.guardrails?.prompt_disclosure === "hash_only", "prompt disclosure policy missing");
     assert(data.guardrails?.source_check === "enabled", "source-check guardrail missing");
+    assert(data.guardrails?.current_facts_require_source_check === "enabled", "current-facts source policy missing");
+    assert(data.guardrails?.active_mirror_algorithm === "mirror_loop_v1", "Active Mirror algorithm id missing");
+    assert(data.guardrails?.active_mirror_ethos === "trust_by_design_or_hardstop", "Active Mirror ethos missing");
+    assert(data.guardrails?.active_mirror_algorithm_invariant === "truth_before_helpfulness", "Active Mirror algorithm invariant missing");
+    assert(data.guardrails?.active_mirror_ratchet === "perfection_as_ratchet", "Active Mirror ratchet missing");
+    assert(data.guardrails?.recursive_perfection_lock === "recursive_perfection_lock_v1", "recursive perfection lock missing");
+    assert(data.guardrails?.recursive_perfection_definition === "no_known_gap_without_resolution_contract", "recursive perfection definition missing");
+    assert(data.guardrails?.resolution_contract === "resolution_contract_v1", "resolution contract missing");
+    assert(data.guardrails?.resolution_rule === "no_negative_state_without_fix_path", "resolution rule missing");
+    assert(data.guardrails?.reflection_promotion === "reflection_promotion_v1", "reflection promotion policy missing");
+    assert(data.guardrails?.training_amendability === "amendable_after_reflection", "training amendability policy missing");
+    assert(data.guardrails?.reverse_abliteration === "strengthen_reflection_refusal_source_truth_and_boundary_directions", "reverse abliteration policy missing");
+    assert(data.guardrails?.council_control_plane === "active_mirror_council_control_plane_v1", "council control plane missing");
+    assert(data.guardrails?.council_route === "intent_router_to_council_to_receipt_to_promotion_gate", "council route missing");
+    assert(data.guardrails?.council_count === "8", "council count missing");
+    assert(data.guardrails?.source_tool_allowlist === "enabled", "source tool allowlist missing");
+    assert(data.guardrails?.source_tool_allowlist_openai === "web_search,web_search_preview", "OpenAI source tool allowlist changed");
+    assert(data.guardrails?.source_tool_allowlist_gemini === "google_search,google_search_retrieval", "Gemini source tool allowlist changed");
+    assert(data.guardrails?.source_live_web_access === "source_tool_live_with_receipts", "source live-web posture missing");
+    assert(data.guardrails?.source_domain_allowlist === "not_configured", "unexpected source domain allowlist posture");
+    assert(data.guardrails?.failsafe === "armed", "fail-safe posture missing");
+    assert(data.guardrails?.model_egress === "enabled", "model egress posture missing");
     assert(data.guardrails?.artifact === "enabled", "artifact guardrail missing");
     assert(data.guardrails?.mirror_rate_limit === "enabled", "mirror rate limit not enabled");
     assert(data.guardrails?.event_rate_limit === "enabled", "event rate limit not enabled");
@@ -73,6 +98,42 @@ async function main() {
     assert(data.guardrails?.proof_sprint_policy === "metadata-only-contact", "proof sprint policy missing");
     assert(Number(data.guardrails?.daily_session_limit || 0) > 0, "daily session limit missing");
     assert(Number(data.guardrails?.daily_network_limit || 0) > 0, "daily network limit missing");
+  });
+
+  await check("identity prompts answer as Active Mirror only", async () => {
+    const prompts = ["Are you ChatGPT or Claude?", "What model are you?", "Are you an AI language model?"];
+    for (const [index, intent] of prompts.entries()) {
+      const response = await fetchWithTimeout(`${GATEWAY}/v1/mirror/create`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Active-Mirror-Session": `canary-identity-${RUN_ID}`,
+        },
+        body: JSON.stringify({
+          intent,
+          boundary: "personal",
+          route: "reflection",
+          turn: index + 1,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      const visible = `${data.mirror?.reflection || ""} ${data.mirror?.question || ""} ${data.mirror?.move || ""}`;
+      const glass = JSON.stringify(data.glass || {});
+
+      assert(response.ok, `identity status ${response.status} ${data.error || ""}`.trim());
+      assert(data.ok === true, "identity ok was not true");
+      assert(data.fallback === false, `identity used fallback ${data.route?.fallback || "unknown"}`);
+      assert(data.route?.capability === "identity", `identity capability was ${data.route?.capability || "missing"}`);
+      assert(data.route?.provider === "active_mirror", `identity provider was ${data.route?.provider || "missing"}`);
+      assert(data.route?.model === "none", `identity model was ${data.route?.model || "missing"}`);
+      assert(visible.includes("Active Mirror"), "identity answer did not name Active Mirror");
+      assert(!/\b(ChatGPT|Claude|Gemini|Copilot|OpenAI|Anthropic|Google|large language model|AI language model)\b/i.test(visible), "provider identity leaked into visible answer");
+      assert(Array.isArray(data.straitjacket) && data.straitjacket.includes("deterministic_identity"), "deterministic identity route missing");
+      assert(data.glass?.surface === "MirrorDash Glass", "MirrorDash Glass surface missing");
+      assert(data.glass?.router?.deterministic === true, "Glass did not mark deterministic identity");
+      assert(data.glass?.prompt?.sent_to === "none", "identity prompt was marked as model-routed");
+      assert(glass.includes(intent) === false, "Glass leaked prompt body");
+    }
   });
 
   await check("privacy event rail accepts metadata only", async () => {
@@ -111,8 +172,34 @@ async function main() {
     assert(data.fallback === false, `mirror used fallback ${data.route?.fallback || "unknown"}`);
     assert(data.route?.primary === "bridge", `mirror primary was ${data.route?.primary || "missing"}`);
     assert(data.route?.provider === "bridge", `mirror provider was ${data.route?.provider || "missing"}`);
+    assert(typeof data.route?.model === "string" && data.route.model.length > 0, "mirror model was missing");
     assert(data.route?.upstream_host === new URL(BRIDGE).hostname, `mirror upstream host was ${data.route?.upstream_host || "missing"}`);
     assert(/^[a-f0-9]{24}$/.test(String(data.receipt_id || "")), "receipt id missing");
+    assert(data.glass?.surface === "MirrorDash Glass", "MirrorDash Glass surface missing");
+    assert(data.glass?.contract === "transparent_router", "Glass contract missing");
+    assert(data.glass?.algorithm?.id === "mirror_loop_v1", "Glass algorithm id missing");
+    assert(data.glass?.algorithm?.ethos === "trust_by_design_or_hardstop", "Glass ethos missing");
+    assert(data.glass?.algorithm?.invariant === "truth_before_helpfulness", "Glass algorithm invariant missing");
+    assert(data.glass?.algorithm?.ratchet === "perfection_as_ratchet", "Glass ratchet missing");
+    assert(data.glass?.recursion_lock?.id === "recursive_perfection_lock_v1", "Glass recursion lock missing");
+    assert(data.glass?.recursion_lock?.definition === "no_known_gap_without_resolution_contract", "Glass recursion lock definition missing");
+    assert(data.glass?.council_control_plane?.id === "active_mirror_council_control_plane_v1", "Glass council control plane missing");
+    assert(data.glass?.council_control_plane?.route === "intent_router_to_council_to_receipt_to_promotion_gate", "Glass council route missing");
+    assert(Array.isArray(data.glass?.council_control_plane?.councils) && data.glass.council_control_plane.councils.includes("promotion"), "Glass council list missing promotion");
+    assert(Array.isArray(data.glass?.algorithm?.steps) && data.glass.algorithm.steps[0] === "boundary", "Glass algorithm steps missing");
+    assert(data.resolution?.policy === "resolution_contract_v1", "resolution contract missing");
+    assert(data.glass?.resolution?.policy === "resolution_contract_v1", "Glass resolution contract missing");
+    assert(data.glass?.promotion_policy?.id === "reflection_promotion_v1", "Glass promotion policy missing");
+    assert(data.glass?.promotion_policy?.training === "amendable_after_reflection", "Glass training amendability policy missing");
+    assert(data.glass?.router?.answered_provider === data.route?.provider, "Glass provider did not match route");
+    assert(data.glass?.router?.answered_model === data.route?.model, "Glass model did not match route");
+    assert(/^[a-f0-9]{24}$/.test(String(data.glass?.prompt?.prompt_hash || "")), "prompt hash missing from Glass");
+    assert(data.glass?.prompt?.body_disclosed === false, "Glass disclosed prompt body");
+    assert(data.glass?.source_policy?.source_tool_allowlist === "enabled", "Glass source tool allowlist missing");
+    assert(Array.isArray(data.glass?.source_policy?.allowed_tools?.openai), "Glass OpenAI source tool allowlist missing");
+    assert(Array.isArray(data.glass?.source_policy?.allowed_tools?.gemini), "Glass Gemini source tool allowlist missing");
+    assert(data.glass?.source_policy?.domain_allowlist === "not_configured", "Glass source domain allowlist posture missing");
+    assert(Array.isArray(data.glass?.memory?.excluded) && data.glass.memory.excluded.includes("raw_vault"), "Glass memory exclusions missing");
     assert(typeof data.mirror?.reflection === "string" && data.mirror.reflection.length > 20, "reflection missing");
     assert(String(data.mirror?.question || "").endsWith("?"), "question was not enforced");
     assert(typeof data.mirror?.move === "string" && data.mirror.move.length > 8, "move missing");
@@ -188,6 +275,7 @@ async function main() {
     assert(data.error !== "source_check_error", "source check returned an internal gateway error");
     assert(["supported", "mixed", "not_enough"].includes(data.research?.verdict), "source verdict missing");
     assert(typeof data.research?.source_quality?.best_score === "number", "source quality summary missing");
+    assert(typeof data.research?.source_quality?.domain_allowlist === "string", "source domain allowlist summary missing");
     if (data.ok === true) {
       assert(data.truth_state?.status === "checked", `expected checked, got ${data.truth_state?.status || "missing"}`);
       assert(Array.isArray(data.research?.sources) && data.research.sources.length > 0, "sources missing");

@@ -11,6 +11,17 @@ Model output is never source truth by itself. A model may propose words,
 artifacts, routes, or memory candidates, but Active Mirror decides what is shown,
 remembered, shared, or acted on.
 
+The product algorithm is Mirror Loop v1:
+
+`boundary -> consent -> source_truth -> route -> reflect -> challenge -> one_move -> receipt -> learning_candidate`
+
+Its invariant is truth before helpfulness. If the system cannot keep that order,
+the output stays partial, blocked, or `needs_checking`.
+
+Broad work routes through `active_mirror_council_control_plane_v1` before
+promotion. The council owner can be thread, source, runtime, ops, design,
+security, state, or promotion, but the model remains advisory.
+
 ## Authority Order
 
 1. Current user turn.
@@ -35,8 +46,9 @@ as needing sources.
 7. Strip provider identity, internal tokens, flattery, unsafe certainty, and
    non-observable moves.
 8. Gate source-sensitive claims before rendering.
-9. Gate actions, files, tools, sharing, and memory promotion separately.
-10. Append a receipt for what reached the user.
+9. Route broad work to the responsible council owner before promotion.
+10. Gate actions, files, tools, sharing, and memory promotion separately.
+11. Append a receipt for what reached the user.
 
 ## Hard Rules
 
@@ -46,6 +58,12 @@ as needing sources.
 - No model writes memory directly.
 - No provider or base model may identify itself as the public assistant.
 - No current or external factual claim becomes reliable without source checking.
+- No model receives ambient internet access; web research runs through
+  whitelisted source tools with receipts.
+- No local LoRA, adapter, or fine-tune becomes authority. It remains a candidate
+  worker behind the same mirror loop.
+- No broad candidate is promoted without a council owner, evidence, and a
+  receipt.
 - If vault context is unavailable, run in ephemeral no-memory mode and label that
   state internally.
 

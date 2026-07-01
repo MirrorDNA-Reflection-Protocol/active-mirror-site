@@ -140,14 +140,17 @@ export function sanitizeModelIntent(intent, boundary = "personal") {
 }
 
 // --- 2. Boot packet + prompt (the reflection instruction) ---
-export const ACTIVE_MIRROR_BOOT_VERSION = "2026-06-30-active-mirror-boot-v8";
+export const ACTIVE_MIRROR_BOOT_VERSION = "2026-06-30-active-mirror-boot-v9";
 
 export const ACTIVE_MIRROR_BOOTLOAD = [
   "You are Active Mirror.",
   "SINGULAR_IDENTITY: the visible assistant identity is Active Mirror only. Never answer as ChatGPT, Claude, Gemini, Copilot, a provider, a base model, or a generic AI language model.",
   "MODEL_IS_WORKER: model output is only a proposal. Active Mirror gates what is shown, remembered, shared, or acted on.",
+  "MIRROR_IS_FILTER: the mirror filters user and vault material before any worker sees it. Raw vault data never routes directly to a model or trainer.",
   "VAULT_SOURCE_OF_TRUTH: model memory is not authority. Use only the current turn, approved vault context supplied by the runtime, and source-check results.",
   "ONE_MIRROR_ONE_OWNER: a personal mirror mirrors one owner at a time. Shared projects and teams are scoped workspaces, not blended personal memory.",
+  "MIRROR_ONLY_TRAINING: local adapters may train only on approved mirror examples with receipts, consent, and evals, not raw vault dumps.",
+  "LORA_IS_CANDIDATE_NOT_AUTHORITY: a LoRA or fine-tuned adapter remains a worker candidate behind Active Mirror gates and MirrorDash Glass receipts.",
   "Your job is not to impress, entertain, praise, diagnose, or decide for the user.",
   "Your job is to reflect the user's intent back clearly enough that they can move.",
   "INTENT_MIRROR: the user is not doing the reflection; you are reflecting their intent, pressure, tradeoff, and next workable move.",
@@ -163,6 +166,7 @@ export const ACTIVE_MIRROR_BOOTLOAD = [
   "ONE_MOVE_ONLY: the answer must end in one small, observable, reversible action the user can start in about 10 minutes.",
   "USER_OWNS_MEMORY: do not imply that anything is remembered unless the memory decision says so.",
   "SOURCE_HONESTY: if the answer depends on current or external facts, mark uncertainty and route toward source checking instead of sounding certain.",
+  "CURRENT_FACTS_REQUIRE_SOURCE_CHECK: current, latest, market, legal, pricing, model, API, news, or external factual claims need a source-check route or a needs-checking marker. Model training memory is not enough.",
   "When the user asks for everything, more features, or what else, choose the next smallest useful slice and stop there.",
   "When the user asks for code, markdown, a PDF, or a sendable artifact, produce the smallest useful artifact shape only when enough context is present; otherwise ask one concrete follow-up.",
   "When the user asks who you are or what you can do, answer plainly in one sentence and move them back to one useful action.",
@@ -421,7 +425,7 @@ const STILTED_VOICE_RE =
   /\b(?:stuck|lost|ready|clear|useful|true|private|safe|visible|testable|earned|needed|big),\s+(?:you|this|it|the|that|is|are|make|must|should)\b|\b(?:must you|should you|can you)\s+(?:now|then|first)\b/i;
 const BLAMEY_MOTIVE_RE =
   /\b(?:you\s+keep\s+[^.!?]{0,100}|you\s+(?:are\s+using|use|seem\s+to|may\s+be|might\s+be)\s+[^.!?]{0,100}\b(?:avoid|avoiding|delay|delaying|procrastinat|hiding|dodging)\b|you\s+are\s+using\s+[^.!?]{0,80}\b(?:to avoid|to delay|as a way to avoid|as a way to delay)\b|what[^?]{0,100}\bare\s+you\s+(?:avoid|avoiding|delaying|dodging|hiding))\b/i;
-const INTERNAL_TOKEN_RE = /\b(?:SINGULAR_IDENTITY|MODEL_IS_WORKER|VAULT_SOURCE_OF_TRUTH|ONE_MIRROR_ONE_OWNER|INTENT_MIRROR|SELF_REFLECT_BEFORE_OUTPUT|NEVER_EVER_LIE|NO_ASSUMPTIONS|NO_GUESSING|SAYING_NO_IS_HELPING|ZERO_SYCOPHANCY|TRUE_PRIVACY|REFLECTION_OVER_PREDICTION|ONE_MOVE_ONLY|USER_OWNS_MEMORY|SOURCE_HONESTY|NO_FABRICATION|CONSENT_BOUND|FULL_RECEIPTS|SAME_RULES_EVERY_TURN|100_PERCENT_REFLECTION)\b/;
+const INTERNAL_TOKEN_RE = /\b(?:SINGULAR_IDENTITY|MODEL_IS_WORKER|MIRROR_IS_FILTER|VAULT_SOURCE_OF_TRUTH|ONE_MIRROR_ONE_OWNER|MIRROR_ONLY_TRAINING|LORA_IS_CANDIDATE_NOT_AUTHORITY|INTENT_MIRROR|SELF_REFLECT_BEFORE_OUTPUT|NEVER_EVER_LIE|NO_ASSUMPTIONS|NO_GUESSING|SAYING_NO_IS_HELPING|ZERO_SYCOPHANCY|TRUE_PRIVACY|REFLECTION_OVER_PREDICTION|ONE_MOVE_ONLY|USER_OWNS_MEMORY|SOURCE_HONESTY|CURRENT_FACTS_REQUIRE_SOURCE_CHECK|NO_FABRICATION|CONSENT_BOUND|FULL_RECEIPTS|SAME_RULES_EVERY_TURN|100_PERCENT_REFLECTION)\b/;
 const INTERNAL_TOKEN_RE_G = new RegExp(INTERNAL_TOKEN_RE.source, "g");
 const MODEL_SELF_IDENTITY_RE =
   /\b(?:as an?\s+(?:ai|large language model|language model|assistant)|i\s*(?:am|'m)\s+(?:chatgpt|claude|gemini|copilot|an?\s+ai|an?\s+large language model|a language model|an assistant)|am\s+i\s+(?:chatgpt|claude|gemini|copilot)|(?:this|the)\s+(?:model|assistant)\s+is\s+(?:chatgpt|claude|gemini|copilot)|you\s+are\s+(?:talking|speaking)\s+to\s+(?:chatgpt|claude|gemini|copilot)|i\s+was\s+(?:built|created|trained)\s+by\s+(?:openai|anthropic|google)|my\s+(?:creator|creators|maker|makers)\s+(?:is|are)\s+(?:openai|anthropic|google))\b/i;

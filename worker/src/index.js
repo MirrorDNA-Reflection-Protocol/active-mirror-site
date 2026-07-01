@@ -10,6 +10,7 @@
 // =============================================================================
 
 import {
+  ACTIVE_MIRROR_BOOT_VERSION,
   BOUNDARIES,
   MIRROR_SCHEMA,
   PROVIDER_MIRROR_SCHEMA,
@@ -37,7 +38,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-06-30-identity-vault-v1";
+const WORKER_VERSION = "2026-07-01-council-control-plane-v1";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
@@ -168,6 +169,58 @@ const SOURCE_CHECK_SCHEMA = {
   },
 };
 
+const SOURCE_TOOL_ALLOWLIST = {
+  openai: ["web_search", "web_search_preview"],
+  gemini: ["google_search", "google_search_retrieval"],
+};
+
+const ACTIVE_MIRROR_ALGORITHM = {
+  id: "mirror_loop_v1",
+  ethos: "trust_by_design_or_hardstop",
+  invariant: "truth_before_helpfulness",
+  ratchet: "perfection_as_ratchet",
+  steps: [
+    "boundary",
+    "consent",
+    "source_truth",
+    "route",
+    "reflect",
+    "challenge",
+    "one_move",
+    "receipt",
+    "learning_candidate",
+  ],
+};
+
+const RECURSIVE_PERFECTION_LOCK = {
+  id: "recursive_perfection_lock_v1",
+  definition: "no_known_gap_without_resolution_contract",
+  loop: ["observe", "reflect", "source_check", "harden", "verify", "promote", "repeat"],
+  stop_condition: "operator_hardstop_or_no_safe_local_action_with_resolution_contract",
+};
+
+const RESOLUTION_POLICY = {
+  id: "resolution_contract_v1",
+  rule: "no_negative_state_without_fix_path",
+};
+
+const PROMOTION_POLICY = {
+  id: "reflection_promotion_v1",
+  training: "amendable_after_reflection",
+  reverse_abliteration: "strengthen_reflection_refusal_source_truth_and_boundary_directions",
+  allowed_targets: ["docs", "tests", "guardrails", "backlog", "source_queries", "memory_candidates", "adapter_candidates"],
+  blocked_targets_without_approval: ["model_weights", "lora_promotion", "training_data_promotion", "production_deploy", "external_write"],
+  proof: "source_evidence_local_receipt_eval_or_explicit_approval",
+};
+
+const COUNCIL_CONTROL_PLANE = {
+  id: "active_mirror_council_control_plane_v1",
+  route: "intent_router_to_council_to_receipt_to_promotion_gate",
+  councils: ["thread", "source", "runtime", "ops", "design", "security", "state", "promotion"],
+  promotion_gate: PROMOTION_POLICY.id,
+  hardstop: ACTIVE_MIRROR_ALGORITHM.ethos,
+};
+
 const ARTIFACT_KINDS = new Set(["doc", "code", "image", "draft"]);
 const ARTIFACT_SCHEMA = {
   type: "object",
@@ -252,6 +305,7 @@ export default {
       const body = await readJsonBody(request, maxMirrorRequestBytes(env));
       const input = sanitizeInput(body);
       const route = selectRoute(input.intent, input.route, env);
+      const failsafe = gatewayFailsafeMode(env);
       const budget = await enforceMirrorBudget(request, env, ctx, route);
       if (!budget.allowed) {
         return rateLimitedResponse(budget, corsHeaders);
@@ -261,16 +315,48 @@ export default {
       let lastFallbackReason = null;
       let lastInternalFallbackReason = null;
       let lastProvider = null;
+      let lastModel = null;
       let lastUpstreamHost = null;
+      let lastAttempts = [];
+      let lastPromptHash = null;
+      let lastPromptChars = 0;
       const result = await reflect({
         intent: input.intent,
         boundary: input.boundary,
         turn: input.turn,
         capability: route.capability,
         callModel: async (prompt) => {
+          lastPromptHash = await receiptHash({
+            type: "active_mirror_prompt",
+            boot: ACTIVE_MIRROR_BOOT_VERSION,
+            capability: route.capability,
+            primary: route.primary,
+            prompt,
+          });
+          lastPromptChars = String(prompt || "").length;
+          if (failsafe.active) {
+            lastProvider = null;
+            lastModel = "local-deterministic";
+            lastUpstreamHost = null;
+            lastAttempts = ["failsafe"];
+            lastInternalFallbackReason = "failsafe_active";
+            lastFallbackReason = publicFallbackReason("failsafe_active");
+            logSafe(ctx, {
+              type: "active_mirror_failsafe_route",
+              capability: route.capability,
+              reason: cleanProviderCode(failsafe.reason),
+            });
+            return {
+              mirror: null,
+              fallback: true,
+              routeText: "Active Mirror fail-safe mode is active; no model or tool route was used.",
+            };
+          }
           const r = await runRoute(route, prompt, env);
-          lastProvider = r.provider || route.primary;
+          lastProvider = r.provider || null;
+          lastModel = r.model || null;
           lastUpstreamHost = r.upstream_host || null;
+          lastAttempts = Array.isArray(r.attempts) ? r.attempts : [route.primary];
           lastInternalFallbackReason = r.fallback ? cleanProviderCode(r.fallbackReason || "unknown") : null;
           lastFallbackReason = r.fallback ? publicFallbackReason(r.fallbackReason) : null;
           const routeText = r.fallback
@@ -294,6 +380,26 @@ export default {
         });
       }
 
+      const deterministicIdentity = Array.isArray(result.straitjacket) && result.straitjacket.includes("deterministic_identity");
+      const publicCapability = deterministicIdentity ? "identity" : route.capability;
+      const publicLabel = deterministicIdentity ? "identity answer" : publicRouteLabel(route.capability);
+      const publicPrimary = deterministicIdentity ? "active_mirror" : route.primary;
+      const publicProvider = deterministicIdentity
+        ? "active_mirror"
+        : lastProvider || (lastModel === "local-deterministic" ? "active_mirror" : route.primary);
+      const publicModel = deterministicIdentity ? "none" : lastModel || "unknown";
+      const publicAttempts = deterministicIdentity ? ["active_mirror"] : uniqueRouteAttempts(lastAttempts.length ? lastAttempts : [route.primary]);
+      const publicRoute = {
+        capability: publicCapability,
+        label: publicLabel,
+        primary: publicPrimary,
+        provider: publicProvider,
+        model: publicModel,
+        upstream_host: publicProvider === "bridge" ? lastUpstreamHost : null,
+        fallback: result.fallback ? lastFallbackReason : null,
+      };
+      const resolution = resolutionContract({ route: publicRoute, selectedRoute: route, result, truth_state: result.truth_state, failsafe });
+
       return json(
         {
           ok: true,
@@ -302,14 +408,21 @@ export default {
           mirror: result.mirror,
           truth_state: result.truth_state,
           straitjacket: result.straitjacket,
-          route: {
-            capability: route.capability,
-            label: publicRouteLabel(route.capability),
-            primary: route.primary,
-            provider: lastProvider || route.primary,
-            upstream_host: lastProvider === "bridge" ? lastUpstreamHost : null,
-            fallback: result.fallback ? lastFallbackReason : null,
-          },
+          route: publicRoute,
+          resolution,
+          glass: mirrorDashGlass({
+            route: publicRoute,
+            selectedRoute: route,
+            boundary: input.boundary,
+            result,
+            attempts: publicAttempts,
+            promptHash: lastPromptHash,
+            promptChars: lastPromptChars,
+            deterministicIdentity,
+            failsafe,
+            env,
+            resolution,
+          }),
         },
         200,
         corsHeaders,
@@ -328,6 +441,7 @@ async function handleSourceCheck(request, env, ctx, corsHeaders) {
   try {
     const body = await readJsonBody(request, maxMirrorRequestBytes(env));
     const input = sanitizeSourceCheckInput(body);
+    const failsafe = gatewayFailsafeMode(env);
     const budget = await enforceMirrorBudget(request, env, ctx, { capability: "source_check" });
     if (!budget.allowed) {
       return rateLimitedResponse(budget, corsHeaders);
@@ -352,8 +466,60 @@ async function handleSourceCheck(request, env, ctx, corsHeaders) {
     }
 
     const sourceInput = maskSourceCheckInput(input);
+    if (failsafe.active) {
+      const research = makeSourceCheckPlan(sourceInput, new Error("failsafe_active"), env);
+      const truth_state = {
+        status: "needs_checking",
+        checked: false,
+        label: "Needs sources before you rely on it.",
+        reason: "Active Mirror fail-safe mode is active, so no source tool or model route was used.",
+        signals: ["failsafe_active", "source_check_incomplete"],
+      };
+      const receipt_id = await receiptHash({ type: "source_check_failsafe", research, truth_state, question: sourceInput.question });
+      const sourceRoute = {
+        capability: "source_check",
+        label: "source check",
+        primary: "active_mirror",
+        provider: "active_mirror",
+        model: "none",
+        upstream_host: null,
+        tools: [],
+        fallback: publicFallbackReason("failsafe_active"),
+      };
+      const inputHash = await receiptHash({ type: "active_mirror_source_input", sourceInput, route: sourceRoute });
+      const resolution = resolutionContract({ route: sourceRoute, selectedRoute: { capability: "source_check", primary: "active_mirror" }, result: { fallback: true }, truth_state, failsafe, research });
+      logSafe(ctx, { type: "active_mirror_failsafe_route", capability: "source_check", reason: cleanProviderCode(failsafe.reason) });
+      return json(
+        {
+          ok: false,
+          fallback: true,
+          receipt_id,
+          truth_state,
+          research,
+          route: sourceRoute,
+          resolution,
+          glass: mirrorDashGlass({
+            route: sourceRoute,
+            selectedRoute: { capability: "source_check", primary: "active_mirror" },
+            boundary: sourceInput.boundary,
+            result: { fallback: true, truth_state, straitjacket: [] },
+            attempts: ["failsafe"],
+            promptHash: inputHash,
+            promptChars: JSON.stringify(sourceInput).length,
+            deterministicIdentity: false,
+            failsafe,
+            env,
+            resolution,
+          }),
+        },
+        503,
+        corsHeaders,
+      );
+    }
     const research = await runSourceCheck(sourceInput, env, ctx);
-    const checked = research.sources.length > 0;
+    const sourceRoute = research.route || sourceCheckRoute("active_mirror", "none", { fallback: "source check route unavailable" });
+    const publicResearch = withoutInternalRoute(research);
+    const checked = publicResearch.sources.length > 0;
     const checkedLabel = {
       supported: "Source checked.",
       mixed: "Evidence mixed.",
@@ -374,15 +540,32 @@ async function handleSourceCheck(request, env, ctx, corsHeaders) {
           reason: "No cited web evidence was returned.",
           signals: ["source_check_incomplete"],
         };
-    const receipt_id = await receiptHash({ research, truth_state, intent: sourceInput.intent, question: sourceInput.question });
+    const receipt_id = await receiptHash({ research: publicResearch, sourceRoute, truth_state, intent: sourceInput.intent, question: sourceInput.question });
+    const inputHash = await receiptHash({ type: "active_mirror_source_input", sourceInput, route: sourceRoute });
+    const resolution = resolutionContract({ route: sourceRoute, selectedRoute: { capability: "source_check", primary: sourceRoute.primary || sourceRoute.provider || "active_mirror" }, result: { fallback: Boolean(publicResearch.fallback) }, truth_state, failsafe, research: publicResearch });
 
     return json(
       {
         ok: checked,
-        fallback: research.fallback,
+        fallback: publicResearch.fallback,
         receipt_id,
         truth_state,
-        research,
+        research: publicResearch,
+        route: sourceRoute,
+        resolution,
+        glass: mirrorDashGlass({
+          route: sourceRoute,
+          selectedRoute: { capability: "source_check", primary: sourceRoute.primary || sourceRoute.provider || "active_mirror" },
+          boundary: sourceInput.boundary,
+          result: { fallback: Boolean(publicResearch.fallback), truth_state, straitjacket: [] },
+          attempts: sourceRoute.attempts || [sourceRoute.provider || "active_mirror"],
+          promptHash: inputHash,
+          promptChars: JSON.stringify(sourceInput).length,
+          deterministicIdentity: false,
+          failsafe,
+          env,
+          resolution,
+        }),
       },
       checked ? 200 : 502,
       corsHeaders,
@@ -400,9 +583,41 @@ async function handleArtifact(request, env, ctx, corsHeaders) {
   try {
     const body = await readJsonBody(request, maxMirrorRequestBytes(env));
     const input = sanitizeArtifactInput(body);
+    const failsafe = gatewayFailsafeMode(env);
     const budget = await enforceMirrorBudget(request, env, ctx, { capability: "artifact" });
     if (!budget.allowed) {
       return rateLimitedResponse(budget, corsHeaders);
+    }
+
+    if (failsafe.active) {
+      const artifact = fallbackArtifact(input, "provider");
+      const receipt_id = await receiptHash({ type: "artifact_failsafe", artifact, kind: input.kind });
+      logSafe(ctx, { type: "active_mirror_failsafe_route", capability: "artifact", reason: cleanProviderCode(failsafe.reason) });
+      return json(
+        {
+          ok: true,
+          fallback: true,
+          receipt_id,
+          artifact,
+          truth_state: {
+            status: "reflective",
+            checked: false,
+            label: "Fail-safe artifact created.",
+            reason: "Active Mirror fail-safe mode is active, so no artifact model route was used.",
+            signals: ["failsafe_active", "deterministic_artifact"],
+          },
+          route: {
+            capability: "artifact",
+            label: "artifact help",
+            primary: "active_mirror",
+            provider: "active_mirror",
+            model: "local-deterministic",
+            fallback: publicFallbackReason("failsafe_active"),
+          },
+        },
+        200,
+        corsHeaders,
+      );
     }
 
     const boundaryText = `${input.intent} ${input.mirror.reflection} ${input.mirror.question} ${input.mirror.move}`;
@@ -1028,6 +1243,21 @@ function rateLimitFailClosed(env) {
   return String(env.RATE_LIMIT_FAIL_CLOSED || "true").toLowerCase() !== "false";
 }
 
+function gatewayFailsafeMode(env) {
+  const active =
+    envFlag(env.ACTIVE_MIRROR_FAILSAFE) ||
+    envFlag(env.MIRROR_GATEWAY_FAILSAFE) ||
+    envFlag(env.MIRROR_MODEL_EGRESS_DISABLED);
+  return {
+    active,
+    reason: active ? cleanProviderCode(env.ACTIVE_MIRROR_FAILSAFE_REASON || "operator_or_policy_failsafe") : null,
+  };
+}
+
+function envFlag(value) {
+  return /^(1|true|yes|on|enabled)$/i.test(String(value || "").trim());
+}
+
 function logSafe(ctx, payload) {
   const line = JSON.stringify({ ...payload, ts: new Date().toISOString() });
   if (ctx?.waitUntil) {
@@ -1164,16 +1394,16 @@ async function runRoute(route, prompt, env, attempted = []) {
 
   try {
     if (provider === "bridge" && env.MIRROR_BRIDGE_URL && env.MIRROR_BRIDGE_TOKEN) {
-      return await callBridge(prompt, route, env);
+      return withRouteAttempts(await callBridge(prompt, route, env), nextAttempted);
     }
     if (provider === "openai" && env.OPENAI_API_KEY) {
-      return await callOpenAI(prompt, route, env);
+      return withRouteAttempts(await callOpenAI(prompt, route, env), nextAttempted);
     }
     if (provider === "anthropic" && env.ANTHROPIC_API_KEY) {
-      return await callAnthropic(prompt, route, env);
+      return withRouteAttempts(await callAnthropic(prompt, route, env), nextAttempted);
     }
     if (provider === "gemini" && (env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY)) {
-      return await callGemini(prompt, route, env);
+      return withRouteAttempts(await callGemini(prompt, route, env), nextAttempted);
     }
   } catch (error) {
     return fallbackResult(route, prompt, env, nextAttempted, providerFailureReason(provider, error));
@@ -1184,20 +1414,28 @@ async function runRoute(route, prompt, env, attempted = []) {
     return fallbackResult(route, prompt, env, nextAttempted, `${provider}_missing_secret`);
   }
 
-  return { fallback: true, fallbackReason: "no_provider_secret_configured", model: "local-deterministic", mirror: null, provider: null };
+  return { fallback: true, fallbackReason: "no_provider_secret_configured", model: "local-deterministic", mirror: null, provider: null, attempts: uniqueRouteAttempts(nextAttempted) };
 }
 
 async function fallbackResult(route, prompt, env, attempted, reason) {
   const fallbackRoute = chooseFallbackRoute(route, env, attempted);
   if (!fallbackRoute) {
-    return { fallback: true, fallbackReason: reason, model: "local-deterministic", mirror: null, provider: null };
+    return { fallback: true, fallbackReason: reason, model: "local-deterministic", mirror: null, provider: null, attempts: uniqueRouteAttempts(attempted) };
   }
   try {
     const result = await runRoute(fallbackRoute, prompt, env, attempted);
-    return { ...result, fallback: true, fallbackReason: reason };
+    return { ...result, fallback: true, fallbackReason: reason, attempts: uniqueRouteAttempts(result.attempts || [...attempted, fallbackRoute.primary]) };
   } catch {
-    return { fallback: true, fallbackReason: reason, model: "local-deterministic", mirror: null };
+    return { fallback: true, fallbackReason: reason, model: "local-deterministic", mirror: null, provider: null, attempts: uniqueRouteAttempts([...attempted, fallbackRoute.primary]) };
   }
+}
+
+function withRouteAttempts(result, attempts) {
+  return { ...result, attempts: uniqueRouteAttempts(attempts) };
+}
+
+function uniqueRouteAttempts(attempts = []) {
+  return [...new Set(attempts.map((item) => cleanProviderCode(item).toLowerCase()).filter(Boolean))];
 }
 
 function chooseFallbackRoute(route, env, attempted) {
@@ -1726,8 +1964,17 @@ async function runSourceCheck(input, env, ctx) {
     }
     return {
       fallback: true,
+      verdict: "not_enough",
       answer: "Source checking is not available right now.",
       changes: "Do not rely on this claim until a source-backed check is run.",
+      source_quality: {
+        best_score: 0,
+        high_quality_count: 0,
+        weak_count: 0,
+        count: 0,
+        domain_allowlist: sourceDomainAllowlist(env).length ? "active" : "not_configured",
+        domain_allowlist_count: sourceDomainAllowlist(env).length,
+      },
       sources: [],
     };
   }
@@ -1745,10 +1992,10 @@ async function runSourceCheck(input, env, ctx) {
       try {
         return await callGeminiSourceCheck(input, env, ctx);
       } catch (fallbackError) {
-        return makeSourceCheckPlan(input, fallbackError);
+        return makeSourceCheckPlan(input, fallbackError, env);
       }
     }
-    return makeSourceCheckPlan(input, error);
+    return makeSourceCheckPlan(input, error, env);
   }
 }
 
@@ -1772,7 +2019,7 @@ async function callOpenAISourceCheck(input, env) {
     `Mirror next move: ${input.move || "not provided"}`,
   ].join("\n");
   const configuredTool = cleanProviderCode(env.OPENAI_WEB_SEARCH_TOOL || "");
-  const toolTypes = [...new Set([configuredTool, "web_search_preview", "web_search"].filter(Boolean))];
+  const toolTypes = sourceToolCandidates("openai", [configuredTool, "web_search", "web_search_preview"]);
   let lastError = null;
 
   for (const toolType of toolTypes) {
@@ -1786,9 +2033,10 @@ async function callOpenAISourceCheck(input, env) {
             model,
             input: prompt,
             store: false,
-            tools: [{ type: toolType, search_context_size: "medium" }],
-            tool_choice: "auto",
+            tools: [openAISourceTool(toolType, env)],
+            tool_choice: toolType === "web_search" ? "required" : "auto",
             text: { format: { type: "json_schema", name: "active_mirror_source_check", strict: true, schema: SOURCE_CHECK_SCHEMA } },
+            ...(toolType === "web_search" ? { include: ["web_search_call.action.sources"] } : {}),
             max_output_tokens: 1200,
           }),
         },
@@ -1797,7 +2045,10 @@ async function callOpenAISourceCheck(input, env) {
       );
       const data = await readProviderResponse(response, "openai");
       const payload = parseSourceCheckPayload(extractOpenAIText(data));
-      return normalizeSourceCheck(payload, extractSourceAnnotations(data));
+      return {
+        ...normalizeSourceCheck(payload, extractSourceAnnotations(data), env),
+        route: sourceCheckRoute("openai", model, { tools: [toolType], attempts: ["openai"] }),
+      };
     } catch (error) {
       lastError = error;
     }
@@ -1815,7 +2066,7 @@ async function callGeminiSourceCheck(input, env, ctx) {
     env.GEMINI_MEDIA_MODEL,
   ].filter(Boolean);
   const modelCandidates = [...new Set(models)];
-  const toolCandidates = [[{ googleSearch: {} }], [{ googleSearchRetrieval: {} }]];
+  const toolCandidates = sourceToolCandidates("gemini", ["google_search", "google_search_retrieval"]).map(geminiSourceTool);
   const key = env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY;
   const referer = env.GEMINI_ALLOWED_REFERER || "https://activemirror.ai/";
   const prompt = [
@@ -1863,7 +2114,12 @@ async function callGeminiSourceCheck(input, env, ctx) {
         const data = await readProviderResponse(response, "gemini");
         const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("") || "";
         const payload = parseSourceCheckPayload(text);
-        return { ...normalizeSourceCheck(payload, extractGeminiSourceAnnotations(data)), fallback: true };
+        const tool = Object.keys(tools?.[0] || {})[0] || "google_search";
+        return {
+          ...normalizeSourceCheck(payload, extractGeminiSourceAnnotations(data), env),
+          fallback: true,
+          route: sourceCheckRoute("gemini", model, { tools: [tool], attempts: ["gemini"], fallback: "primary source route unavailable" }),
+        };
       } catch (error) {
         lastError = error;
         logSafe(ctx, {
@@ -1880,6 +2136,27 @@ async function callGeminiSourceCheck(input, env, ctx) {
   throw lastError || new Error("gemini_source_check_failed");
 }
 
+function sourceCheckRoute(provider, model, options = {}) {
+  const routeProvider = cleanProviderCode(provider || "active_mirror").toLowerCase() || "active_mirror";
+  return {
+    capability: "source_check",
+    label: "source check",
+    primary: options.primary || routeProvider,
+    provider: routeProvider,
+    model: cleanProviderCode(model || "none") || "none",
+    upstream_host: null,
+    tools: options.tools || [],
+    attempts: options.attempts || [routeProvider],
+    fallback: options.fallback || null,
+  };
+}
+
+function withoutInternalRoute(research) {
+  if (!research || typeof research !== "object") return research;
+  const { route: _route, ...publicResearch } = research;
+  return publicResearch;
+}
+
 function parseSourceCheckPayload(text) {
   const value = String(text || "").trim();
   if (!value) return {};
@@ -1891,13 +2168,164 @@ function parseSourceCheckPayload(text) {
   }
 }
 
-function normalizeSourceCheck(payload, annotations = []) {
+function sourceToolCandidates(provider, requested = []) {
+  const allowed = new Set(SOURCE_TOOL_ALLOWLIST[provider] || []);
+  return [...new Set(requested.map((tool) => cleanProviderCode(tool).toLowerCase()).filter(Boolean))].filter((tool) => allowed.has(tool));
+}
+
+function openAISourceTool(toolType, env) {
+  const tool = { type: toolType, search_context_size: "medium" };
+  const domains = sourceDomainAllowlist(env);
+  if (toolType === "web_search" && domains.length) {
+    tool.filters = { allowed_domains: domains };
+  }
+  if (toolType === "web_search") {
+    tool.external_web_access = !envFlag(env.ACTIVE_MIRROR_SOURCE_CACHE_ONLY);
+  }
+  return tool;
+}
+
+function geminiSourceTool(toolType) {
+  return [{ [toolType]: {} }];
+}
+
+function sourceDomainAllowlist(env = {}) {
+  return String(env.ACTIVE_MIRROR_SOURCE_DOMAIN_ALLOWLIST || env.SOURCE_DOMAIN_ALLOWLIST || "")
+    .split(",")
+    .map(normalizeAllowedDomain)
+    .filter(Boolean)
+    .slice(0, 50);
+}
+
+function normalizeAllowedDomain(value) {
+  let domain = String(value || "").trim().toLowerCase();
+  if (!domain) return "";
+  if (/^https?:\/\//.test(domain)) {
+    try {
+      domain = new URL(domain).hostname;
+    } catch {
+      return "";
+    }
+  }
+  domain = domain.replace(/^\*\./, "").replace(/^www\./, "").replace(/\/.*$/, "");
+  if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domain)) return "";
+  return domain;
+}
+
+function sourceAllowedByDomain(source, allowlist) {
+  if (!allowlist.length) return true;
+  let host = "";
+  try {
+    host = new URL(source?.url || "").hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return false;
+  }
+  return allowlist.some((domain) => host === domain || host.endsWith(`.${domain}`));
+}
+
+function publicSourcePolicy(env = {}) {
+  const domains = sourceDomainAllowlist(env);
+  return {
+    current_or_external_claims: "source_check_or_needs_checking",
+    model_training_memory_is_authority: false,
+    internet_access: envFlag(env.ACTIVE_MIRROR_SOURCE_CACHE_ONLY) ? "source_tool_cache_only_with_receipts" : "source_tool_live_with_receipts",
+    source_tool_allowlist: "enabled",
+    allowed_tools: {
+      openai: SOURCE_TOOL_ALLOWLIST.openai,
+      gemini: SOURCE_TOOL_ALLOWLIST.gemini,
+    },
+    domain_allowlist: domains.length ? "active" : "not_configured",
+    domain_allowlist_count: domains.length,
+    if_tool_unavailable: "mark_needs_checking",
+  };
+}
+
+function resolutionContract({ route, selectedRoute, result, truth_state, failsafe, research }) {
+  const capability = selectedRoute?.capability || route?.capability || "reflection";
+  const fallback = Boolean(result?.fallback || route?.fallback);
+  const needsSources = truth_state?.status === "needs_checking";
+  const failSafeActive = Boolean(failsafe?.active);
+  const sourceGap = capability === "source_check" && (!Array.isArray(research?.sources) || research.sources.length === 0);
+  const domainAllowlistActive = research?.source_quality?.domain_allowlist === "active";
+
+  let status = "clear";
+  let title = "No repair required";
+  let fix_path = "Continue through Mirror Loop v1.";
+  let owner = "active_mirror_runtime";
+  let command = null;
+  let proof_needed = "receipt_id present, Glass present, truth_state scoped";
+  let auto_fixable = false;
+  const search_policy = {
+    mode: "obsess_until_evidence_or_impossibility",
+    deepen_order: ["official_docs", "source_check", "repository_search", "papers", "standards", "human_approval"],
+    stop_condition: "supported_sources_or_named_blocker",
+  };
+
+  if (failSafeActive) {
+    status = "hard_stop";
+    title = "Fail-safe is active";
+    fix_path = "Remove the fail-safe flag only after the operator confirms model/tool egress should resume.";
+    owner = "operator";
+    command = "Unset ACTIVE_MIRROR_FAILSAFE, MIRROR_GATEWAY_FAILSAFE, or MIRROR_MODEL_EGRESS_DISABLED, then rerun worker canaries.";
+    proof_needed = "health guardrails show failsafe=armed and model_egress=enabled";
+  } else if (sourceGap) {
+    status = "search_deeper";
+    title = domainAllowlistActive ? "No allowed-domain citation found" : "No citation survived source check";
+    fix_path = domainAllowlistActive
+      ? "Expand or correct the source domain allowlist, or run a narrower query against approved domains."
+      : "Run a narrower source-check query and prefer official docs, papers, standards, or primary repositories.";
+    owner = "source_checker";
+    command = "POST /v1/mirror/source-check with a narrower question and source-first move.";
+    proof_needed = "truth_state.status=checked and research.sources.length>0";
+    auto_fixable = true;
+  } else if (needsSources) {
+    status = "needs_source_check";
+    title = "Claim needs source proof";
+    fix_path = "Route the exact claim through source-check before relying on it.";
+    owner = "active_mirror_runtime";
+    command = "POST /v1/mirror/source-check";
+    proof_needed = "source-check receipt with checked truth_state or explicit not_enough verdict";
+    auto_fixable = true;
+  } else if (fallback) {
+    status = "repair_route";
+    title = "Primary route did not answer";
+    fix_path = "Inspect configured provider secrets, bridge health, and fallback attempts; keep current answer usable but not silently promoted.";
+    owner = "gateway_operator";
+    command = "GET /health, then run npm run monitor:gateway and npm run canary:prod after deploy.";
+    proof_needed = "route.fallback=null on the intended primary route, or fallback explicitly accepted";
+  }
+
+  return {
+    policy: RESOLUTION_POLICY.id,
+    rule: RESOLUTION_POLICY.rule,
+    status,
+    title,
+    fix_path,
+    owner,
+    command,
+    proof_needed,
+    auto_fixable,
+    search_policy,
+  };
+}
+
+function normalizeSourceCheck(payload, annotations = [], env = {}) {
   const payloadSources = Array.isArray(payload?.sources) ? payload.sources : [];
-  const sources = rankSourcesByQuality(uniqueSources([...payloadSources, ...annotations])).slice(0, 5);
+  const domainAllowlist = sourceDomainAllowlist(env);
+  const rankedSources = rankSourcesByQuality(uniqueSources([...payloadSources, ...annotations]));
+  const sources = rankedSources.filter((source) => sourceAllowedByDomain(source, domainAllowlist)).slice(0, 5);
   const answer = cleanResearchText(payload?.answer, "The evidence needs a narrower check before relying on the claim.", 520);
-  const changes = cleanResearchText(payload?.changes, "Use this as a check on the next move, not as a final answer.", 260);
+  const changes = cleanResearchText(
+    domainAllowlist.length && !sources.length
+      ? "The source route returned no sources inside the configured source domain allowlist."
+      : payload?.changes,
+    "Use this as a check on the next move, not as a final answer.",
+    260,
+  );
   const verdict = normalizeSourceVerdict(payload?.verdict, answer, sources);
   const source_quality = summarizeSourceQuality(sources);
+  source_quality.domain_allowlist = domainAllowlist.length ? "active" : "not_configured";
+  source_quality.domain_allowlist_count = domainAllowlist.length;
   return {
     fallback: false,
     verdict,
@@ -1908,9 +2336,10 @@ function normalizeSourceCheck(payload, annotations = []) {
   };
 }
 
-function makeSourceCheckPlan(input, error) {
+function makeSourceCheckPlan(input, error, env = {}) {
   const narrow = cleanResearchText(input.question || input.intent, "the claim", 160);
   const query = `"${narrow.replace(/"/g, "")}"`;
+  const domains = sourceDomainAllowlist(env);
   return {
     fallback: true,
     verdict: "not_enough",
@@ -1921,6 +2350,8 @@ function makeSourceCheckPlan(input, error) {
       high_quality_count: 0,
       weak_count: 0,
       count: 0,
+      domain_allowlist: domains.length ? "active" : "not_configured",
+      domain_allowlist_count: domains.length,
     },
     sources: [],
     verification_plan: {
@@ -2245,6 +2676,9 @@ function publicRouteReceipt(capability) {
 
 function publicFallbackReason(reason) {
   const code = cleanProviderCode(reason || "").toLowerCase();
+  if (code.includes("failsafe")) {
+    return "fail-safe mode is active";
+  }
   if (!code || code.includes("missing_secret") || code.includes("no_provider_secret")) {
     return "the live answer is not fully configured";
   }
@@ -2260,31 +2694,107 @@ function publicFallbackReason(reason) {
   return "the live answer is unavailable right now";
 }
 
+function mirrorDashGlass({ route, selectedRoute, boundary, result, attempts, promptHash, promptChars, deterministicIdentity, failsafe, env, resolution }) {
+  const answeredByModel = route.provider && !["active_mirror", "none"].includes(route.provider);
+  const tools = [];
+  if (selectedRoute.capability === "source_check") tools.push("source_web_search");
+  if (selectedRoute.capability === "media") tools.push("media_generation");
+
+  return {
+    surface: "MirrorDash Glass",
+    contract: "transparent_router",
+    identity: {
+      visible: "Active Mirror",
+      user_role: "the user's mirror",
+      worker_role: "model worker",
+      rule: "The mirror is the filter; the model never becomes the identity.",
+    },
+    algorithm: ACTIVE_MIRROR_ALGORITHM,
+    recursion_lock: RECURSIVE_PERFECTION_LOCK,
+    council_control_plane: COUNCIL_CONTROL_PLANE,
+    router: {
+      selected_capability: selectedRoute.capability,
+      selected_primary: selectedRoute.primary,
+      answered_provider: route.provider,
+      answered_model: route.model,
+      attempts,
+      fallback: Boolean(result.fallback),
+      fallback_reason: route.fallback,
+      upstream_host: route.upstream_host,
+      deterministic: Boolean(deterministicIdentity || route.provider === "active_mirror"),
+      failsafe: Boolean(failsafe?.active),
+      failsafe_reason: failsafe?.active ? failsafe.reason : null,
+    },
+    prompt: {
+      boot_id: ACTIVE_MIRROR_BOOT_VERSION,
+      prompt_hash: promptHash,
+      prompt_chars: promptChars,
+      body_disclosed: false,
+      disclosure: "hash_only",
+      sent_to: answeredByModel ? route.provider : "none",
+    },
+    tools: {
+      used: failsafe?.active ? [] : tools,
+      disclosure: failsafe?.active ? "none" : tools.length ? "names_only" : "none",
+    },
+    source_policy: publicSourcePolicy(env),
+    resolution,
+    promotion_policy: PROMOTION_POLICY,
+    memory: {
+      mode: "scoped",
+      used: ["current_turn", `boundary_${boundary}`],
+      excluded: ["raw_vault", "model_memory", "unapproved_memory"],
+      write_policy: "model_cannot_write_memory",
+    },
+    egress: {
+      model_route_allowed: !failsafe?.active && answeredByModel,
+      tool_route_allowed: !failsafe?.active,
+      raw_vault_route_allowed: false,
+      prompt_body_telemetry_allowed: false,
+    },
+    gates: {
+      straitjacket: result.straitjacket || [],
+      truth_state: result.truth_state?.status || "unknown",
+      mirror_filter: "enabled",
+      model_identity_filter: "enabled",
+      failsafe: failsafe?.active ? "active" : "armed",
+    },
+    opaque: [
+      "provider_weights",
+      "provider_hidden_reasoning",
+      "provider_infrastructure",
+    ],
+  };
+}
+
 function publicRoutes(env) {
+  const failsafe = gatewayFailsafeMode(env);
+  const sourceRouteStatus = hasSourceCheckRoute(env) ? "available" : "unavailable";
+  const modelRouteStatus = (available) => failsafe.active ? "fail-safe" : available;
   return {
     reflection: {
       label: "reflection help",
-      status: (env.MIRROR_BRIDGE_URL && env.MIRROR_BRIDGE_TOKEN) || env.ANTHROPIC_API_KEY || env.OPENAI_API_KEY ? "available" : "browser fallback",
+      status: modelRouteStatus((env.MIRROR_BRIDGE_URL && env.MIRROR_BRIDGE_TOKEN) || env.ANTHROPIC_API_KEY || env.OPENAI_API_KEY ? "available" : "browser fallback"),
       purpose: "reflective reasoning and first-use mirror generation",
     },
     chat: {
       label: "critique help",
-      status: (env.MIRROR_BRIDGE_URL && env.MIRROR_BRIDGE_TOKEN) || env.ANTHROPIC_API_KEY || env.OPENAI_API_KEY ? "available" : "browser fallback",
+      status: modelRouteStatus((env.MIRROR_BRIDGE_URL && env.MIRROR_BRIDGE_TOKEN) || env.ANTHROPIC_API_KEY || env.OPENAI_API_KEY ? "available" : "browser fallback"),
       purpose: "chat polish, critique, rewrite, and receipt review",
     },
     media: {
       label: "media help",
-      status: env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY ? "available" : "browser fallback",
+      status: modelRouteStatus(env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY ? "available" : "browser fallback"),
       purpose: "images, video, multimodal understanding, and media assets",
     },
     artifact: {
       label: "artifact help",
-      status: hasArtifactRoute(env) ? "available" : "browser fallback",
+      status: modelRouteStatus(hasArtifactRoute(env) ? "available" : "browser fallback"),
       purpose: "documents, code starters, drafts, and visual briefs created from a reflection",
     },
     source_check: {
       label: "source check",
-      status: hasSourceCheckRoute(env) ? "available" : "unavailable",
+      status: failsafe.active ? "fail-safe" : sourceRouteStatus,
       purpose: "source-backed checks for current or external factual claims",
     },
     enterprise_stream: {
@@ -2301,6 +2811,8 @@ function publicRoutes(env) {
 }
 
 function publicGuardrails(env) {
+  const failsafe = gatewayFailsafeMode(env);
+  const sourcePolicy = publicSourcePolicy(env);
   return {
     mirror_rate_limit: "enabled",
     event_rate_limit: "enabled",
@@ -2312,6 +2824,32 @@ function publicGuardrails(env) {
     enterprise_stream_policy: "public-demo-only",
     proof_sprint_policy: "metadata-only-contact",
     truth_state: "enabled",
+    mirrordash_glass: "enabled",
+    router_transparency: "enabled",
+    prompt_disclosure: "hash_only",
+    current_facts_require_source_check: "enabled",
+    active_mirror_algorithm: ACTIVE_MIRROR_ALGORITHM.id,
+    active_mirror_ethos: ACTIVE_MIRROR_ALGORITHM.ethos,
+    active_mirror_algorithm_invariant: ACTIVE_MIRROR_ALGORITHM.invariant,
+    active_mirror_ratchet: ACTIVE_MIRROR_ALGORITHM.ratchet,
+    recursive_perfection_lock: RECURSIVE_PERFECTION_LOCK.id,
+    recursive_perfection_definition: RECURSIVE_PERFECTION_LOCK.definition,
+    resolution_contract: RESOLUTION_POLICY.id,
+    resolution_rule: RESOLUTION_POLICY.rule,
+    reflection_promotion: PROMOTION_POLICY.id,
+    training_amendability: PROMOTION_POLICY.training,
+    reverse_abliteration: PROMOTION_POLICY.reverse_abliteration,
+    council_control_plane: COUNCIL_CONTROL_PLANE.id,
+    council_route: COUNCIL_CONTROL_PLANE.route,
+    council_count: String(COUNCIL_CONTROL_PLANE.councils.length),
+    source_live_web_access: sourcePolicy.internet_access,
+    source_tool_allowlist: sourcePolicy.source_tool_allowlist,
+    source_tool_allowlist_openai: SOURCE_TOOL_ALLOWLIST.openai.join(","),
+    source_tool_allowlist_gemini: SOURCE_TOOL_ALLOWLIST.gemini.join(","),
+    source_domain_allowlist: sourcePolicy.domain_allowlist,
+    source_domain_allowlist_count: String(sourcePolicy.domain_allowlist_count),
+    failsafe: failsafe.active ? "active" : "armed",
+    model_egress: failsafe.active ? "disabled" : "enabled",
     source_check: hasSourceCheckRoute(env) ? "enabled" : "not_configured",
     artifact: "enabled",
   };

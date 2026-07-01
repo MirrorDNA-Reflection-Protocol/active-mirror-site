@@ -61,10 +61,13 @@ async function runProbeChecks(summary) {
   await check(summary, "gateway health exposes live guardrails", async () => {
     const data = await readJson(`${GATEWAY}/health`);
     assert(data.ok === true, "health ok was not true");
-    assert(/^(?:2026-06-28|2026-06-29)-/.test(String(data.version || "")), `unexpected version ${data.version || "missing"}`);
+    assert(/^2026-07-01-council-control-plane-v1$/.test(String(data.version || "")), `unexpected version ${data.version || "missing"}`);
     assert(data.guardrails?.event_policy === "no-prompt-content", "event policy missing");
     assert(data.guardrails?.truth_state === "enabled", "truth-state guardrail missing");
     assert(data.guardrails?.source_check === "enabled", "source-check guardrail missing");
+    assert(data.guardrails?.council_control_plane === "active_mirror_council_control_plane_v1", "council control plane missing");
+    assert(data.guardrails?.council_route === "intent_router_to_council_to_receipt_to_promotion_gate", "council route missing");
+    assert(data.guardrails?.council_count === "8", "council count missing");
     assert(data.guardrails?.mirror_rate_limit === "enabled", "mirror rate limit missing");
     assert(data.guardrails?.event_rate_limit === "enabled", "event rate limit missing");
     assert(data.guardrails?.daily_budget === "enabled", "daily budget missing");

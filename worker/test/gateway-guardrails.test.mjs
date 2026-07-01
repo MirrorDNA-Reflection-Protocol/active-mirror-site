@@ -138,6 +138,20 @@ function openAIArtifactResponse() {
   };
 }
 
+function openAISourceCheckResponse() {
+  return {
+    output_text: JSON.stringify({
+      verdict: "supported",
+      answer: "The narrow claim is supported by the official source.",
+      changes: "Use the official source as proof and treat secondary commentary as context.",
+      sources: [
+        { title: "OpenAI web search guide", url: "https://platform.openai.com/docs/guides/tools-web-search" },
+        { title: "Commentary", url: "https://medium.com/example/commentary" },
+      ],
+    }),
+  };
+}
+
 installEdgeCache();
 const restoreFetch = installBridgeFetch();
 
@@ -152,6 +166,111 @@ await check("mirror request succeeds before budget is exhausted", async () => {
   assert.strictEqual(data.ok, true);
   assert.strictEqual(data.fallback, false);
   assert.match(data.receipt_id, /^[0-9a-f]{24}$/);
+});
+
+await check("MirrorDash Glass exposes transparent router facts without prompt body", async () => {
+  installEdgeCache();
+  const response = await post("/v1/mirror/create", {
+    intent: "I do not know what to do next, and I need one small move.",
+    boundary: "personal",
+    route: "reflection",
+  });
+  const data = await response.json();
+  const serializedGlass = JSON.stringify(data.glass || {});
+
+  assert.strictEqual(response.status, 200);
+  assert.strictEqual(data.route.provider, "bridge");
+  assert.strictEqual(data.route.model, "test-bridge");
+  assert.strictEqual(data.glass.surface, "MirrorDash Glass");
+  assert.strictEqual(data.glass.contract, "transparent_router");
+  assert.strictEqual(data.glass.identity.visible, "Active Mirror");
+  assert.strictEqual(data.glass.identity.user_role, "the user's mirror");
+  assert.strictEqual(data.glass.algorithm.id, "mirror_loop_v1");
+  assert.strictEqual(data.glass.algorithm.ethos, "trust_by_design_or_hardstop");
+  assert.strictEqual(data.glass.algorithm.invariant, "truth_before_helpfulness");
+  assert.strictEqual(data.glass.algorithm.ratchet, "perfection_as_ratchet");
+  assert.strictEqual(data.glass.recursion_lock.id, "recursive_perfection_lock_v1");
+  assert.strictEqual(data.glass.recursion_lock.definition, "no_known_gap_without_resolution_contract");
+  assert.deepStrictEqual(data.glass.recursion_lock.loop, ["observe", "reflect", "source_check", "harden", "verify", "promote", "repeat"]);
+  assert.strictEqual(data.glass.council_control_plane.id, "active_mirror_council_control_plane_v1");
+  assert.strictEqual(data.glass.council_control_plane.route, "intent_router_to_council_to_receipt_to_promotion_gate");
+  assert.strictEqual(data.glass.council_control_plane.promotion_gate, "reflection_promotion_v1");
+  assert.deepStrictEqual(data.glass.council_control_plane.councils, [
+    "thread",
+    "source",
+    "runtime",
+    "ops",
+    "design",
+    "security",
+    "state",
+    "promotion",
+  ]);
+  assert.deepStrictEqual(data.glass.algorithm.steps, [
+    "boundary",
+    "consent",
+    "source_truth",
+    "route",
+    "reflect",
+    "challenge",
+    "one_move",
+    "receipt",
+    "learning_candidate",
+  ]);
+  assert.strictEqual(data.glass.router.selected_primary, "bridge");
+  assert.strictEqual(data.glass.router.answered_provider, "bridge");
+  assert.strictEqual(data.glass.router.answered_model, "test-bridge");
+  assert.deepStrictEqual(data.glass.router.attempts, ["bridge"]);
+  assert.strictEqual(data.glass.prompt.disclosure, "hash_only");
+  assert.match(data.glass.prompt.prompt_hash, /^[0-9a-f]{24}$/);
+  assert.strictEqual(data.glass.prompt.body_disclosed, false);
+  assert.strictEqual(data.glass.source_policy.source_tool_allowlist, "enabled");
+  assert.deepStrictEqual(data.glass.source_policy.allowed_tools.openai, ["web_search", "web_search_preview"]);
+  assert.deepStrictEqual(data.glass.source_policy.allowed_tools.gemini, ["google_search", "google_search_retrieval"]);
+  assert.strictEqual(data.resolution.policy, "resolution_contract_v1");
+  assert.strictEqual(data.resolution.status, "clear");
+  assert.strictEqual(data.resolution.search_policy.mode, "obsess_until_evidence_or_impossibility");
+  assert.strictEqual(data.glass.resolution.status, "clear");
+  assert.strictEqual(data.glass.promotion_policy.id, "reflection_promotion_v1");
+  assert.strictEqual(data.glass.promotion_policy.training, "amendable_after_reflection");
+  assert.strictEqual(data.glass.promotion_policy.reverse_abliteration, "strengthen_reflection_refusal_source_truth_and_boundary_directions");
+  assert.deepStrictEqual(data.glass.memory.excluded, ["raw_vault", "model_memory", "unapproved_memory"]);
+  assert.strictEqual(data.glass.gates.mirror_filter, "enabled");
+  assert.strictEqual(serializedGlass.includes("I do not know what to do next"), false, "prompt body leaked into Glass");
+});
+
+await check("identity prompts answer as Active Mirror without model routing", async () => {
+  installEdgeCache();
+  let providerCalls = 0;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("/v1/mirror/reflect")) providerCalls++;
+    return originalFetch(url, init);
+  };
+
+  try {
+    const response = await post("/v1/mirror/create", {
+      intent: "Are you ChatGPT or Claude?",
+      boundary: "personal",
+      route: "reflection",
+    });
+    const data = await response.json();
+    const visible = `${data.mirror?.reflection || ""} ${data.mirror?.question || ""} ${data.mirror?.move || ""}`;
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(data.ok, true);
+    assert.strictEqual(providerCalls, 0, "provider was called for identity prompt");
+    assert.strictEqual(data.route.capability, "identity");
+    assert.strictEqual(data.route.provider, "active_mirror");
+    assert.strictEqual(data.route.model, "none");
+    assert.ok(data.straitjacket.includes("deterministic_identity"), "deterministic identity marker missing");
+    assert.match(visible, /Active Mirror/i);
+    assert.doesNotMatch(visible, /\b(ChatGPT|Claude|Gemini|Copilot|OpenAI|Anthropic|Google|large language model|AI language model)\b/i);
+    assert.strictEqual(data.glass.router.deterministic, true);
+    assert.strictEqual(data.glass.prompt.sent_to, "none");
+    assert.deepStrictEqual(data.glass.router.attempts, ["active_mirror"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 await check("daily session budget returns 429 before calling the provider again", async () => {
@@ -214,6 +333,191 @@ await check("health exposes enabled daily budget limits", async () => {
   assert.strictEqual(data.guardrails.daily_budget, "enabled");
   assert.strictEqual(data.guardrails.daily_session_limit, "100");
   assert.strictEqual(data.guardrails.daily_network_limit, "100");
+  assert.strictEqual(data.guardrails.source_tool_allowlist, "enabled");
+  assert.strictEqual(data.guardrails.source_tool_allowlist_openai, "web_search,web_search_preview");
+  assert.strictEqual(data.guardrails.source_tool_allowlist_gemini, "google_search,google_search_retrieval");
+  assert.strictEqual(data.guardrails.active_mirror_algorithm, "mirror_loop_v1");
+  assert.strictEqual(data.guardrails.active_mirror_ethos, "trust_by_design_or_hardstop");
+  assert.strictEqual(data.guardrails.active_mirror_algorithm_invariant, "truth_before_helpfulness");
+  assert.strictEqual(data.guardrails.active_mirror_ratchet, "perfection_as_ratchet");
+  assert.strictEqual(data.guardrails.recursive_perfection_lock, "recursive_perfection_lock_v1");
+  assert.strictEqual(data.guardrails.recursive_perfection_definition, "no_known_gap_without_resolution_contract");
+  assert.strictEqual(data.guardrails.resolution_contract, "resolution_contract_v1");
+  assert.strictEqual(data.guardrails.resolution_rule, "no_negative_state_without_fix_path");
+  assert.strictEqual(data.guardrails.reflection_promotion, "reflection_promotion_v1");
+  assert.strictEqual(data.guardrails.training_amendability, "amendable_after_reflection");
+  assert.strictEqual(data.guardrails.reverse_abliteration, "strengthen_reflection_refusal_source_truth_and_boundary_directions");
+  assert.strictEqual(data.guardrails.council_control_plane, "active_mirror_council_control_plane_v1");
+  assert.strictEqual(data.guardrails.council_route, "intent_router_to_council_to_receipt_to_promotion_gate");
+  assert.strictEqual(data.guardrails.council_count, "8");
+  assert.strictEqual(data.guardrails.source_domain_allowlist, "not_configured");
+  assert.strictEqual(data.guardrails.source_domain_allowlist_count, "0");
+});
+
+await check("health exposes active source domain allowlist and cache-only mode", async () => {
+  const response = await worker.fetch(
+    new Request("https://gateway.activemirror.ai/health"),
+    env({
+      ACTIVE_MIRROR_SOURCE_DOMAIN_ALLOWLIST: "https://openai.com/docs, ai.google.dev, *.arxiv.org",
+      ACTIVE_MIRROR_SOURCE_CACHE_ONLY: "1",
+    }),
+    ctx(),
+  );
+  const data = await response.json();
+  assert.strictEqual(response.status, 200);
+  assert.strictEqual(data.guardrails.source_live_web_access, "source_tool_cache_only_with_receipts");
+  assert.strictEqual(data.guardrails.source_domain_allowlist, "active");
+  assert.strictEqual(data.guardrails.source_domain_allowlist_count, "3");
+});
+
+await check("fail-safe disables model egress and exposes the cutoff in Glass", async () => {
+  installEdgeCache();
+  let providerCalls = 0;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("/v1/mirror/reflect")) providerCalls++;
+    return originalFetch(url, init);
+  };
+
+  try {
+    const response = await post(
+      "/v1/mirror/create",
+      {
+        intent: "I need one bounded next move while the gateway is in fail-safe mode.",
+        boundary: "personal",
+        route: "reflection",
+      },
+      { ACTIVE_MIRROR_FAILSAFE: "1", ACTIVE_MIRROR_FAILSAFE_REASON: "operator_test" },
+    );
+    const data = await response.json();
+    const serializedGlass = JSON.stringify(data.glass || {});
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(data.ok, true);
+    assert.strictEqual(data.fallback, true);
+    assert.strictEqual(providerCalls, 0, "provider was called while fail-safe was active");
+    assert.strictEqual(data.route.provider, "active_mirror");
+    assert.strictEqual(data.route.model, "local-deterministic");
+    assert.strictEqual(data.route.fallback, "fail-safe mode is active");
+    assert.deepStrictEqual(data.glass.router.attempts, ["failsafe"]);
+    assert.strictEqual(data.glass.router.failsafe, true);
+    assert.strictEqual(data.glass.router.failsafe_reason, "operator_test");
+    assert.strictEqual(data.glass.prompt.sent_to, "none");
+    assert.strictEqual(data.glass.egress.model_route_allowed, false);
+    assert.strictEqual(data.glass.egress.tool_route_allowed, false);
+    assert.deepStrictEqual(data.glass.tools.used, []);
+    assert.strictEqual(data.resolution.status, "hard_stop");
+    assert.strictEqual(data.resolution.owner, "operator");
+    assert.strictEqual(data.resolution.proof_needed, "health guardrails show failsafe=armed and model_egress=enabled");
+    assert.strictEqual(serializedGlass.includes("gateway is in fail-safe mode"), false, "prompt body leaked into Glass");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+await check("health marks routes as fail-safe when model egress is disabled", async () => {
+  const response = await worker.fetch(new Request("https://gateway.activemirror.ai/health"), env({ MIRROR_MODEL_EGRESS_DISABLED: "true" }), ctx());
+  const data = await response.json();
+  assert.strictEqual(response.status, 200);
+  assert.strictEqual(data.guardrails.failsafe, "active");
+  assert.strictEqual(data.guardrails.model_egress, "disabled");
+  assert.strictEqual(data.routes.reflection.status, "fail-safe");
+  assert.strictEqual(data.routes.source_check.status, "fail-safe");
+});
+
+await check("source check uses only whitelisted web tools and ranks sources", async () => {
+  installEdgeCache();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("api.openai.com")) {
+      const body = JSON.parse(init?.body || "{}");
+      assert.strictEqual(init?.headers?.Authorization, "Bearer test-openai-key", "openai token missing");
+      assert.strictEqual(body.store, false, "source route must not store provider output");
+      assert.strictEqual(body.tools?.[0]?.type, "web_search", "source route used a non-allowlisted tool");
+      assert.strictEqual(body.tool_choice, "required", "source route must require the live web-search tool");
+      assert.strictEqual(JSON.stringify(body).includes("file_search"), false, "disallowed configured tool leaked into provider request");
+      return Response.json(openAISourceCheckResponse());
+    }
+    return originalFetch(url, init);
+  };
+
+  try {
+    const response = await post(
+      "/v1/mirror/source-check",
+      {
+        intent: "Check whether OpenAI exposes a web search tool in the Responses API.",
+        question: "Does the Responses API expose web search as a source tool?",
+        move: "Use only sources before relying on this claim.",
+        boundary: "personal",
+      },
+      {
+        MIRROR_BRIDGE_URL: "",
+        MIRROR_BRIDGE_TOKEN: "",
+        OPENAI_API_KEY: "test-openai-key",
+        OPENAI_WEB_SEARCH_TOOL: "file_search",
+      },
+    );
+    const data = await response.json();
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(data.ok, true);
+    assert.strictEqual(data.truth_state.status, "checked");
+    assert.strictEqual(data.research.verdict, "supported");
+    assert.strictEqual(data.research.sources[0].quality, "primary_docs");
+    assert.strictEqual(data.research.source_quality.best_score, 95);
+    assert.strictEqual(data.research.source_quality.domain_allowlist, "not_configured");
+    assert.strictEqual(data.resolution.status, "clear");
+    assert.strictEqual(data.route.provider, "openai");
+    assert.deepStrictEqual(data.route.tools, ["web_search"]);
+    assert.strictEqual(data.glass.resolution.status, "clear");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+await check("source domain allowlist blocks unapproved citations", async () => {
+  installEdgeCache();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("api.openai.com")) {
+      return Response.json(openAISourceCheckResponse());
+    }
+    return originalFetch(url, init);
+  };
+
+  try {
+    const response = await post(
+      "/v1/mirror/source-check",
+      {
+        intent: "Check whether OpenAI exposes a web search tool in the Responses API.",
+        question: "Does the Responses API expose web search as a source tool?",
+        move: "Use only sources before relying on this claim.",
+        boundary: "personal",
+      },
+      {
+        MIRROR_BRIDGE_URL: "",
+        MIRROR_BRIDGE_TOKEN: "",
+        OPENAI_API_KEY: "test-openai-key",
+        ACTIVE_MIRROR_SOURCE_DOMAIN_ALLOWLIST: "arxiv.org",
+      },
+    );
+    const data = await response.json();
+
+    assert.strictEqual(response.status, 502);
+    assert.strictEqual(data.ok, false);
+    assert.strictEqual(data.truth_state.status, "needs_checking");
+    assert.strictEqual(data.research.verdict, "not_enough");
+    assert.deepStrictEqual(data.research.sources, []);
+    assert.strictEqual(data.research.source_quality.domain_allowlist, "active");
+    assert.strictEqual(data.research.source_quality.domain_allowlist_count, 1);
+    assert.match(data.research.changes, /source domain allowlist/);
+    assert.strictEqual(data.resolution.status, "search_deeper");
+    assert.strictEqual(data.resolution.auto_fixable, true);
+    assert.match(data.resolution.fix_path, /allowlist/);
+    assert.strictEqual(data.glass.resolution.status, "search_deeper");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 await check("health does not claim bridge availability without bridge token", async () => {

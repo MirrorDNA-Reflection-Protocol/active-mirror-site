@@ -11,7 +11,14 @@ The Active Mirror model gateway lives in `worker/`.
 - Use `env -u CLOUDFLARE_API_TOKEN npm run worker:deploy` when local OAuth is valid but an old shell token returns Cloudflare authentication errors.
 - Reflection and critique routes use the approved text route.
 - Media route uses the approved media route.
-- Public responses expose capability labels and receipt status, not provider or model names.
+- Public visible identity remains Active Mirror. Machine-readable MirrorDash
+  Glass exposes the actual provider/model/tool route, prompt disclosure posture,
+  memory scope, fail-safe state, and `mirror_loop_v1` algorithm id.
+- MirrorDash Glass and `/health` expose
+  `active_mirror_council_control_plane_v1`, the thread/source/runtime/ops/design/
+  security/state/promotion route before `reflection_promotion_v1`.
+- Source-check routes use whitelisted web-grounding tools only. Optional source
+  domain allowlists can narrow accepted citations.
 
 ## Required Cloudflare Permission
 
@@ -55,3 +62,26 @@ npx wrangler secret put GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER --config worker/wra
 ```
 
 Provider keys may exist locally in Keychain/MirrorDNA stores, but they must be pushed to Cloudflare as Worker secrets. Do not commit provider keys or expose them in browser JavaScript.
+
+## Fail-Safe And Source Policy
+
+Set any of these Worker env flags to disable model/tool egress and return
+deterministic guarded output:
+
+```sh
+ACTIVE_MIRROR_FAILSAFE=1
+MIRROR_GATEWAY_FAILSAFE=1
+MIRROR_MODEL_EGRESS_DISABLED=1
+ACTIVE_MIRROR_FAILSAFE_REASON=operator_or_policy_failsafe
+```
+
+Source checks can optionally be narrowed:
+
+```sh
+ACTIVE_MIRROR_SOURCE_DOMAIN_ALLOWLIST=arxiv.org,openai.com,ai.google.dev
+ACTIVE_MIRROR_SOURCE_CACHE_ONLY=1
+```
+
+The Worker ignores configured source tool names outside the built-in allowlist:
+OpenAI `web_search`, `web_search_preview`; Gemini `google_search`,
+`google_search_retrieval`.
