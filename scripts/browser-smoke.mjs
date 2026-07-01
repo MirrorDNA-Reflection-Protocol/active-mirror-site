@@ -138,19 +138,15 @@ async function exerciseFirstInput(page) {
   await page.goto(routeUrl("/"), { waitUntil: "domcontentloaded", timeout: 20000 });
   await page.locator("textarea, input[type='text'], [contenteditable='true']").first().fill(testText);
   await page.getByRole("button", { name: /^Send$/ }).first().click();
-  await page.getByText("Remember this", { exact: true }).waitFor({ timeout: 30000 });
-  await page.getByText("Remember this", { exact: true }).click();
+  await page.getByRole("button", { name: /^Save$/ }).waitFor({ timeout: 30000 });
+  await page.getByRole("button", { name: /^Save$/ }).click();
   await page.getByText("Saved for next time", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("Another angle", { exact: true }).waitFor({ timeout: 10000 });
-  await page.getByText("Challenge it", { exact: true }).waitFor({ timeout: 10000 });
   const artifactButton = page.getByRole("button", { name: /^(Draft it|Make doc|Make code starter|Make visual brief)$/ }).first();
   await artifactButton.waitFor({ timeout: 10000 });
-  await page.getByText("Helpful?", { exact: true }).waitFor({ timeout: 10000 });
   await artifactButton.click();
   await page.getByRole("button", { name: /^Download$/ }).last().waitFor({ timeout: 30000 });
   await page.getByRole("button", { name: /^Copy$/ }).last().waitFor({ timeout: 10000 });
-  await page.getByRole("button", { name: /^Almost$/ }).first().click();
-  await page.getByText(/No message text saved/i).waitFor({ timeout: 10000 });
   await page.getByRole("button", { name: /^Another angle$/ }).last().click();
   await page.waitForTimeout(1500);
   if (await page.getByText("This asks for current facts.", { exact: true }).isVisible().catch(() => false)) {
@@ -175,7 +171,7 @@ async function exerciseStartFlow(page) {
   await page.getByText(/What do you usually need help with\?/i).waitFor({ timeout: 10000 });
   await page.getByRole("button", { name: /Getting unstuck/i }).click();
   await page.getByRole("button", { name: /^Directly$/i }).click();
-  await page.getByRole("button", { name: /Agreement helps/i }).click();
+  await page.getByRole("button", { name: /Agreeing too quickly/i }).click();
   await page.getByRole("button", { name: /One clear next step/i }).click();
   await page.getByText(/Your mirror is ready\./i).waitFor({ timeout: 10000 });
   await page.getByText(/Download ID/i).waitFor({ timeout: 10000 });
