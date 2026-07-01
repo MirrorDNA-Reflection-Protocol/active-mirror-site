@@ -41,6 +41,8 @@ The boot packet is steering, not enforcement. It tells the model to:
 - narrow "do everything / what else" turns to the next smallest useful slice;
 - produce only the smallest useful artifact shape when the user asks for code,
   markdown, a PDF, or a sendable output;
+- ask for only the relevant sentence or paragraph when the user asks to rewrite,
+  review, prepare, or make something safer but has not provided the text;
 - answer "who are you / what can you do" plainly and move the user back to one useful action;
 - avoid therapy, professor, brand-strategy, and internal-evaluator voice;
 - challenge the idea, plan, or next move without attacking the person;
@@ -227,9 +229,10 @@ claim as needing sources.
 - `glass.prompt.body_disclosed` is `false` by default. Public responses disclose the prompt hash and destination, not the full model prompt.
 - `truth_state` — deterministic source-sensitivity marker. It does not fact-check; it tells the UI whether the turn is reflective only or needs sources before reliance.
 - `straitjacket` — array of deterministic corrections applied this turn. Possible values:
-  `"flattery_removed"`, `"canned_phrase_removed"`, `"internal_tokens_removed"`, `"model_identity_removed"`, `"tone_guard_applied"`, `"question_forced"`, `"move_made_singular"`, `"visual_dropped"`, `"truth_state_needs_sources"`, `"deterministic_identity"`.
+  `"flattery_removed"`, `"canned_phrase_removed"`, `"internal_tokens_removed"`, `"model_identity_removed"`, `"tone_guard_applied"`, `"question_forced"`, `"move_made_singular"`, `"visual_dropped"`, `"truth_state_needs_sources"`, `"deterministic_identity"`, `"missing_artifact_reframed"`.
   `"client_boundary_redacted"` appears when obvious client-boundary sensitive patterns were masked before model routing.
   `"professional_redirect"` appears when medical, legal, financial, or regulatory-risk advice was framed before model routing.
+  `"missing_artifact_reframed"` appears when provider wording blames the user for a missing draft/text and is rewritten into a plain request for only the relevant sentence or paragraph.
   `"deterministic_identity"` appears when product identity prompts such as "who are you?" or "what can you do?" are answered by the stable kernel path instead of a provider.
   (Empty array = the model stayed inside the cage on its own.)
 
@@ -357,6 +360,8 @@ If `visual` is `null`, render nothing — most turns have no visual.
   { "ok": false, "error": "boundary_violation", "receipt": { "...": "nothing was sent to any model" } }
   ```
   The model is **never called** when a secret is detected. UI copy: hold the turn, send nothing.
+  Secret detection covers common key/token formats plus explicit phrases such as
+  `my password is ...`, `the token is ...`, and `api key: ...`.
 - **Professional-risk request detected in `intent`** → `200` with a redirect mirror:
   the model is **not called** for medical, legal, financial, or regulatory advice.
   `truth_state.status` is `needs_checking`, `straitjacket` includes

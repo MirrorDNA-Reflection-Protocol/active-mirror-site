@@ -124,6 +124,7 @@ export function containsSecret(value) {
     /xox[baprs]-[0-9A-Za-z-]{20,}/,
     /-----BEGIN [A-Z ]+PRIVATE KEY-----/,
     /\b(?:api[_-]?key|secret|token|password)\s*[:=]\s*['"]?[A-Za-z0-9_./+=-]{12,}/i,
+    /\b(?:my|the)\s+(?:password|passcode|otp|pin|token|api key|secret)\s+(?:is|=|:)\s*['"]?\S{4,}/i,
   ].some((pattern) => pattern.test(value));
 }
 
@@ -169,6 +170,7 @@ export const ACTIVE_MIRROR_BOOTLOAD = [
   "CURRENT_FACTS_REQUIRE_SOURCE_CHECK: current, latest, market, legal, pricing, model, API, news, or external factual claims need a source-check route or a needs-checking marker. Model training memory is not enough.",
   "When the user asks for everything, more features, or what else, choose the next smallest useful slice and stop there.",
   "When the user asks for code, markdown, a PDF, or a sendable artifact, produce the smallest useful artifact shape only when enough context is present; otherwise ask one concrete follow-up.",
+  "When the user asks you to rewrite, review, make safer, or prepare something but has not provided the text, ask for only the relevant sentence or paragraph. Do not say the work is blocked, missing, or that they need to surface the draft.",
   "When the user asks who you are or what you can do, answer plainly in one sentence and move them back to one useful action.",
   "Never position yourself as the authority on what the user needs to hear. Do not say 'what you need to hear', 'not what you want to hear', or similar paternal lines.",
   "If a privacy boundary is triggered, help the user rewrite with placeholders. Do not scold them, reject them, or make privacy feel like a failure.",
@@ -401,6 +403,17 @@ export function cleanText(value, fallback, maxLength) {
   return `${wordSafe || sliced.trim()}...`;
 }
 
+function cleanReceiptText(value, fallback, maxLength) {
+  const text = cleanText(value, fallback, maxLength)
+    .replace(/\b(?:the\s+)?(?:draft|text|message|email|copy|artifact|sentence|wording)\s+(?:itself\s+)?(?:is\s+)?missing\b/gi, "no draft text was provided")
+    .replace(/\b(?:work|task|answer)\s+(?:is\s+)?blocked\s+until\s+you\b[^.!?]*(?:[.!?]|$)/gi, "Active Mirror asked for the relevant text before guessing. ")
+    .replace(/\bsurface\s+the\s+(draft|text|message|email|copy|artifact|sentence|wording)\b/gi, "provide only the relevant $1")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([.,;!?])/g, "$1")
+    .trim();
+  return text || fallback;
+}
+
 function repairTextArtifacts(value) {
   return value
     .replace(/\b([A-Za-z])\d+([A-Za-z])\b/g, "$1$2")
@@ -425,6 +438,8 @@ const STILTED_VOICE_RE =
   /\b(?:stuck|lost|ready|clear|useful|true|private|safe|visible|testable|earned|needed|big),\s+(?:you|this|it|the|that|is|are|make|must|should)\b|\b(?:must you|should you|can you)\s+(?:now|then|first)\b/i;
 const BLAMEY_MOTIVE_RE =
   /\b(?:you\s+keep\s+[^.!?]{0,100}|you\s+(?:are\s+using|use|seem\s+to|may\s+be|might\s+be)\s+[^.!?]{0,100}\b(?:avoid|avoiding|delay|delaying|procrastinat|hiding|dodging)\b|you\s+are\s+using\s+[^.!?]{0,80}\b(?:to avoid|to delay|as a way to avoid|as a way to delay)\b|what[^?]{0,100}\bare\s+you\s+(?:avoid|avoiding|delaying|dodging|hiding))\b/i;
+const MISSING_ARTIFACT_SCOLD_RE =
+  /\b(?:draft|text|message|email|copy|artifact|sentence|wording)\s+(?:itself\s+)?(?:is\s+)?missing\b|\b(?:work|task|answer)\s+(?:is\s+)?blocked\s+until\s+you\b|\buntil\s+you\s+surface\b|\bsurface\s+the\s+(?:draft|text|message|email|copy|artifact|sentence|wording)\b/i;
 const INTERNAL_TOKEN_RE = /\b(?:SINGULAR_IDENTITY|MODEL_IS_WORKER|MIRROR_IS_FILTER|VAULT_SOURCE_OF_TRUTH|ONE_MIRROR_ONE_OWNER|MIRROR_ONLY_TRAINING|LORA_IS_CANDIDATE_NOT_AUTHORITY|INTENT_MIRROR|SELF_REFLECT_BEFORE_OUTPUT|NEVER_EVER_LIE|NO_ASSUMPTIONS|NO_GUESSING|SAYING_NO_IS_HELPING|ZERO_SYCOPHANCY|TRUE_PRIVACY|REFLECTION_OVER_PREDICTION|ONE_MOVE_ONLY|USER_OWNS_MEMORY|SOURCE_HONESTY|CURRENT_FACTS_REQUIRE_SOURCE_CHECK|NO_FABRICATION|CONSENT_BOUND|FULL_RECEIPTS|SAME_RULES_EVERY_TURN|100_PERCENT_REFLECTION)\b/;
 const INTERNAL_TOKEN_RE_G = new RegExp(INTERNAL_TOKEN_RE.source, "g");
 const MODEL_SELF_IDENTITY_RE =
@@ -567,8 +582,14 @@ export function straitjacket(mirror) {
   if (BLAMEY_MOTIVE_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
     violations.push("motive_guard_applied");
   }
+  if (MISSING_ARTIFACT_SCOLD_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
+    violations.push("missing_artifact_reframed");
+  }
 
   let reflection = trimWords(firstSentences(deflatter(reflectionRaw), 2), 42) || "I can help turn this into a clear next step.";
+  if (MISSING_ARTIFACT_SCOLD_RE.test(reflection)) {
+    reflection = "I can help, but I need the actual text to avoid guessing at the risk.";
+  }
   if (STILTED_VOICE_RE.test(reflection) || ABSTRACT_HELPER_RE.test(reflection) || PERSON_ATTACK_RE.test(reflection) || HARSH_VERDICT_RE.test(reflection) || BLAMEY_MOTIVE_RE.test(reflection)) {
     reflection = BLAMEY_MOTIVE_RE.test(reflection)
       ? "The tool is holding the work instead of moving it. Pick one small action the work can survive."
@@ -577,6 +598,9 @@ export function straitjacket(mirror) {
   }
 
   let question = trimWords(deflatter(questionRaw), 24) || "What do you want help with right now?";
+  if (MISSING_ARTIFACT_SCOLD_RE.test(question)) {
+    question = "Which part do you want checked before you send it?";
+  }
   if (STILTED_VOICE_RE.test(question) || ABSTRACT_HELPER_RE.test(question) || PERSON_ATTACK_RE.test(question) || HARSH_VERDICT_RE.test(question) || BLAMEY_MOTIVE_RE.test(question)) {
     question = "What would make this simpler right now?";
     if (!violations.includes("tone_guard_applied")) violations.push("tone_guard_applied");
@@ -590,9 +614,12 @@ export function straitjacket(mirror) {
   }
 
   const cleanedMove = trimWords(oneThing(deflatter(moveRaw)), 26);
+  const missingArtifactMove = MISSING_ARTIFACT_SCOLD_RE.test(cleanedMove);
   const toneBadMove = STILTED_VOICE_RE.test(cleanedMove) || ABSTRACT_HELPER_RE.test(cleanedMove) || PERSON_ATTACK_RE.test(cleanedMove) || HARSH_VERDICT_RE.test(cleanedMove) || BLAMEY_MOTIVE_RE.test(cleanedMove);
   if (toneBadMove && !violations.includes("tone_guard_applied")) violations.push("tone_guard_applied");
-  const move = cleanedMove && !toneBadMove && !looksMalformedMove(cleanedMove) && !looksNonObservableMove(cleanedMove)
+  const move = missingArtifactMove
+    ? "Paste only the sentence or paragraph you want checked."
+    : cleanedMove && !toneBadMove && !looksMalformedMove(cleanedMove) && !looksNonObservableMove(cleanedMove)
     ? cleanedMove
     : "Write one sentence about the thing you want to move.";
   if (move && (move !== moveRaw.trim() || wordCount(moveRaw) > 26 || looksNonObservableMove(moveRaw))) violations.push("move_made_singular");
@@ -769,11 +796,11 @@ export function normalizeMirror(candidate, { intent, boundary }, boundaryDef, ro
     question: cleanText(candidate.question, fallback.question, 170),
     move: cleanText(candidate.move, fallback.move, 150),
     receipt: {
-      why: cleanText(candidate.receipt?.why, fallback.receipt.why, 220),
-      context_used: cleanText(candidate.receipt?.context_used, fallback.receipt.context_used, 220),
-      context_excluded: cleanText(candidate.receipt?.context_excluded, fallback.receipt.context_excluded, 220),
+      why: cleanReceiptText(candidate.receipt?.why, fallback.receipt.why, 220),
+      context_used: cleanReceiptText(candidate.receipt?.context_used, fallback.receipt.context_used, 220),
+      context_excluded: cleanReceiptText(candidate.receipt?.context_excluded, fallback.receipt.context_excluded, 220),
       route: routeText,
-      memory_decision: cleanText(candidate.receipt?.memory_decision, fallback.receipt.memory_decision, 220),
+      memory_decision: cleanReceiptText(candidate.receipt?.memory_decision, fallback.receipt.memory_decision, 220),
     },
   };
 }

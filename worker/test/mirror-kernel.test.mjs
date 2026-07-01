@@ -140,6 +140,7 @@ await check("straitjacket replaces non-observable moves", () => {
 // 3. The boundary gate detects secrets deterministically.
 await check("boundary gate detects a secret, passes a normal sentence", () => {
   assert.ok(containsSecret("my key is sk-abcdefghijklmnopqrstuvwxyz123456"));
+  assert.ok(containsSecret("My password is examplepassword123 and I need help."));
   assert.ok(!containsSecret("I am stuck on whether to quit my job."));
 });
 
@@ -375,6 +376,45 @@ await check("straitjacket blocks stilted or mystical voice", () => {
   assert.ok(mirror.question.endsWith("?"), "question not preserved as a question");
   assert.strictEqual(mirror.move, "Write one sentence about the thing you want to move.");
   assert.ok(violations.includes("tone_guard_applied"), "tone guard was not recorded");
+});
+
+await check("straitjacket reframes missing-artifact scolding into useful intake", () => {
+  const { mirror, violations } = straitjacket({
+    reflection: "The draft itself is missing, so the work is blocked until you surface the exact text.",
+    question: "What exact wording are you sending, so I can strip the risky part without changing the point?",
+    move: "Surface the draft and mark the sentence that feels risky.",
+    receipt: RECEIPT,
+  });
+  const text = `${mirror.reflection} ${mirror.question} ${mirror.move}`;
+  assert.doesNotMatch(text, /draft itself is missing|blocked until|surface the draft/i, "missing-artifact scold survived");
+  assert.match(text, /actual text|Which part|Paste only/i, "missing-artifact turn did not become useful intake");
+  assert.ok(violations.includes("missing_artifact_reframed"), "missing-artifact reframe was not recorded");
+});
+
+await check("reflect cleans missing-artifact scolding from receipts", async () => {
+  const out = await reflect({
+    intent: "Can you help me make this safer before I send it?",
+    boundary: "personal",
+    callModel: async () => ({
+      mirror: {
+        reflection: "The draft itself is missing, so the work is blocked until you surface the exact text.",
+        question: "What exact wording are you sending, so I can strip the risky part without changing the point?",
+        move: "Surface the draft and mark the sentence that feels risky.",
+        receipt: {
+          why: "The text itself is missing, so the only honest move is to ask for it.",
+          context_used: "The missing text and the user's request.",
+          context_excluded: "Nothing else.",
+          route: "mock",
+          memory_decision: "Nothing saved.",
+        },
+        visual: { kind: "none", left: "", right: "", note: "" },
+      },
+      fallback: false,
+      routeText: "mock",
+    }),
+  });
+  const text = `${out.mirror.receipt.why} ${out.mirror.receipt.context_used}`;
+  assert.doesNotMatch(text, /text itself is missing|draft itself is missing|work is blocked|surface the draft/i, "receipt kept missing-artifact scold");
 });
 
 await check("who-are-you fallback stays plain and useful", async () => {
