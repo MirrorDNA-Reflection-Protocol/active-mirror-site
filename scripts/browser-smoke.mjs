@@ -13,7 +13,7 @@ const routes = [
     mustSee: [
       /What do you want\?/i,
       /Start here/i,
-      /Already have ID\?/i,
+      /Use my mirror/i,
       /Send/i,
     ],
     interact: true,
@@ -42,7 +42,7 @@ const routes = [
   {
     name: "mirror",
     path: "/mirror",
-    mustSee: [/What do you want\?/i, /Start here/i, /Already have ID\?/i, /Send/i],
+    mustSee: [/What do you want\?/i, /Start here/i, /Use my mirror/i, /Send/i],
   },
   {
     name: "enterprise",
@@ -54,7 +54,7 @@ const routes = [
     path: "/device",
     mustSee: [
       /What is one thing you are stuck on\?|Best on this device/i,
-      /one next move|Open full mirror/i,
+      /ONE MOVE|Make it sendable|Open full mirror/i,
       /Private by default|Saving stays your choice/i,
     ],
   },
@@ -174,16 +174,16 @@ async function exerciseStartFlow(page) {
   await page.getByRole("button", { name: /Agreeing too quickly/i }).click();
   await page.getByRole("button", { name: /One clear next step/i }).click();
   await page.getByText(/Your mirror is ready\./i).waitFor({ timeout: 10000 });
-  await page.getByText(/Download ID/i).waitFor({ timeout: 10000 });
+  await page.getByText(/Keep a copy/i).waitFor({ timeout: 10000 });
 
   const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: /Download ID/i }).click();
+  await page.getByRole("button", { name: /Keep a copy/i }).click();
   const download = await downloadPromise;
   if (download.suggestedFilename() !== "active-mirror-id.json") {
     fail(`Setup ID download used unexpected filename: ${download.suggestedFilename()}`);
   }
 
-  await page.getByRole("button", { name: /Start chat/i }).click();
+  await page.getByRole("button", { name: /Start reflecting/i }).click();
   await page.waitForURL(/\/app\/?$/, { timeout: 10000 });
   await page.getByText(/What do you want\?/i).waitFor({ timeout: 10000 });
 
