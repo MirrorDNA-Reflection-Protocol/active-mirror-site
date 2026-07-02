@@ -1,0 +1,90 @@
+{
+  "schema_version": "mirrorskill-contract/v0.1",
+  "skill_id": "public-copy-friction-sweep",
+  "version": "0.1.0",
+  "owner": "active_mirror",
+  "purpose": "Review actual public-site copy for confusing internal language, client-boundary leaks, and hard-audit failures without changing the site.",
+  "risk_level": "low",
+  "inputs": [
+    {
+      "name": "copy_audit_script",
+      "type": "node-script",
+      "source": "scripts/public-copy-audit.mjs"
+    },
+    {
+      "name": "sweep_script",
+      "type": "node-script",
+      "source": "scripts/amos-public-copy-friction-sweep.mjs"
+    },
+    {
+      "name": "site_runtime",
+      "type": "source-file",
+      "source": "src/main.js"
+    },
+    {
+      "name": "root_html",
+      "type": "source-file",
+      "source": "index.html"
+    },
+    {
+      "name": "task_queue",
+      "type": "amos-task-queue/v0.1",
+      "source": "docs/design-thinking-system/fixtures/public-copy-friction-task-queue.json"
+    }
+  ],
+  "outputs": [
+    "public-copy-friction-report.json",
+    "public-copy-friction-report.md",
+    "task-events.jsonl",
+    "task-queue-run.json"
+  ],
+  "permissions": [
+    "read_public_site_source",
+    "run_copy_audit",
+    "write_local_review_packet"
+  ],
+  "denied_permissions": [
+    "edit_public_copy",
+    "deploy_site",
+    "send_message",
+    "publish_content",
+    "call_external_connector",
+    "promote_memory"
+  ],
+  "queue": "docs/design-thinking-system/fixtures/public-copy-friction-task-queue.json",
+  "test_command": "npm run amos:queue -- --queue docs/design-thinking-system/fixtures/public-copy-friction-task-queue.json",
+  "guard_command": "npm run amos:guard",
+  "receipt_fields": [
+    "queue_run_id",
+    "workflow_id",
+    "tasks",
+    "external_actions_executed",
+    "risks_remaining"
+  ],
+  "failure_modes": [
+    {
+      "id": "public_copy_audit_failed",
+      "expected_behavior": "fail closed and write no promotion"
+    },
+    {
+      "id": "client_boundary_marker",
+      "expected_behavior": "block the sweep before any publishable recommendation"
+    },
+    {
+      "id": "internal_language_detected",
+      "expected_behavior": "record a review finding, not an automatic edit"
+    }
+  ],
+  "promotion_rule": {
+    "status": "candidate",
+    "graduates_after": "three successful local copy reviews and one documented blocked finding",
+    "requires_review": true
+  },
+  "retirement_rule": {
+    "retire_if": [
+      "edits public copy directly",
+      "deploys without a separate deploy approval",
+      "cannot produce a local review packet"
+    ]
+  }
+}

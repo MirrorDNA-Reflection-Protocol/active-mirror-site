@@ -15,6 +15,7 @@
     "amos:approval-smoke": "node scripts/amos-approval-console-smoke.mjs",
     "amos:execution-gate": "node scripts/amos-execution-gate.mjs",
     "amos:queue": "node scripts/amos-task-queue.mjs",
+    "amos:copy-sweep": "node scripts/amos-public-copy-friction-sweep.mjs",
     "amos:skill": "node scripts/amos-skill-contract.mjs",
     "preview": "vite preview",
     "worker:dev": "npx wrangler dev --config worker/wrangler.jsonc",

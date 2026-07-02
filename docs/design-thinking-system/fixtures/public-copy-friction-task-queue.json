@@ -1,0 +1,22 @@
+{
+  "schema_version": "amos-task-queue/v0.1",
+  "queue_id": "queue_public_copy_friction_001",
+  "workflow_id": "public-copy-friction-sweep",
+  "description": "Run a local-only sweep of actual Active Mirror public-site copy and produce a review packet without editing, publishing, sending, or promoting memory.",
+  "risks_remaining": [
+    "This queue reads local public-site source only; it does not prove user comprehension.",
+    "It does not edit, deploy, call connectors, or replace live mobile QA."
+  ],
+  "tasks": [
+    {
+      "task_id": "run_public_copy_friction_sweep",
+      "kind": "copy_audit",
+      "requires": [],
+      "expected_status": "ready_for_review",
+      "produces": [
+        "public-copy-friction-report.json",
+        "public-copy-friction-report.md"
+      ]
+    }
+  ]
+}

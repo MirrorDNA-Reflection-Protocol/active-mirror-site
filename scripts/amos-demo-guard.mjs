@@ -12,6 +12,7 @@ const fixturePath = resolve(repoRoot, "docs/design-thinking-system/fixtures/camp
 const toolGraphPath = resolve(repoRoot, "docs/design-thinking-system/toolgraph/campaign-approval-demo.tools.json");
 const taskQueuePath = resolve(repoRoot, "docs/design-thinking-system/fixtures/campaign-approval-task-queue.json");
 const skillDir = resolve(repoRoot, "docs/design-thinking-system/mirrorskills/campaign-approval-demo");
+const publicCopySkillDir = resolve(repoRoot, "docs/design-thinking-system/mirrorskills/public-copy-friction-sweep");
 
 function runDemo({ fixture, toolGraph = toolGraphPath, outputDir }) {
   return spawnSync(process.execPath, [demoScript], {
@@ -138,6 +139,13 @@ expectPass(
   "mirrorskill contract validates and runs queue",
   runSkillContract({
     outputDir: join(tempRoot, "skill"),
+  }),
+);
+expectPass(
+  "public copy mirrorskill contract validates and runs queue",
+  runSkillContract({
+    skill: publicCopySkillDir,
+    outputDir: join(tempRoot, "public-copy-skill"),
   }),
 );
 
@@ -287,6 +295,7 @@ console.log(
         "task_queue_runs_traceable_workflow",
         "task_queue_blocks_unmet_dependency",
         "mirrorskill_contract_validates",
+        "public_copy_mirrorskill_contract_validates",
       ],
       temp_root: tempRoot,
     },

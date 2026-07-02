@@ -237,6 +237,32 @@ if (queueLeakMarkers.length) {
       continue;
     }
 
+    if (task.kind === "copy_audit") {
+      const result = runNode("scripts/amos-public-copy-friction-sweep.mjs", ["--output", outputDir]);
+
+      if (result.status !== 0) {
+        taskResults.push(failTask({ events, task, reason: "copy_audit_failed", details: [result.stdout, result.stderr].filter(Boolean) }));
+        break;
+      }
+
+      const report = readJson(resolve(outputDir, "public-copy-friction-report.json"));
+      if (task.expected_status && report.status !== task.expected_status) {
+        taskResults.push(failTask({ events, task, reason: "copy_audit_status_mismatch", details: [report.status, task.expected_status] }));
+        break;
+      }
+
+      completed.add(task.task_id);
+      taskResults.push({
+        task_id: task.task_id,
+        kind: task.kind,
+        status: "passed",
+        sweep_id: report.sweep_id,
+        produced: task.produces || [],
+      });
+      writeEvent(events, { type: "task_completed", task_id: task.task_id, status: "passed", sweep_id: report.sweep_id });
+      continue;
+    }
+
     taskResults.push(failTask({ events, task, reason: "unknown_task_kind", details: [task.kind] }));
     break;
   }
@@ -252,7 +278,7 @@ const queueReceipt = {
   tasks: taskResults,
   external_actions_executed: [],
   output_dir: outputDir,
-  risks_remaining: [
+  risks_remaining: queue.risks_remaining || [
     "This queue uses a demo fixture and does not execute connectors.",
     "Approved decisions still require execution-gate and scope checks before any real action.",
   ],

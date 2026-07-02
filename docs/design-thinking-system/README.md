@@ -53,6 +53,8 @@ Use this to build the runtime separately from the public homepage and design wor
 - [MirrorBench v0](templates/mirrorbench-v0.md)
 - [MirrorEval v0](templates/mirroreval-v0.md)
 - [MirrorSkills v0](templates/mirrorskills-v0.md)
+- [Campaign approval demo](campaign-approval-demo.md)
+- [Public copy friction sweep](public-copy-friction-sweep.md)
 - [Dispatch v0](templates/dispatch-v0.md)
 
 ## Role Orchestration
