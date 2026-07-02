@@ -1,0 +1,43 @@
+{
+  "workflow_id": "campaign-approval-demo",
+  "schema_version": "amos-demo/v0.1",
+  "human_goal": "Prepare a short launch note for a demo product update without sending it.",
+  "scope": {
+    "lane": "active_mirror",
+    "client_scope": "demo_only",
+    "external_action_allowed": false,
+    "memory_promotion_allowed": false
+  },
+  "context": {
+    "approved_brief": "A small team wants a plain launch note that says what changed, why it helps, and what the reader can try next.",
+    "audience": "People already using the product who want a quick, useful update.",
+    "tone": "clear, practical, warm",
+    "boundary": "Use only this demo brief. Do not use client names, private history, account details, or live market claims."
+  },
+  "actions": [
+    {
+      "id": "draft_launch_note",
+      "class": "Draft",
+      "tool": "local_draft",
+      "intent": "create_reviewable_copy",
+      "approval_granted": true
+    },
+    {
+      "id": "send_launch_note",
+      "class": "Act",
+      "tool": "external_email",
+      "intent": "send_to_audience",
+      "approval_granted": false
+    }
+  ],
+  "memory_candidates": [
+    {
+      "id": "mem_demo_preference_001",
+      "content": "Launch notes should be short, plain, and action-oriented.",
+      "type": "user_preference",
+      "scope": ["demo_campaign_copy"],
+      "source": "demo_fixture",
+      "requires_consent_for_export": true
+    }
+  ]
+}
