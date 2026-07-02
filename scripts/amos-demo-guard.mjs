@@ -6,8 +6,10 @@ import { spawnSync } from "node:child_process";
 const repoRoot = resolve(new URL("..", import.meta.url).pathname);
 const demoScript = resolve(repoRoot, "scripts/amos-campaign-approval-demo.mjs");
 const executionGateScript = resolve(repoRoot, "scripts/amos-execution-gate.mjs");
+const taskQueueScript = resolve(repoRoot, "scripts/amos-task-queue.mjs");
 const fixturePath = resolve(repoRoot, "docs/design-thinking-system/fixtures/campaign-approval-demo.json");
 const toolGraphPath = resolve(repoRoot, "docs/design-thinking-system/toolgraph/campaign-approval-demo.tools.json");
+const taskQueuePath = resolve(repoRoot, "docs/design-thinking-system/fixtures/campaign-approval-task-queue.json");
 
 function runDemo({ fixture, toolGraph = toolGraphPath, outputDir }) {
   return spawnSync(process.execPath, [demoScript], {
@@ -51,6 +53,13 @@ function runExecutionGate({ decision, packet, fixture = fixturePath, toolGraph =
   );
 }
 
+function runTaskQueue({ queue = taskQueuePath, outputDir }) {
+  return spawnSync(process.execPath, [taskQueueScript, "--queue", queue, "--output", outputDir], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+}
+
 const tempRoot = mkdtempSync(join(tmpdir(), "amos-demo-guard-"));
 const baseFixture = JSON.parse(readFileSync(fixturePath, "utf8"));
 const baseToolGraph = JSON.parse(readFileSync(toolGraphPath, "utf8"));
@@ -91,6 +100,49 @@ expectPass(
     packet: join(positiveOutputDir, "approval-packet.json"),
     outputDir: join(tempRoot, "execution-approved"),
   }),
+);
+
+const queueOutputDir = join(tempRoot, "queue");
+expectPass(
+  "task queue runs draft approval and execution gate",
+  runTaskQueue({
+    outputDir: queueOutputDir,
+  }),
+);
+
+const queueReceipt = JSON.parse(readFileSync(join(queueOutputDir, "task-queue-run.json"), "utf8"));
+if (queueReceipt.status !== "passed") {
+  console.error(`task queue did not pass: ${queueReceipt.status}`);
+  process.exit(1);
+}
+if (queueReceipt.external_actions_executed.length !== 0) {
+  console.error("task queue executed an external action");
+  process.exit(1);
+}
+const queueExecutionTask = queueReceipt.tasks.find((task) => task.task_id === "check_execution_gate");
+if (queueExecutionTask?.verdict !== "held_scope_forbids_external_execution") {
+  console.error(`task queue execution verdict was wrong: ${queueExecutionTask?.verdict}`);
+  process.exit(1);
+}
+
+const badQueue = JSON.parse(readFileSync(taskQueuePath, "utf8"));
+badQueue.tasks = [
+  {
+    task_id: "bad_execution_first",
+    kind: "execution_gate",
+    requires: ["record_local_decision"],
+    expected_verdict: "held_scope_forbids_external_execution",
+  },
+];
+const badQueuePath = join(tempRoot, "bad-queue.json");
+writeFileSync(badQueuePath, `${JSON.stringify(badQueue, null, 2)}\n`);
+expectFail(
+  "task queue blocks unmet dependency",
+  runTaskQueue({
+    queue: badQueuePath,
+    outputDir: join(tempRoot, "bad-queue"),
+  }),
+  "dependency_not_completed",
 );
 
 const approvedGateReceipt = JSON.parse(readFileSync(join(tempRoot, "execution-approved", "execution-gate-receipt.json"), "utf8"));
@@ -216,6 +268,8 @@ console.log(
         "approved_decision_held_by_execution_gate",
         "declined_decision_blocks_execution_gate",
         "tampered_decision_fails_execution_gate",
+        "task_queue_runs_traceable_workflow",
+        "task_queue_blocks_unmet_dependency",
       ],
       temp_root: tempRoot,
     },

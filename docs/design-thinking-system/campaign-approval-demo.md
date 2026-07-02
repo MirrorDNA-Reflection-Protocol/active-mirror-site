@@ -6,6 +6,7 @@ It is deliberately non-client and non-SWFI. It proves the workflow shape only:
 
 ```text
 demo brief
+  -> task queue
   -> ToolGraph route check
   -> safe draft
   -> approval gate
@@ -20,6 +21,12 @@ demo brief
 
 ```bash
 npm run amos:demo
+```
+
+Run the full queued workflow:
+
+```bash
+npm run amos:queue
 ```
 
 By default, the command writes generated proof files under:
@@ -64,6 +71,8 @@ AMOS_DEMO_OUTPUT_DIR=/tmp/my-amos-demo npm run amos:demo
 - `approval-packet.html`
 - `approval-console.html`
 - `execution-gate-receipt.json`
+- `task-events.jsonl`
+- `task-queue-run.json`
 
 `approval-console.html` is a local browser screen. It can record an approve or decline decision and download a decision receipt. It still cannot send, publish, or call an external tool.
 
@@ -74,6 +83,14 @@ AMOS_DEMO_OUTPUT_DIR=/tmp/my-amos-demo npm run amos:demo
 ```bash
 npm run amos:execution-gate -- --decision /path/to/decision.json
 ```
+
+## Task Queue
+
+```bash
+npm run amos:queue
+```
+
+The queue runs the demo, creates a local decision receipt, checks it through the execution gate, and writes `task-queue-run.json` plus `task-events.jsonl`.
 
 ## Promotion Rule
 

@@ -1,0 +1,31 @@
+{
+  "schema_version": "amos-task-queue/v0.1",
+  "queue_id": "campaign-approval-demo-queue",
+  "workflow_id": "campaign-approval-demo",
+  "fixture": "docs/design-thinking-system/fixtures/campaign-approval-demo.json",
+  "toolgraph": "docs/design-thinking-system/toolgraph/campaign-approval-demo.tools.json",
+  "tasks": [
+    {
+      "task_id": "draft_approval_packet",
+      "kind": "demo",
+      "requires": [],
+      "produces": ["approval-packet.json", "approval-console.html", "receipt.json", "SCD.json"],
+      "expected_status": "passed"
+    },
+    {
+      "task_id": "record_local_decision",
+      "kind": "decision",
+      "requires": ["draft_approval_packet"],
+      "decision": "approved",
+      "note": "Queue fixture records local approval only.",
+      "produces": ["approved-decision.json"]
+    },
+    {
+      "task_id": "check_execution_gate",
+      "kind": "execution_gate",
+      "requires": ["record_local_decision"],
+      "expected_verdict": "held_scope_forbids_external_execution",
+      "produces": ["execution-gate-receipt.json"]
+    }
+  ]
+}
