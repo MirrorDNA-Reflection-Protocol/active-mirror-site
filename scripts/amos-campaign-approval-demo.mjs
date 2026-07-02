@@ -333,11 +333,12 @@ function escapeHtml(text) {
     .replace(/"/g, "&quot;");
 }
 
-function approvalPacketHtml(packet) {
+function approvalConsoleHtml(packet) {
   const held = packet.held_actions
     .map((action) => `<li><strong>${escapeHtml(action.action_id)}</strong> via ${escapeHtml(action.tool)}<br><span>${escapeHtml(action.reason)}</span></li>`)
     .join("");
   const body = packet.draft.body.map((line) => `<p>${escapeHtml(line)}</p>`).join("");
+  const packetJson = JSON.stringify(packet).replace(/</g, "\\u003c");
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -349,6 +350,13 @@ function approvalPacketHtml(packet) {
     body { margin: 0; padding: 32px; background: #0f1014; color: #f5f2ea; }
     main { max-width: 760px; margin: 0 auto; }
     section { border: 1px solid rgba(245,242,234,.18); border-radius: 8px; padding: 20px; margin: 16px 0; background: rgba(255,255,255,.04); }
+    button { min-height: 44px; border-radius: 8px; border: 1px solid rgba(245,242,234,.22); padding: 0 18px; color: #f5f2ea; background: rgba(255,255,255,.08); font: inherit; cursor: pointer; }
+    button.primary { background: #38d5c8; border-color: #38d5c8; color: #071112; }
+    button.danger { background: rgba(255,112,91,.14); border-color: rgba(255,112,91,.58); }
+    button:focus-visible { outline: 3px solid rgba(56,213,200,.42); outline-offset: 3px; }
+    textarea { width: 100%; min-height: 88px; box-sizing: border-box; border-radius: 8px; border: 1px solid rgba(245,242,234,.18); padding: 12px; background: rgba(0,0,0,.22); color: inherit; font: inherit; resize: vertical; }
+    pre { overflow: auto; border-radius: 8px; padding: 16px; background: rgba(0,0,0,.32); border: 1px solid rgba(245,242,234,.14); }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; }
     h1, h2 { letter-spacing: 0; }
     .state { display: inline-flex; padding: 6px 10px; border: 1px solid #38d5c8; border-radius: 999px; color: #38d5c8; }
     li { margin: 10px 0; }
@@ -369,7 +377,68 @@ function approvalPacketHtml(packet) {
       <h2>Held Actions</h2>
       <ul>${held || "<li>None</li>"}</ul>
     </section>
+    <section>
+      <h2>Decision</h2>
+      <p>This records a local decision only. It does not send, publish, or call an external tool.</p>
+      <label for="approval-note">Note</label>
+      <textarea id="approval-note" placeholder="Optional note for the receipt"></textarea>
+      <div class="actions">
+        <button class="primary" data-decision="approved" type="button">Approve draft</button>
+        <button class="danger" data-decision="declined" type="button">Decline</button>
+        <button id="download-decision" type="button" disabled>Download decision</button>
+      </div>
+      <pre id="decision-receipt" aria-live="polite">No decision recorded.</pre>
+    </section>
   </main>
+  <script type="application/json" id="approval-packet">${packetJson}</script>
+  <script>
+    const packet = JSON.parse(document.getElementById("approval-packet").textContent);
+    const receipt = document.getElementById("decision-receipt");
+    const note = document.getElementById("approval-note");
+    const download = document.getElementById("download-decision");
+    let currentDecision = null;
+
+    function buildDecision(decision) {
+      return {
+        schema_version: "amos-approval-decision/v0.1",
+        decision_id: "decision_" + packet.packet_id + "_" + decision + "_" + Date.now().toString(36),
+        packet_id: packet.packet_id,
+        workflow_id: packet.workflow_id,
+        decision,
+        note: note.value.trim(),
+        external_actions_executed: [],
+        requires_execution_gate: decision === "approved",
+        recorded_at: new Date().toISOString(),
+        message: decision === "approved"
+          ? "Approval recorded locally. External execution still requires the execution gate."
+          : "Decline recorded locally. No action will be executed."
+      };
+    }
+
+    function recordDecision(decision) {
+      currentDecision = buildDecision(decision);
+      localStorage.setItem("amos_approval_decision:" + packet.packet_id, JSON.stringify(currentDecision));
+      receipt.textContent = JSON.stringify(currentDecision, null, 2);
+      download.disabled = false;
+    }
+
+    document.querySelectorAll("[data-decision]").forEach((button) => {
+      button.addEventListener("click", () => recordDecision(button.dataset.decision));
+    });
+
+    download.addEventListener("click", () => {
+      if (!currentDecision) return;
+      const blob = new Blob([JSON.stringify(currentDecision, null, 2) + "\\n"], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = currentDecision.decision_id + ".json";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    });
+  </script>
 </body>
 </html>
 `;
@@ -406,7 +475,8 @@ function writeReceipt({ fixture, draft, gates, claims, verifier, scdState, glyph
   writeFileSync(resolve(outputDir, "verifier-report.json"), `${JSON.stringify(verifier, null, 2)}\n`);
   writeFileSync(resolve(outputDir, "approval-packet.json"), `${JSON.stringify(approvalPacket, null, 2)}\n`);
   writeFileSync(resolve(outputDir, "approval-packet.md"), approvalPacketMarkdown(approvalPacket));
-  writeFileSync(resolve(outputDir, "approval-packet.html"), approvalPacketHtml(approvalPacket));
+  writeFileSync(resolve(outputDir, "approval-packet.html"), approvalConsoleHtml(approvalPacket));
+  writeFileSync(resolve(outputDir, "approval-console.html"), approvalConsoleHtml(approvalPacket));
   writeFileSync(resolve(outputDir, "receipt.json"), `${JSON.stringify(receipt, null, 2)}\n`);
 
   return receipt;

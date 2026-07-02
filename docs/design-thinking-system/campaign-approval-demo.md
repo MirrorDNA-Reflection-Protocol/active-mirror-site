@@ -60,6 +60,9 @@ AMOS_DEMO_OUTPUT_DIR=/tmp/my-amos-demo npm run amos:demo
 - `approval-packet.json`
 - `approval-packet.md`
 - `approval-packet.html`
+- `approval-console.html`
+
+`approval-console.html` is a local browser screen. It can record an approve or decline decision and download a decision receipt. It still cannot send, publish, or call an external tool.
 
 ## Promotion Rule
 
