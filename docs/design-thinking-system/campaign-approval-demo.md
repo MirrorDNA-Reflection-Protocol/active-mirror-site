@@ -29,6 +29,12 @@ Run the full queued workflow:
 npm run amos:queue
 ```
 
+Validate the skill contract:
+
+```bash
+npm run amos:skill
+```
+
 By default, the command writes generated proof files under:
 
 ```text
@@ -91,6 +97,16 @@ npm run amos:queue
 ```
 
 The queue runs the demo, creates a local decision receipt, checks it through the execution gate, and writes `task-queue-run.json` plus `task-events.jsonl`.
+
+## MirrorSkill
+
+The reusable skill contract lives at:
+
+```text
+docs/design-thinking-system/mirrorskills/campaign-approval-demo/contract.json
+```
+
+The validator checks required contract fields, referenced files, denied permissions, receipt fields, forbidden client markers, and a queue smoke run.
 
 ## Promotion Rule
 

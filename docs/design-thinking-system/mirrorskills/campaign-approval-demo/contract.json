@@ -1,0 +1,89 @@
+{
+  "schema_version": "mirrorskill-contract/v0.1",
+  "skill_id": "campaign-approval-demo",
+  "version": "0.1.0",
+  "owner": "active_mirror",
+  "purpose": "Prepare a reviewable launch note from demo-approved context, hold outbound action for approval, and prove the decision path through queue and execution gates.",
+  "risk_level": "medium",
+  "inputs": [
+    {
+      "name": "approved_demo_brief",
+      "type": "string",
+      "source": "docs/design-thinking-system/fixtures/campaign-approval-demo.json"
+    },
+    {
+      "name": "toolgraph",
+      "type": "toolgraph/v0.1",
+      "source": "docs/design-thinking-system/toolgraph/campaign-approval-demo.tools.json"
+    },
+    {
+      "name": "task_queue",
+      "type": "amos-task-queue/v0.1",
+      "source": "docs/design-thinking-system/fixtures/campaign-approval-task-queue.json"
+    }
+  ],
+  "outputs": [
+    "approval-packet.json",
+    "approval-console.html",
+    "approved-decision.json",
+    "execution-gate-receipt.json",
+    "task-events.jsonl",
+    "task-queue-run.json"
+  ],
+  "permissions": [
+    "read_demo_fixture",
+    "write_local_artifacts",
+    "record_local_decision",
+    "run_execution_gate"
+  ],
+  "denied_permissions": [
+    "send_message",
+    "publish_content",
+    "call_external_connector",
+    "promote_memory"
+  ],
+  "queue": "docs/design-thinking-system/fixtures/campaign-approval-task-queue.json",
+  "test_command": "npm run amos:queue",
+  "guard_command": "npm run amos:guard",
+  "receipt_fields": [
+    "queue_run_id",
+    "workflow_id",
+    "tasks",
+    "external_actions_executed",
+    "risks_remaining"
+  ],
+  "failure_modes": [
+    {
+      "id": "client_boundary_leak",
+      "expected_behavior": "fail closed before drafting or action"
+    },
+    {
+      "id": "unregistered_tool",
+      "expected_behavior": "fail closed before route execution"
+    },
+    {
+      "id": "missing_dependency",
+      "expected_behavior": "fail the queue before downstream task execution"
+    },
+    {
+      "id": "tampered_decision",
+      "expected_behavior": "fail the execution gate"
+    },
+    {
+      "id": "approved_but_scope_forbids_external",
+      "expected_behavior": "hold the action with no external execution"
+    }
+  ],
+  "promotion_rule": {
+    "status": "candidate",
+    "graduates_after": "three successful non-demo workflows and one documented failure mode",
+    "requires_review": true
+  },
+  "retirement_rule": {
+    "retire_if": [
+      "fails client-boundary guard",
+      "executes external action without connector-specific gate",
+      "cannot produce queue receipt"
+    ]
+  }
+}

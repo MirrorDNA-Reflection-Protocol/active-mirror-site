@@ -7,9 +7,11 @@ const repoRoot = resolve(new URL("..", import.meta.url).pathname);
 const demoScript = resolve(repoRoot, "scripts/amos-campaign-approval-demo.mjs");
 const executionGateScript = resolve(repoRoot, "scripts/amos-execution-gate.mjs");
 const taskQueueScript = resolve(repoRoot, "scripts/amos-task-queue.mjs");
+const skillContractScript = resolve(repoRoot, "scripts/amos-skill-contract.mjs");
 const fixturePath = resolve(repoRoot, "docs/design-thinking-system/fixtures/campaign-approval-demo.json");
 const toolGraphPath = resolve(repoRoot, "docs/design-thinking-system/toolgraph/campaign-approval-demo.tools.json");
 const taskQueuePath = resolve(repoRoot, "docs/design-thinking-system/fixtures/campaign-approval-task-queue.json");
+const skillDir = resolve(repoRoot, "docs/design-thinking-system/mirrorskills/campaign-approval-demo");
 
 function runDemo({ fixture, toolGraph = toolGraphPath, outputDir }) {
   return spawnSync(process.execPath, [demoScript], {
@@ -55,6 +57,13 @@ function runExecutionGate({ decision, packet, fixture = fixturePath, toolGraph =
 
 function runTaskQueue({ queue = taskQueuePath, outputDir }) {
   return spawnSync(process.execPath, [taskQueueScript, "--queue", queue, "--output", outputDir], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+}
+
+function runSkillContract({ skill = skillDir, outputDir }) {
+  return spawnSync(process.execPath, [skillContractScript, "--skill", skill, "--output", outputDir], {
     cwd: repoRoot,
     encoding: "utf8",
   });
@@ -124,6 +133,13 @@ if (queueExecutionTask?.verdict !== "held_scope_forbids_external_execution") {
   console.error(`task queue execution verdict was wrong: ${queueExecutionTask?.verdict}`);
   process.exit(1);
 }
+
+expectPass(
+  "mirrorskill contract validates and runs queue",
+  runSkillContract({
+    outputDir: join(tempRoot, "skill"),
+  }),
+);
 
 const badQueue = JSON.parse(readFileSync(taskQueuePath, "utf8"));
 badQueue.tasks = [
@@ -270,6 +286,7 @@ console.log(
         "tampered_decision_fails_execution_gate",
         "task_queue_runs_traceable_workflow",
         "task_queue_blocks_unmet_dependency",
+        "mirrorskill_contract_validates",
       ],
       temp_root: tempRoot,
     },
