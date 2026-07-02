@@ -1,0 +1,57 @@
+{
+  "schema_version": "active-mirror-identity-source-check/v1",
+  "checked_at": "2026-07-02T15:14:36.704Z",
+  "contract": "identity/active-mirror-identity.json",
+  "contract_sha256": "9b0e59afd1a5daa2102b2de7e2f72444d9574ec5131e3724587e2c6f7988d817",
+  "results": [
+    {
+      "label": "Active Mirror app",
+      "url": "https://activemirror.ai/app/",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://activemirror.ai/app/"
+    },
+    {
+      "label": "canonical",
+      "url": "https://activemirror.ai/app/start/",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://activemirror.ai/app/start/"
+    },
+    {
+      "label": "canonical",
+      "url": "https://id.activemirror.ai/",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://id.activemirror.ai/"
+    },
+    {
+      "label": "Active Mirror privacy",
+      "url": "https://activemirror.ai/privacy/",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://activemirror.ai/privacy/"
+    },
+    {
+      "label": "Active Mirror terms",
+      "url": "https://activemirror.ai/terms/",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://activemirror.ai/terms/"
+    },
+    {
+      "label": "Active Mirror Identity archive/spec",
+      "url": "https://github.com/MirrorDNA-Reflection-Protocol/active-mirror-identity",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://github.com/MirrorDNA-Reflection-Protocol/active-mirror-identity"
+    },
+    {
+      "label": "MirrorDNA protocol",
+      "url": "https://github.com/MirrorDNA-Reflection-Protocol/MirrorDNA",
+      "ok": true,
+      "status": 200,
+      "final_url": "https://github.com/MirrorDNA-Reflection-Protocol/MirrorDNA"
+    }
+  ]
+}

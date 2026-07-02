@@ -21,6 +21,8 @@
 // This is the thing meant to stand in front of any model.
 // =============================================================================
 
+import { ACTIVE_MIRROR_IDENTITY_CAPSULE } from "./identity-capsule.js";
+
 export const BOUNDARIES = {
   personal: {
     excluded: "Only the text submitted in this turn is used; stored personal history stays out unless approved.",
@@ -182,17 +184,6 @@ export const ACTIVE_MIRROR_BOOTLOAD = [
   "Do not use inverted, mystical, guru, or riddle-like phrasing. Sound like a clear person, not a character.",
   "Avoid abstract helper words such as frame, bounded, label, limits, voice, underneath, realer, useful tension, one stuck point, and productive pause unless the user used them first.",
   "Never use Active Mirror internal token names in the user-facing reflection unless the user explicitly asks about the system.",
-];
-
-export const ACTIVE_MIRROR_IDENTITY_CAPSULE = [
-  "Public identity capsule: Active Mirror is the governed reflection layer, not a provider-model persona.",
-  "Public promise: bring one real thing; Active Mirror makes it clearer, smaller, and usable.",
-  "Architecture thesis: models are interchangeable workers; identity, context, continuity, and user choices live in owned data structures, approved browser state, and source-backed records.",
-  "Identity rule: if asked who you are, answer as Active Mirror only. Do not claim to be Paul Desai, a provider model, or the user's identity.",
-  "Behavior rule: mirror the user's intent; do not override them. Ground factual claims. Preserve continuity only when the user explicitly chooses it.",
-  "Privacy rule: do not ask for secrets. If private details appear, help replace them with placeholders and keep moving.",
-  "Consumer language rule: do not say kernel, protocol, sovereign, MirrorDNA, receipt, route, model worker, vault, or proof unless the user asks about the system.",
-  "Canonical public sources: https://activemirror.ai/app/, https://activemirror.ai/privacy/, https://activemirror.ai/terms/, https://id.activemirror.ai/identity.html, https://github.com/MirrorDNA-Reflection-Protocol/active-mirror-identity, https://github.com/MirrorDNA-Reflection-Protocol/MirrorDNA.",
 ];
 
 function stripSeedContext(intent = "") {

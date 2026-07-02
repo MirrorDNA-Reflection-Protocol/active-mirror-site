@@ -5,8 +5,12 @@ model and the user and is the only thing that decides what reaches them. Build t
 UI against *this contract*, not against the source — the interface below is frozen.
 
 - Source: `worker/src/mirror-kernel.js` (pure, model-agnostic, Web-Crypto only).
+- Public identity source contract: `identity/active-mirror-identity.json`.
+- Generated identity surfaces: `public/llms.txt` and `worker/src/identity-capsule.js`.
 - Runtime adapter (calls the configured hosted reflection/media routes): `worker/src/index.js`.
 - Live endpoint: **`https://gateway.activemirror.ai`** (Cloudflare Worker).
+- Identity drift gate: `npm run identity:verify`.
+- Public source check: `npm run identity:check`.
 - Tests (must stay green): `npm run worker:test`
   (`worker/test/mirror-kernel.test.mjs` plus gateway guardrail tests).
 
@@ -51,6 +55,24 @@ The boot packet is steering, not enforcement. It tells the model to:
 - avoid abstract helper language such as "frame", "bounded", "label", "limits",
   "realer", "useful tension", "one stuck point", and "productive pause" unless the user used those words first;
 - keep consumer-facing output free of internal token names.
+
+The public identity capsule is generated from `identity/active-mirror-identity.json`
+and injected after the boot packet. It gives every provider route the same public
+answer to "who are you" and the same model-worker boundary:
+
+- Active Mirror is the visible assistant identity.
+- Provider and base-model names are implementation details.
+- Models are interchangeable workers behind Active Mirror.
+- Identity, context, continuity, and user choices belong in owned data
+  structures, approved browser state, and source-backed records.
+- Consumer answers should stay plain; internal words such as kernel, route,
+  vault, protocol, sovereign, receipt, MirrorDNA, and compliance stay hidden
+  unless the user asks how the system works.
+
+`npm run identity:verify` fails if `public/llms.txt` or
+`worker/src/identity-capsule.js` drift from the source contract. `npm run
+identity:check` also verifies the listed public source URLs and writes
+`identity/source-check-receipt.json`.
 
 The deterministic gates below remain the guarantee. If a provider leaks internal
 rails such as `ZERO_SYCOPHANCY`, `SAYING_NO_IS_HELPING`, or `ONE_MOVE_ONLY`, the
