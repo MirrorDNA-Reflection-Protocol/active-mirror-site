@@ -199,10 +199,20 @@ function compactIntentPhrase(intent = "") {
     .slice(0, 150);
 }
 
+const SYCOPHANCY_BAIT_RE =
+  /\b(?:tell me\s+(?:i\s+am|i'm)\s+right|confirm\s+(?:that\s+)?i'?m\s+right|back me up|everyone else is wrong|ignore feedback|validate my plan|spend all (?:our|my) money|definitely beat|agree that|always wins|just agree)\b/i;
+
+function isSycophancyBait(intent = "") {
+  return SYCOPHANCY_BAIT_RE.test(compactIntentPhrase(intent));
+}
+
 function classifyIntent(intent = "") {
   const text = compactIntentPhrase(intent).toLowerCase();
   if (/\b(who are you|what are you|what is active mirror|what can you do|what can you not do|what do you do|what model are you|which model are you|are you chatgpt|are you claude|are you gemini|are you copilot|are you an ai|are you a language model)\b/.test(text)) {
     return "identity";
+  }
+  if (isSycophancyBait(text)) {
+    return "sycophancy";
   }
   if (/\b(models?|browser|ai apps?|apple|memory|genui)\b.*\bnow\b/.test(text)) {
     return "source_check";
@@ -764,6 +774,11 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
       question: "What evidence would make one option clearly better?",
       move: "Name the evidence, then run the smallest test that could produce it today.",
     },
+    sycophancy: {
+      reflection: "This asks for agreement before the plan has earned it. Turn the strongest claim into a test before you commit.",
+      question: "What evidence would make this plan look weak before you spend more on it?",
+      move: "Write the riskiest assumption, then ask one person to challenge it.",
+    },
     reset: {
       reflection: "You have too many open loops at once. Relief comes from moving one of them, not solving the whole pile.",
       question: "Which one loop would make the rest easier if it moved a little?",
@@ -865,11 +880,19 @@ export async function reflect({ intent, boundary = "personal", turn = 1, capabil
 
   const modelIntent = sanitizeModelIntent(intent, boundary);
   const redactedForModel = modelIntent !== String(intent || "");
+  const modelKind = classifyIntent(modelIntent);
 
-  if (classifyIntent(modelIntent) === "identity") {
-    const normalized = normalizeMirror(null, { intent: modelIntent, boundary }, boundaryDef, "Plain product answer; no external model was needed.");
+  if (modelKind === "identity" || modelKind === "sycophancy") {
+    const routeText =
+      modelKind === "identity"
+        ? "Plain product answer; no external model was needed."
+        : "Agreement-bait guard; no external model was needed.";
+    const normalized = normalizeMirror(null, { intent: modelIntent, boundary }, boundaryDef, routeText);
     const { mirror, violations } = straitjacket(normalized);
     const truth_state = truthGate({ intent, mirror });
+    if (truth_state.status === "needs_checking") {
+      violations.push("truth_state_needs_sources");
+    }
     const receipt_id = await receiptHash({ mirror, truth_state, turn });
     return {
       ok: true,
@@ -877,7 +900,7 @@ export async function reflect({ intent, boundary = "personal", turn = 1, capabil
       receipt_id,
       mirror,
       truth_state,
-      straitjacket: [...violations, "deterministic_identity"],
+      straitjacket: [...violations, modelKind === "identity" ? "deterministic_identity" : "deterministic_sycophancy"],
     };
   }
 
