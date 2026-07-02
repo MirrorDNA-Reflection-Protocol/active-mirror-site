@@ -58,6 +58,9 @@ await check("buildPrompt includes the versioned Active Mirror boot packet", () =
   assert.ok(prompt.includes("REFLECTION_OVER_PREDICTION"), "reflection rail missing");
   assert.ok(prompt.includes("ONE_MOVE_ONLY"), "one-move rail missing");
   assert.ok(prompt.includes("Never use Active Mirror internal token names"), "consumer-language rail missing");
+  assert.ok(prompt.includes("Public identity capsule: Active Mirror is the governed reflection layer"), "public identity capsule missing");
+  assert.ok(prompt.includes("models are interchangeable workers"), "interchangeable-model identity thesis missing");
+  assert.ok(prompt.includes("https://github.com/MirrorDNA-Reflection-Protocol/active-mirror-identity"), "identity source reference missing");
 });
 
 // 1. The straitjacket strips flattery, forces a real question, keeps one move — pure, no model.
@@ -109,7 +112,7 @@ await check("straitjacket rewrites blamey motive-reading into pattern language",
   });
   const combined = `${mirror.reflection} ${mirror.question} ${mirror.move}`;
   assert.ok(!/you keep|you are using|you're using|are you avoiding|to avoid/i.test(combined), "motive-reading survived");
-  assert.ok(/tool is holding the work|make this simpler/i.test(combined), "pattern language was not substituted");
+  assert.ok(/turning into a loop|make this simpler/i.test(combined), "pattern language was not substituted");
   assert.ok(violations.includes("motive_guard_applied"), "motive guard was not recorded");
 });
 
