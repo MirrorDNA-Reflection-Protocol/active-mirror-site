@@ -64,6 +64,10 @@ async function main() {
     assert(data.ok === true, "health ok was not true");
     assert(/^2026-07-01-artifact-quality-v1$/.test(String(data.version || "")), "unexpected gateway version");
     assert(data.guardrails?.event_policy === "no-prompt-content", "event policy missing");
+    assert(data.identity?.version === "2026-07-02-public-identity-v1", "identity capsule version missing");
+    assert(/^[a-f0-9]{64}$/.test(String(data.identity?.source_hash || "")), "identity capsule source hash missing");
+    assert(Number(data.identity?.source_count || 0) >= 5, "identity capsule source count missing");
+    assert(data.identity?.public_instructions === `${SITE}/llms.txt`, "identity public instructions url missing");
     assert(data.guardrails?.truth_state === "enabled", "truth-state guardrail missing");
     assert(data.guardrails?.mirrordash_glass === "enabled", "MirrorDash Glass guardrail missing");
     assert(data.guardrails?.router_transparency === "enabled", "router transparency guardrail missing");
@@ -176,6 +180,8 @@ async function main() {
     assert(data.route?.upstream_host === new URL(BRIDGE).hostname, `mirror upstream host was ${data.route?.upstream_host || "missing"}`);
     assert(/^[a-f0-9]{24}$/.test(String(data.receipt_id || "")), "receipt id missing");
     assert(data.glass?.surface === "MirrorDash Glass", "MirrorDash Glass surface missing");
+    assert(data.glass?.identity?.capsule?.version === "2026-07-02-public-identity-v1", "Glass identity capsule version missing");
+    assert(/^[a-f0-9]{64}$/.test(String(data.glass?.identity?.capsule?.source_hash || "")), "Glass identity source hash missing");
     assert(data.glass?.contract === "transparent_router", "Glass contract missing");
     assert(data.glass?.algorithm?.id === "mirror_loop_v1", "Glass algorithm id missing");
     assert(data.glass?.algorithm?.ethos === "trust_by_design_or_hardstop", "Glass ethos missing");

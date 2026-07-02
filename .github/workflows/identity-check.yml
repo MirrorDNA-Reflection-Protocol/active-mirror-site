@@ -1,0 +1,30 @@
+name: Identity Check
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 3 * * *"
+  push:
+    branches:
+      - main
+    paths:
+      - "identity/**"
+      - "public/llms.txt"
+      - "worker/src/identity-capsule.js"
+      - "scripts/build-identity-capsule.mjs"
+      - ".github/workflows/identity-check.yml"
+      - "package.json"
+      - "package-lock.json"
+
+jobs:
+  identity-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run identity:check

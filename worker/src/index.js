@@ -20,6 +20,11 @@ import {
   reflect,
   sanitizeModelIntent,
 } from "./mirror-kernel.js";
+import {
+  ACTIVE_MIRROR_IDENTITY_CAPSULE_VERSION,
+  ACTIVE_MIRROR_IDENTITY_SOURCE_HASH,
+  ACTIVE_MIRROR_IDENTITY_SOURCES,
+} from "./identity-capsule.js";
 
 const ALLOWED_ORIGINS = new Set([
   "https://activemirror.ai",
@@ -262,6 +267,7 @@ export default {
           ok: true,
           service: "active-mirror-site-gateway",
           version: WORKER_VERSION,
+          identity: publicIdentityCapsule(),
           routes: publicRoutes(env),
           guardrails: publicGuardrails(env),
         },
@@ -2747,6 +2753,7 @@ function mirrorDashGlass({ route, selectedRoute, boundary, result, attempts, pro
       user_role: "the user's mirror",
       worker_role: "model worker",
       rule: "The mirror is the filter; the model never becomes the identity.",
+      capsule: publicIdentityCapsule(),
     },
     algorithm: ACTIVE_MIRROR_ALGORITHM,
     recursion_lock: RECURSIVE_PERFECTION_LOCK,
@@ -2891,6 +2898,16 @@ function publicGuardrails(env) {
     model_egress: failsafe.active ? "disabled" : "enabled",
     source_check: hasSourceCheckRoute(env) ? "enabled" : "not_configured",
     artifact: "enabled",
+  };
+}
+
+function publicIdentityCapsule() {
+  return {
+    version: ACTIVE_MIRROR_IDENTITY_CAPSULE_VERSION,
+    source_hash: ACTIVE_MIRROR_IDENTITY_SOURCE_HASH,
+    source_count: ACTIVE_MIRROR_IDENTITY_SOURCES.length,
+    source_contract: "identity/active-mirror-identity.json",
+    public_instructions: "https://activemirror.ai/llms.txt",
   };
 }
 
