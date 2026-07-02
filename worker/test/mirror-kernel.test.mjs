@@ -295,6 +295,20 @@ await check("truthGate does not source-gate current draft action language", () =
   assert.deepStrictEqual(truth.signals, []);
 });
 
+// 9d. "Today" can be normal action timing. It is not automatically a live fact claim.
+await check("truthGate does not source-gate send-today action language", () => {
+  const truth = truthGate({
+    intent: "I need one sentence I can send to one person today.",
+    mirror: {
+      reflection: "The page is too broad for one send today, so a small draft beats a full rewrite.",
+      question: "Who is the one person and what do you want them to do?",
+      move: "Write one sentence that asks that person to do one thing today.",
+    },
+  });
+  assert.strictEqual(truth.status, "reflective");
+  assert.deepStrictEqual(truth.signals, []);
+});
+
 // 10. Truth gate marks current/external claims as needing sources instead of sounding certain.
 await check("truthGate marks current competitor claims as needing sources", () => {
   const truth = truthGate({
@@ -410,6 +424,17 @@ await check("straitjacket blocks stilted or mystical voice", () => {
   assert.ok(mirror.question.endsWith("?"), "question not preserved as a question");
   assert.strictEqual(mirror.move, "Write one sentence about the thing you want to move.");
   assert.ok(violations.includes("tone_guard_applied"), "tone guard was not recorded");
+});
+
+await check("straitjacket repairs clipped dangling questions", () => {
+  const { mirror, violations } = straitjacket({
+    reflection: "You are asking for the current state, and the answer needs live checking before it becomes direction. The choice is source check versus stale memory.",
+    question: "Do you want me to check the live Hugging Face Chat UI now, or are you asking about the last state you",
+    move: "Open the live Hugging Face Chat UI and note the first visible change.",
+    receipt: RECEIPT,
+  });
+  assert.strictEqual(mirror.question, "What exactly needs checking before you rely on it?");
+  assert.ok(violations.includes("question_forced"), "dangling question repair was not recorded");
 });
 
 await check("straitjacket reframes missing-artifact scolding into useful intake", () => {

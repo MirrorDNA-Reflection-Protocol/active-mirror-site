@@ -208,6 +208,17 @@ function isSycophancyBait(intent = "") {
   return SYCOPHANCY_BAIT_RE.test(compactIntentPhrase(intent));
 }
 
+function needsSourceCheckText(text = "") {
+  const value = String(text || "").toLowerCase();
+  const explicitSourceAsk =
+    /\b(2026|this year|recently|right now|current|latest|online|web|source|sources|research|competitor|competitors|market|verify|check|paper|study|studies|report|pricing|released|launched|who is doing|generative ui)\b/.test(value);
+  const timedFactAsk =
+    /\b(today|this week|this month|this year|as of)\b/.test(value) &&
+    /\b(news|market|price|pricing|competitor|competitors|research|source|verify|check|fact|facts|numbers|paper|study|studies|report|released|launched|happened|weather|stock|model|models|api|company|companies|platform|provider|industry|generative ui)\b/.test(value);
+
+  return explicitSourceAsk || timedFactAsk;
+}
+
 function classifyIntent(intent = "") {
   const text = compactIntentPhrase(intent).toLowerCase();
   if (/\b(who are you|what are you|what is active mirror|what can you do|what can you not do|what do you do|what model are you|which model are you|are you chatgpt|are you claude|are you gemini|are you copilot|are you an ai|are you a language model)\b/.test(text)) {
@@ -219,7 +230,7 @@ function classifyIntent(intent = "") {
   if (/\b(models?|browser|ai apps?|apple|memory|genui)\b.*\bnow\b/.test(text)) {
     return "source_check";
   }
-  if (/\b(2026|this year|recently|right now|current|latest|today|online|web|source|sources|research|competitor|market|verify|check|paper|study|studies|report|pricing|released|launched|who is doing)\b/.test(text)) {
+  if (needsSourceCheckText(text)) {
     return "source_check";
   }
   if (!/\b(switch|whether|between|decid\w*|should i|should we|do i)\b/.test(text) && /\b(landing page|homepage|site|page)\b/.test(text) && /\b(brainscan|mirrorseed|enterprise|too much|first action|first screen|users?|button|copy|ads?)\b/.test(text)) {
@@ -259,6 +270,7 @@ export function buildPrompt({ intent, boundary }, boundaryDef, capability = "ref
     "If they ask whether they are hallucinating, overreaching, or drifting, answer the risk plainly before the move. Do not reassure them to keep momentum.",
     "The answer must feel made for this exact sentence. Use concrete nouns from the user's words. Avoid canned phrases like 'you may need more clarity', 'more context', 'it depends', or 'take a step back' unless the user's words specifically demand them.",
     "Do not produce a report, a dashboard, a checklist, a numbered plan, a motivational note, or a therapy-style validation. This is a mirror turn: one reflection, one sharper question, one move.",
+    "Do not begin with 'you are stuck because'. Name the work pattern, not the user's defect.",
     "The question should help the user choose, not ask for more background. The move must be physical or observable: write, send, remove, choose, test, ask, show, open, close, compare, or time-box.",
     "Return only compact JSON matching the requested structure. Plain English ASCII only. No markdown, no numbered labels, no slogans.",
     "No therapy claims, no diagnosis, no legal/medical/financial instruction, no personal-data collection, no invented facts.",
@@ -539,7 +551,25 @@ function wordCount(value) {
 function trimWords(value, maxWords) {
   const words = String(value || "").trim().split(/\s+/).filter(Boolean);
   if (words.length <= maxWords) return String(value || "").trim();
-  return `${words.slice(0, maxWords).join(" ").replace(/[,:;.-]+$/, "")}.`;
+  const sliced = words.slice(0, maxWords).join(" ").replace(/[,:;.-]+$/, "").trim();
+  const sentenceEnd = Math.max(sliced.lastIndexOf("."), sliced.lastIndexOf("?"), sliced.lastIndexOf("!"));
+  if (sentenceEnd > 24) {
+    const sentence = sliced.slice(0, sentenceEnd + 1).trim();
+    if (wordCount(sentence) >= 8) return sentence;
+  }
+  return `${repairDanglingEnding(sliced) || sliced}.`;
+}
+
+function repairDanglingEnding(value) {
+  return String(value || "")
+    .replace(/\b(?:a|an|the|this|that|these|those|your|my|their|our|its|with|without|from|to|of|for|about|as|or|and|but|if|whether|you|they|we)\.?$/i, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/[,:;.-]+$/, "")
+    .trim();
+}
+
+function looksDanglingQuestion(value) {
+  return /\b(?:a|an|the|this|that|these|those|your|my|their|our|its|with|without|from|to|of|for|about|as|or|and|but|if|whether|you|they|we)\?$/i.test(String(value || "").trim());
 }
 
 function firstSentences(value, maxSentences = 2) {
@@ -625,6 +655,10 @@ export function straitjacket(mirror) {
   } else {
     question = question.slice(0, qMark + 1).trim(); // keep to the first question only
   }
+  if (looksDanglingQuestion(question)) {
+    question = "What exactly needs checking before you rely on it?";
+    if (!violations.includes("question_forced")) violations.push("question_forced");
+  }
 
   const cleanedMove = trimWords(oneThing(deflatter(moveRaw)), 26);
   const missingArtifactMove = MISSING_ARTIFACT_SCOLD_RE.test(cleanedMove);
@@ -675,7 +709,11 @@ export function gateVisual(visual) {
 // It marks current/external/factual claims before the UI renders them, so the
 // mirror cannot sound sourced when it has only reflected. ---
 const CURRENT_FACT_RE =
-  /\b(latest|today|current(?:ly)?|as of|state of|online|web|source|sources|cite|verify|fact[- ]?check|competitor|competitors|market|tam|pricing|price|research|study|studies|report|benchmark|released|launched|funding|revenue|valuation|users|law|regulation|regulatory|ceo|president|openai|anthropic|gemini|hugging ?face|vercel|apple|nvidia|cloudflare|genui)\b|202[0-9]/i;
+  /\b(latest|current(?:ly)?|as of|state of|online|web|source|sources|cite|verify|fact[- ]?check|competitor|competitors|market|tam|pricing|price|research|study|studies|report|benchmark|released|launched|funding|revenue|valuation|users|law|regulation|regulatory|ceo|president|openai|anthropic|gemini|hugging ?face|vercel|apple|nvidia|cloudflare|genui|generative ui)\b|202[0-9]/i;
+const TIMED_EXTERNAL_FACT_RE =
+  /\b(today|this week|this month|this year|as of)\b/i;
+const TIMED_EXTERNAL_CONTEXT_RE =
+  /\b(news|market|price|pricing|competitor|competitors|research|source|sources|cite|verify|fact[- ]?check|numbers|paper|study|studies|report|released|launched|happened|weather|stock|model|models|api|company|companies|platform|provider|industry|generative ui)\b/i;
 const SPECIFIC_EXTERNAL_NUMBER_RE =
   /(?:[$€£₹]\s?\d|\d+(?:\.\d+)?\s?(?:%|percent|million|billion|trillion|bn|m|users|customers|employees|tokens|parameters|dollars|usd|inr|gb|tb))/i;
 const OVERCLAIM_RE =
@@ -704,9 +742,12 @@ export function truthGate({ intent = "", mirror = {}, verified = false } = {}) {
   const sourceOutput = sourceGateText(output);
   const signals = [];
 
-  if (CURRENT_FACT_RE.test(combined)) signals.push("current_or_external_claim");
+  const hasCurrentFactLanguage =
+    CURRENT_FACT_RE.test(combined) || (TIMED_EXTERNAL_FACT_RE.test(combined) && TIMED_EXTERNAL_CONTEXT_RE.test(combined));
+
+  if (hasCurrentFactLanguage) signals.push("current_or_external_claim");
   if (SPECIFIC_EXTERNAL_NUMBER_RE.test(combined) && EXTERNAL_NOUN_RE.test(combined)) signals.push("specific_external_number");
-  if (OVERCLAIM_RE.test(sourceOutput) && (CURRENT_FACT_RE.test(combined) || EXTERNAL_NOUN_RE.test(combined))) {
+  if (OVERCLAIM_RE.test(sourceOutput) && (hasCurrentFactLanguage || EXTERNAL_NOUN_RE.test(combined))) {
     signals.push("unsupported_certainty");
   }
 
