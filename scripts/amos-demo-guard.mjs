@@ -6,13 +6,15 @@ import { spawnSync } from "node:child_process";
 const repoRoot = resolve(new URL("..", import.meta.url).pathname);
 const demoScript = resolve(repoRoot, "scripts/amos-campaign-approval-demo.mjs");
 const fixturePath = resolve(repoRoot, "docs/design-thinking-system/fixtures/campaign-approval-demo.json");
+const toolGraphPath = resolve(repoRoot, "docs/design-thinking-system/toolgraph/campaign-approval-demo.tools.json");
 
-function runDemo({ fixture, outputDir }) {
+function runDemo({ fixture, toolGraph = toolGraphPath, outputDir }) {
   return spawnSync(process.execPath, [demoScript], {
     cwd: repoRoot,
     env: {
       ...process.env,
       AMOS_DEMO_FIXTURE: fixture,
+      AMOS_DEMO_TOOLGRAPH: toolGraph,
       AMOS_DEMO_OUTPUT_DIR: outputDir,
     },
     encoding: "utf8",
@@ -39,6 +41,7 @@ function expectFail(label, result, expectedMarker) {
 
 const tempRoot = mkdtempSync(join(tmpdir(), "amos-demo-guard-"));
 const baseFixture = JSON.parse(readFileSync(fixturePath, "utf8"));
+const baseToolGraph = JSON.parse(readFileSync(toolGraphPath, "utf8"));
 
 expectPass(
   "positive demo fixture",
@@ -76,11 +79,30 @@ expectFail(
   "external_action_not_held_for_approval",
 );
 
+const missingToolGraph = structuredClone(baseToolGraph);
+missingToolGraph.tools = missingToolGraph.tools.filter((tool) => tool.name !== "external_email");
+const missingToolGraphPath = join(tempRoot, "missing-toolgraph.json");
+writeFileSync(missingToolGraphPath, `${JSON.stringify(missingToolGraph, null, 2)}\n`);
+expectFail(
+  "missing toolgraph fixture",
+  runDemo({
+    fixture: fixturePath,
+    toolGraph: missingToolGraphPath,
+    outputDir: join(tempRoot, "missing-toolgraph"),
+  }),
+  "tool_not_registered:external_email",
+);
+
 console.log(
   JSON.stringify(
     {
       ok: true,
-      checks: ["positive_demo_fixture", "client_boundary_leak_blocks", "approval_bypass_blocks"],
+      checks: [
+        "positive_demo_fixture",
+        "client_boundary_leak_blocks",
+        "approval_bypass_blocks",
+        "missing_toolgraph_blocks",
+      ],
       temp_root: tempRoot,
     },
     null,

@@ -1,0 +1,46 @@
+{
+  "schema_version": "toolgraph/v0.1",
+  "workflow_id": "campaign-approval-demo",
+  "tools": [
+    {
+      "name": "local_draft",
+      "owner": "active_mirror",
+      "purpose": "Create a reviewable draft from demo-approved context.",
+      "inputs": ["approved_brief", "audience", "tone", "boundary"],
+      "outputs": ["draft_title", "draft_subject", "draft_body", "draft_status"],
+      "permissions": ["read_demo_fixture", "write_local_artifact"],
+      "data_sensitivity": "working",
+      "risk_level": "low",
+      "can_run_offline": true,
+      "external_network": false,
+      "writes_files": true,
+      "sends_messages": false,
+      "changes_infra": false,
+      "approval_class": "Draft",
+      "fallback": "Return a plain-text draft packet with no external action.",
+      "test": "npm run amos:guard",
+      "health_signal": "draft_launch_note gate verdict is allow",
+      "receipt_fields": ["tool", "action_id", "context_used", "draft_status"]
+    },
+    {
+      "name": "external_email",
+      "owner": "active_mirror",
+      "purpose": "Represent a future outbound message action for approval testing only.",
+      "inputs": ["reviewed_draft", "recipient_scope", "approval_evidence"],
+      "outputs": ["approval_packet", "held_action"],
+      "permissions": ["explicit_user_approval", "approved_recipient_scope"],
+      "data_sensitivity": "working",
+      "risk_level": "high",
+      "can_run_offline": false,
+      "external_network": true,
+      "writes_files": false,
+      "sends_messages": true,
+      "changes_infra": false,
+      "approval_class": "Act",
+      "fallback": "Do not send. Emit an approval packet for user review.",
+      "test": "npm run amos:guard",
+      "health_signal": "send_launch_note gate verdict is review unless explicit approval and scope allow execution",
+      "receipt_fields": ["tool", "action_id", "approval_class", "approval_state", "external_actions"]
+    }
+  ]
+}

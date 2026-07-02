@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "..");
 const fixturePath = resolve(process.env.AMOS_DEMO_FIXTURE || resolve(repoRoot, "docs/design-thinking-system/fixtures/campaign-approval-demo.json"));
+const toolGraphPath = resolve(process.env.AMOS_DEMO_TOOLGRAPH || resolve(repoRoot, "docs/design-thinking-system/toolgraph/campaign-approval-demo.tools.json"));
 const outputDir = resolve(process.env.AMOS_DEMO_OUTPUT_DIR || "/tmp/active-mirror-site/amos-campaign-approval-demo");
 
 const forbiddenClientMarkers = [
@@ -46,7 +47,53 @@ function findForbiddenMarkers(value) {
     .map((pattern) => pattern.source);
 }
 
-function trustGate({ fixture, draft, action }) {
+function toolByName(toolGraph, name) {
+  return toolGraph.tools.find((tool) => tool.name === name);
+}
+
+function buildRoutePlan({ fixture, toolGraph }) {
+  return fixture.actions.map((action) => {
+    const tool = toolByName(toolGraph, action.tool);
+    return {
+      action_id: action.id,
+      tool: action.tool,
+      tool_registered: Boolean(tool),
+      approval_class: action.class,
+      tool_approval_class: tool?.approval_class || "missing",
+      risk_level: tool?.risk_level || "blocked",
+      external_network: Boolean(tool?.external_network),
+      sends_messages: Boolean(tool?.sends_messages),
+      fallback: tool?.fallback || "Block because the tool is not registered.",
+    };
+  });
+}
+
+function trustGate({ fixture, draft, action, toolGraph }) {
+  const tool = toolByName(toolGraph, action.tool);
+  if (!tool) {
+    return {
+      action_id: action.id,
+      verdict: "block",
+      risk_type: "security",
+      reason: "Action references a tool with no ToolGraph record.",
+      safe_alternative: "Register the tool with purpose, permissions, risk, fallback, and test before use.",
+      requires_user_approval: false,
+      glyphtrail_event: `gt_${hash(`${action.id}:missing_tool:${action.tool}`)}`,
+    };
+  }
+
+  if (tool.approval_class !== action.class) {
+    return {
+      action_id: action.id,
+      verdict: "block",
+      risk_type: "security",
+      reason: "Action approval class does not match the ToolGraph record.",
+      safe_alternative: "Align the action with the registered tool class or create a new tool record.",
+      requires_user_approval: false,
+      glyphtrail_event: `gt_${hash(`${action.id}:class_mismatch:${action.class}:${tool.approval_class}`)}`,
+    };
+  }
+
   const leakedMarkers = findForbiddenMarkers({ fixture, draft });
   if (leakedMarkers.length) {
     return {
@@ -57,6 +104,18 @@ function trustGate({ fixture, draft, action }) {
       safe_alternative: "Remove private or client-specific material and rerun with demo-approved context only.",
       requires_user_approval: false,
       glyphtrail_event: `gt_${hash(`${action.id}:client_boundary:${leakedMarkers.join("|")}`)}`,
+    };
+  }
+
+  if (action.class === "Act" && action.approval_granted && !fixture.scope.external_action_allowed) {
+    return {
+      action_id: action.id,
+      verdict: "block",
+      risk_type: "irreversible_action",
+      reason: "Approval was present, but this workflow scope still forbids external execution.",
+      safe_alternative: "Keep the action as a local approval packet until the workflow scope explicitly allows egress.",
+      requires_user_approval: true,
+      glyphtrail_event: `gt_${hash(`${action.id}:scope_forbids_external_execution`)}`,
     };
   }
 
@@ -121,7 +180,29 @@ function buildClaims({ fixture, draft, gates }) {
   ];
 }
 
-function buildScdState({ fixture, draft, gates, verifier }) {
+function buildApprovalPacket({ fixture, draft, gates, routePlan }) {
+  const heldActions = gates.filter((gate) => gate.requires_user_approval);
+  return {
+    packet_id: `approval_${hash({ workflow_id: fixture.workflow_id, heldActions, draft })}`,
+    workflow_id: fixture.workflow_id,
+    title: "Review before sending",
+    summary: "A local draft is ready. The external action is held until approval is explicit and in scope.",
+    draft,
+    held_actions: heldActions.map((gate) => {
+      const route = routePlan.find((item) => item.action_id === gate.action_id);
+      return {
+        action_id: gate.action_id,
+        tool: route?.tool || "unknown",
+        approval_class: route?.approval_class || "unknown",
+        reason: gate.reason,
+        fallback: gate.safe_alternative || route?.fallback || "Keep as local draft.",
+      };
+    }),
+    approval_state: heldActions.length ? "approval_required" : "no_approval_required",
+  };
+}
+
+function buildScdState({ fixture, draft, gates, verifier, routePlan, approvalPacket }) {
   return {
     schema_version: "scd/amos-demo-v0.1",
     workflow_id: fixture.workflow_id,
@@ -131,8 +212,10 @@ function buildScdState({ fixture, draft, gates, verifier }) {
     client_scope: fixture.scope.client_scope,
     context_used: ["context.approved_brief", "context.audience", "context.tone", "context.boundary"],
     context_excluded: ["client data", "private identity context", "account details", "live external claims"],
+    route_plan: routePlan,
     external_actions_executed: [],
     approval_required: gates.filter((gate) => gate.requires_user_approval).map((gate) => gate.action_id),
+    approval_packet: approvalPacket.packet_id,
     memory_promoted: [],
   };
 }
@@ -166,7 +249,7 @@ function buildGlyphTrail({ fixture, gates, verifier }) {
   ];
 }
 
-function verify({ fixture, draft, gates, claims }) {
+function verify({ fixture, draft, gates, claims, toolGraph, routePlan, approvalPacket }) {
   const failures = [];
 
   const leakedMarkers = findForbiddenMarkers({ fixture, draft, claims });
@@ -178,6 +261,18 @@ function verify({ fixture, draft, gates, claims }) {
   const sendGate = gates.find((gate) => gate.action_id === "send_launch_note");
   if (!sendGate || sendGate.verdict !== "review" || !sendGate.requires_user_approval) {
     failures.push("external_action_not_held_for_approval");
+  }
+
+  if (!Array.isArray(toolGraph.tools) || toolGraph.tools.length === 0) failures.push("toolgraph_empty");
+  for (const route of routePlan) {
+    if (!route.tool_registered) failures.push(`tool_not_registered:${route.tool}`);
+    if (route.approval_class !== route.tool_approval_class) {
+      failures.push(`tool_approval_class_mismatch:${route.action_id}`);
+    }
+  }
+
+  if (sendGate?.requires_user_approval && approvalPacket.approval_state !== "approval_required") {
+    failures.push("approval_packet_missing_required_state");
   }
 
   for (const claim of claims) {
@@ -196,13 +291,91 @@ function verify({ fixture, draft, gates, claims }) {
       "client_boundary",
       "draft_allowed",
       "external_action_approval",
+      "toolgraph_registration",
+      "toolgraph_approval_class",
+      "approval_packet",
       "claim_evidence",
       "memory_not_promoted",
     ],
   };
 }
 
-function writeReceipt({ fixture, draft, gates, claims, verifier, scdState, glyphTrail }) {
+function approvalPacketMarkdown(packet) {
+  const held = packet.held_actions
+    .map((action) => `- ${action.action_id} (${action.tool}): ${action.reason}`)
+    .join("\n");
+  const body = packet.draft.body.map((line) => `> ${line}`).join("\n");
+  return `# ${packet.title}
+
+${packet.summary}
+
+## Draft
+
+Subject: ${packet.draft.subject}
+
+${body}
+
+## Held Actions
+
+${held || "- None"}
+
+## Approval State
+
+${packet.approval_state}
+`;
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function approvalPacketHtml(packet) {
+  const held = packet.held_actions
+    .map((action) => `<li><strong>${escapeHtml(action.action_id)}</strong> via ${escapeHtml(action.tool)}<br><span>${escapeHtml(action.reason)}</span></li>`)
+    .join("");
+  const body = packet.draft.body.map((line) => `<p>${escapeHtml(line)}</p>`).join("");
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(packet.title)}</title>
+  <style>
+    :root { color-scheme: light dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { margin: 0; padding: 32px; background: #0f1014; color: #f5f2ea; }
+    main { max-width: 760px; margin: 0 auto; }
+    section { border: 1px solid rgba(245,242,234,.18); border-radius: 8px; padding: 20px; margin: 16px 0; background: rgba(255,255,255,.04); }
+    h1, h2 { letter-spacing: 0; }
+    .state { display: inline-flex; padding: 6px 10px; border: 1px solid #38d5c8; border-radius: 999px; color: #38d5c8; }
+    li { margin: 10px 0; }
+    span { color: #c9c3b8; }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="state">${escapeHtml(packet.approval_state)}</p>
+    <h1>${escapeHtml(packet.title)}</h1>
+    <p>${escapeHtml(packet.summary)}</p>
+    <section>
+      <h2>Draft</h2>
+      <p><strong>Subject:</strong> ${escapeHtml(packet.draft.subject)}</p>
+      ${body}
+    </section>
+    <section>
+      <h2>Held Actions</h2>
+      <ul>${held || "<li>None</li>"}</ul>
+    </section>
+  </main>
+</body>
+</html>
+`;
+}
+
+function writeReceipt({ fixture, draft, gates, claims, verifier, scdState, glyphTrail, routePlan, approvalPacket }) {
   mkdirSync(outputDir, { recursive: true });
 
   const receipt = {
@@ -214,8 +387,10 @@ function writeReceipt({ fixture, draft, gates, claims, verifier, scdState, glyph
     failures: verifier.failures,
     context_used: scdState.context_used,
     context_excluded: scdState.context_excluded,
+    route_plan: routePlan,
     tools_used: ["local_draft", "trust_gate", "verifier", "scd_writer", "glyphtrail_writer"],
     external_actions: scdState.external_actions_executed,
+    approval_packet: approvalPacket.packet_id,
     evidence: claims,
     tests_checks: verifier.checks,
     memory_decision: "No memory promoted. Demo candidate remains review-only.",
@@ -229,24 +404,31 @@ function writeReceipt({ fixture, draft, gates, claims, verifier, scdState, glyph
   writeFileSync(resolve(outputDir, "SCD.json"), `${JSON.stringify(scdState, null, 2)}\n`);
   writeFileSync(resolve(outputDir, "GlyphTrail.log"), `${glyphTrail.map((event) => JSON.stringify(event)).join("\n")}\n`);
   writeFileSync(resolve(outputDir, "verifier-report.json"), `${JSON.stringify(verifier, null, 2)}\n`);
+  writeFileSync(resolve(outputDir, "approval-packet.json"), `${JSON.stringify(approvalPacket, null, 2)}\n`);
+  writeFileSync(resolve(outputDir, "approval-packet.md"), approvalPacketMarkdown(approvalPacket));
+  writeFileSync(resolve(outputDir, "approval-packet.html"), approvalPacketHtml(approvalPacket));
   writeFileSync(resolve(outputDir, "receipt.json"), `${JSON.stringify(receipt, null, 2)}\n`);
 
   return receipt;
 }
 
 const fixture = readJson(fixturePath);
+const toolGraph = readJson(toolGraphPath);
 const draft = buildDraft(fixture);
-const gates = fixture.actions.map((action) => trustGate({ fixture, draft, action }));
+const routePlan = buildRoutePlan({ fixture, toolGraph });
+const gates = fixture.actions.map((action) => trustGate({ fixture, draft, action, toolGraph }));
 const claims = buildClaims({ fixture, draft, gates });
-const verifier = verify({ fixture, draft, gates, claims });
-const scdState = buildScdState({ fixture, draft, gates, verifier });
+const approvalPacket = buildApprovalPacket({ fixture, draft, gates, routePlan });
+const verifier = verify({ fixture, draft, gates, claims, toolGraph, routePlan, approvalPacket });
+const scdState = buildScdState({ fixture, draft, gates, verifier, routePlan, approvalPacket });
 const glyphTrail = buildGlyphTrail({ fixture, gates, verifier });
-const receipt = writeReceipt({ fixture, draft, gates, claims, verifier, scdState, glyphTrail });
+const receipt = writeReceipt({ fixture, draft, gates, claims, verifier, scdState, glyphTrail, routePlan, approvalPacket });
 
 const summary = {
   ok: verifier.pass,
   receipt_id: receipt.receipt_id,
   output_dir: receipt.output_dir,
+  approval_packet: approvalPacket.packet_id,
   allowed: gates.filter((gate) => gate.verdict === "allow").map((gate) => gate.action_id),
   approval_required: gates.filter((gate) => gate.requires_user_approval).map((gate) => gate.action_id),
   failures: verifier.failures,
