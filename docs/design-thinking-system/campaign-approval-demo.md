@@ -9,6 +9,7 @@ demo brief
   -> ToolGraph route check
   -> safe draft
   -> approval gate
+  -> execution gate
   -> verifier
   -> SCD state
   -> GlyphTrail event log
@@ -41,6 +42,7 @@ AMOS_DEMO_OUTPUT_DIR=/tmp/my-amos-demo npm run amos:demo
 - Demo context is checked for client-boundary leakage.
 - Claims must carry local evidence.
 - Approval packets are emitted as JSON, Markdown, and HTML.
+- A decision receipt can be checked by a separate execution gate.
 - SCD state and GlyphTrail events are emitted.
 - Memory candidates remain unpromoted unless approved.
 
@@ -61,8 +63,17 @@ AMOS_DEMO_OUTPUT_DIR=/tmp/my-amos-demo npm run amos:demo
 - `approval-packet.md`
 - `approval-packet.html`
 - `approval-console.html`
+- `execution-gate-receipt.json`
 
 `approval-console.html` is a local browser screen. It can record an approve or decline decision and download a decision receipt. It still cannot send, publish, or call an external tool.
+
+`execution-gate-receipt.json` is produced only when a downloaded decision receipt is passed back into the execution gate. For this demo, an approved decision is still held because the fixture forbids external execution.
+
+## Execution Gate
+
+```bash
+npm run amos:execution-gate -- --decision /path/to/decision.json
+```
 
 ## Promotion Rule
 

@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 
 const repoRoot = resolve(new URL("..", import.meta.url).pathname);
 const demoScript = resolve(repoRoot, "scripts/amos-campaign-approval-demo.mjs");
+const executionGateScript = resolve(repoRoot, "scripts/amos-execution-gate.mjs");
 const fixturePath = resolve(repoRoot, "docs/design-thinking-system/fixtures/campaign-approval-demo.json");
 const toolGraphPath = resolve(repoRoot, "docs/design-thinking-system/toolgraph/campaign-approval-demo.tools.json");
 
@@ -39,16 +40,126 @@ function expectFail(label, result, expectedMarker) {
   }
 }
 
+function runExecutionGate({ decision, packet, fixture = fixturePath, toolGraph = toolGraphPath, outputDir }) {
+  return spawnSync(
+    process.execPath,
+    [executionGateScript, "--decision", decision, "--packet", packet, "--fixture", fixture, "--toolgraph", toolGraph, "--output", outputDir],
+    {
+      cwd: repoRoot,
+      encoding: "utf8",
+    },
+  );
+}
+
 const tempRoot = mkdtempSync(join(tmpdir(), "amos-demo-guard-"));
 const baseFixture = JSON.parse(readFileSync(fixturePath, "utf8"));
 const baseToolGraph = JSON.parse(readFileSync(toolGraphPath, "utf8"));
 
+const positiveOutputDir = join(tempRoot, "positive");
 expectPass(
   "positive demo fixture",
   runDemo({
     fixture: fixturePath,
-    outputDir: join(tempRoot, "positive"),
+    outputDir: positiveOutputDir,
   }),
+);
+
+const positivePacket = JSON.parse(readFileSync(join(positiveOutputDir, "approval-packet.json"), "utf8"));
+const approvedDecisionPath = join(tempRoot, "approved-decision.json");
+writeFileSync(
+  approvedDecisionPath,
+  `${JSON.stringify(
+    {
+      schema_version: "amos-approval-decision/v0.1",
+      decision_id: "decision_guard_approved",
+      packet_id: positivePacket.packet_id,
+      workflow_id: positivePacket.workflow_id,
+      decision: "approved",
+      note: "Guard-approved local decision.",
+      external_actions_executed: [],
+      requires_execution_gate: true,
+      recorded_at: "2026-07-02T00:00:00.000Z",
+    },
+    null,
+    2,
+  )}\n`,
+);
+expectPass(
+  "approved decision is held by execution gate",
+  runExecutionGate({
+    decision: approvedDecisionPath,
+    packet: join(positiveOutputDir, "approval-packet.json"),
+    outputDir: join(tempRoot, "execution-approved"),
+  }),
+);
+
+const approvedGateReceipt = JSON.parse(readFileSync(join(tempRoot, "execution-approved", "execution-gate-receipt.json"), "utf8"));
+if (approvedGateReceipt.verdict !== "held_scope_forbids_external_execution") {
+  console.error(`approved decision was not held by scope gate: ${approvedGateReceipt.verdict}`);
+  process.exit(1);
+}
+
+const declinedDecisionPath = join(tempRoot, "declined-decision.json");
+writeFileSync(
+  declinedDecisionPath,
+  `${JSON.stringify(
+    {
+      schema_version: "amos-approval-decision/v0.1",
+      decision_id: "decision_guard_declined",
+      packet_id: positivePacket.packet_id,
+      workflow_id: positivePacket.workflow_id,
+      decision: "declined",
+      note: "Guard-declined local decision.",
+      external_actions_executed: [],
+      requires_execution_gate: false,
+      recorded_at: "2026-07-02T00:00:00.000Z",
+    },
+    null,
+    2,
+  )}\n`,
+);
+expectPass(
+  "declined decision blocks execution gate",
+  runExecutionGate({
+    decision: declinedDecisionPath,
+    packet: join(positiveOutputDir, "approval-packet.json"),
+    outputDir: join(tempRoot, "execution-declined"),
+  }),
+);
+
+const declinedGateReceipt = JSON.parse(readFileSync(join(tempRoot, "execution-declined", "execution-gate-receipt.json"), "utf8"));
+if (declinedGateReceipt.verdict !== "blocked_declined") {
+  console.error(`declined decision had wrong verdict: ${declinedGateReceipt.verdict}`);
+  process.exit(1);
+}
+
+const tamperedDecisionPath = join(tempRoot, "tampered-decision.json");
+writeFileSync(
+  tamperedDecisionPath,
+  `${JSON.stringify(
+    {
+      schema_version: "amos-approval-decision/v0.1",
+      decision_id: "decision_guard_tampered",
+      packet_id: "approval_wrong_packet",
+      workflow_id: positivePacket.workflow_id,
+      decision: "approved",
+      note: "Tampered packet id.",
+      external_actions_executed: [],
+      requires_execution_gate: true,
+      recorded_at: "2026-07-02T00:00:00.000Z",
+    },
+    null,
+    2,
+  )}\n`,
+);
+expectFail(
+  "tampered decision receipt",
+  runExecutionGate({
+    decision: tamperedDecisionPath,
+    packet: join(positiveOutputDir, "approval-packet.json"),
+    outputDir: join(tempRoot, "execution-tampered"),
+  }),
+  "decision_packet_mismatch",
 );
 
 const leakFixture = structuredClone(baseFixture);
@@ -102,6 +213,9 @@ console.log(
         "client_boundary_leak_blocks",
         "approval_bypass_blocks",
         "missing_toolgraph_blocks",
+        "approved_decision_held_by_execution_gate",
+        "declined_decision_blocks_execution_gate",
+        "tampered_decision_fails_execution_gate",
       ],
       temp_root: tempRoot,
     },
