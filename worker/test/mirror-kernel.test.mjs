@@ -239,6 +239,36 @@ await check("reflect() handles short first-touch starts before model routing", a
   }
 });
 
+await check("reflect() turns short-start follow-up into a concrete launch-page output", async () => {
+  let modelWasCalled = false;
+  const spy = async () => {
+    modelWasCalled = true;
+    return {
+      mirror: {
+        reflection: "Another generic reflection.",
+        question: "What else?",
+        move: "Think about it more.",
+        receipt: RECEIPT,
+      },
+      fallback: false,
+      routeText: "mock",
+    };
+  };
+
+  const out = await reflect({
+    intent: "I want help with my launch page.",
+    boundary: "personal",
+    mode: "short_start_followup",
+    turn: 2,
+    callModel: spy,
+  });
+  const combined = `${out.mirror.reflection} ${out.mirror.question} ${out.mirror.move}`;
+  assert.strictEqual(modelWasCalled, false, "short-start follow-up reached the model");
+  assert.ok(out.straitjacket.includes("deterministic_short_followup"), "short-followup guard was not recorded");
+  assert.match(combined, /launch page|headline|button label|reassurance line/i, "launch-page output was not concrete");
+  assert.doesNotMatch(combined, /what do you want help with first|think about it more|another generic/i, "second turn stayed generic");
+});
+
 // 5. A secret in the intent never reaches the injected model at all.
 await check("reflect() blocks a secret BEFORE the model is ever called", async () => {
   let modelWasCalled = false;

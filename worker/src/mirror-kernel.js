@@ -243,6 +243,20 @@ function isShortStartIntent(intent = "") {
   return /^(?:i'?m\s+stuck|i\s+am\s+stuck|stuck|help|help\s+me|i\s+need\s+help|not\s+sure(?:\s+what\s+to\s+(?:ask|do))?|i\s+don'?t\s+know(?:\s+what\s+to\s+do|\s+where\s+to\s+start)?|i\s+do\s+not\s+know(?:\s+what\s+to\s+do|\s+where\s+to\s+start)?|what\s+now|start)$/i.test(text);
 }
 
+function isShortStartFollowupMode(mode = "") {
+  return String(mode || "").toLowerCase() === "short_start_followup";
+}
+
+function topicFromIntent(intent = "") {
+  const clean = compactIntentPhrase(intent) || "this";
+  const topic = clean
+    .replace(/^(?:i\s+(?:want|need)\s+help\s+with|help\s+(?:me\s+)?with|i\s+am\s+working\s+on|i'?m\s+working\s+on)\s+/i, "")
+    .replace(/^my\s+/i, "your ")
+    .replace(/^the\s+/i, "the ")
+    .trim();
+  return (topic || clean).slice(0, 80);
+}
+
 function classifyIntent(intent = "") {
   const text = compactIntentPhrase(intent).toLowerCase();
   if (/\b(who are you|what are you|what is active mirror|what can you do|what can you not do|what do you do|what model are you|which model are you|are you chatgpt|are you claude|are you gemini|are you copilot|are you an ai|are you a language model)\b/.test(text)) {
@@ -901,6 +915,62 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
   };
 }
 
+export function deterministicSecondTurnMirror({ intent, boundary }, boundaryDef, routeText) {
+  const userIntent = compactIntentPhrase(intent) || "this";
+  const kind = classifyIntent(userIntent);
+  const topic = topicFromIntent(userIntent);
+  const commonReceipt = {
+    why: "The previous turn asked what the user wanted help with, so this turn turns the named object into a usable next output.",
+    context_used: `Only the user's second sentence about "${userIntent}" and the selected ${boundary} boundary.`,
+    context_excluded: boundaryDef.excluded,
+    route: routeText,
+    memory_decision: boundaryDef.memory,
+  };
+
+  if (kind === "launch_clarity" || /\b(page|homepage|landing|launch|site|copy|headline|button)\b/i.test(userIntent)) {
+    return {
+      reflection: `For ${topic}, start with the first action a visitor can take.`,
+      question: "What should they try before they understand the whole product?",
+      move: `Draft one headline, one button label, and one reassurance line for ${topic}.`,
+      receipt: commonReceipt,
+    };
+  }
+
+  if (kind === "decision") {
+    return {
+      reflection: `For ${topic}, one real signal is more useful than another opinion.`,
+      question: "What evidence would make one option clearly better?",
+      move: "Name that evidence, then run the smallest test that could produce it today.",
+      receipt: commonReceipt,
+    };
+  }
+
+  if (kind === "artifact" || /\b(message|email|draft|document|memo|brief|post)\b/i.test(userIntent)) {
+    return {
+      reflection: `For ${topic}, a rough usable draft beats one more round of thinking.`,
+      question: "Who is it for, and what should they do after reading it?",
+      move: "Draft three lines: context, ask, and one clear next step.",
+      receipt: commonReceipt,
+    };
+  }
+
+  if (kind === "private_output") {
+    return {
+      reflection: `For ${topic}, keep private details as placeholders and work on the shape.`,
+      question: "What can be written safely with names and specifics removed?",
+      move: "Write the safe version with [name], [place], and [detail] placeholders.",
+      receipt: commonReceipt,
+    };
+  }
+
+  return {
+    reflection: `For ${topic}, make one rough pass before expanding it.`,
+    question: "What would a useful first pass need to do?",
+    move: "Write a rough version with one sentence, three bullets, and one ask.",
+    receipt: commonReceipt,
+  };
+}
+
 export function normalizeMirror(candidate, { intent, boundary }, boundaryDef, routeText) {
   const fallback = deterministicMirror({ intent, boundary }, boundaryDef, routeText);
   if (!candidate || typeof candidate !== "object") return fallback;
@@ -933,7 +1003,7 @@ export async function receiptHash(value) {
 // decides what reaches the user lives here; nothing about HTTP, CORS, or which
 // provider answered does.
 // =============================================================================
-export async function reflect({ intent, boundary = "personal", turn = 1, capability = "reflection", callModel }) {
+export async function reflect({ intent, boundary = "personal", turn = 1, capability = "reflection", mode = "standard", callModel }) {
   const boundaryDef = BOUNDARIES[boundary] || BOUNDARIES.personal;
 
   // 1. Boundary gate — deterministic, before any model sees the text.
@@ -980,6 +1050,25 @@ export async function reflect({ intent, boundary = "personal", turn = 1, capabil
   const modelIntent = sanitizeModelIntent(intent, boundary);
   const redactedForModel = modelIntent !== String(intent || "");
   const modelKind = classifyIntent(modelIntent);
+
+  if (isShortStartFollowupMode(mode) && !["source_check", "identity", "sycophancy"].includes(modelKind)) {
+    const routeText = "Short-start follow-up; no external model was needed.";
+    const normalized = deterministicSecondTurnMirror({ intent: modelIntent, boundary }, boundaryDef, routeText);
+    const { mirror, violations } = straitjacket(normalized, { intent: modelIntent });
+    const truth_state = truthGate({ intent, mirror });
+    if (truth_state.status === "needs_checking") {
+      violations.push("truth_state_needs_sources");
+    }
+    const receipt_id = await receiptHash({ mirror, truth_state, turn });
+    return {
+      ok: true,
+      fallback: false,
+      receipt_id,
+      mirror,
+      truth_state,
+      straitjacket: [...violations, "deterministic_short_followup"],
+    };
+  }
 
   if (modelKind === "identity" || modelKind === "sycophancy" || modelKind === "short_start") {
     const routeText =

@@ -191,6 +191,25 @@ await check("mirror accepts natural short stuck turns", async () => {
   assert.match(data.receipt_id, /^[0-9a-f]{24}$/);
 });
 
+await check("mirror turns short-start follow-up into concrete output without model route", async () => {
+  const response = await post("/v1/mirror/create", {
+    intent: "I want help with my launch page.",
+    boundary: "personal",
+    route: "reflection",
+    mode: "short_start_followup",
+    turn: 2,
+  });
+  const data = await response.json();
+  const text = `${data.mirror?.reflection || ""} ${data.mirror?.question || ""} ${data.mirror?.move || ""}`;
+  assert.strictEqual(response.status, 200);
+  assert.strictEqual(data.ok, true);
+  assert.ok(data.straitjacket.includes("deterministic_short_followup"), "short-followup guard missing");
+  assert.match(text, /launch page|headline|button label|reassurance line/i);
+  assert.strictEqual(data.route.provider, "active_mirror");
+  assert.strictEqual(data.route.model, "none");
+  assert.strictEqual(data.glass.prompt.sent_to, "none");
+});
+
 await check("mirror still rejects non-language noise", async () => {
   const response = await post("/v1/mirror/create", {
     intent: "....",

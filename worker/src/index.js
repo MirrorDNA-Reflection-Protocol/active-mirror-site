@@ -43,7 +43,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-07-03-tone-guard-v2";
+const WORKER_VERSION = "2026-07-03-second-turn-v1";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
@@ -335,6 +335,7 @@ export default {
         boundary: input.boundary,
         turn: input.turn,
         capability: route.capability,
+        mode: input.mode,
         callModel: async (prompt) => {
           lastPromptHash = await receiptHash({
             type: "active_mirror_prompt",
@@ -391,14 +392,17 @@ export default {
       }
 
       const deterministicIdentity = Array.isArray(result.straitjacket) && result.straitjacket.includes("deterministic_identity");
+      const deterministicLocal = Array.isArray(result.straitjacket) && result.straitjacket.some((item) =>
+        ["deterministic_identity", "deterministic_sycophancy", "deterministic_short_start", "deterministic_short_followup"].includes(item)
+      );
       const publicCapability = deterministicIdentity ? "identity" : route.capability;
-      const publicLabel = deterministicIdentity ? "identity answer" : publicRouteLabel(route.capability);
-      const publicPrimary = deterministicIdentity ? "active_mirror" : route.primary;
-      const publicProvider = deterministicIdentity
+      const publicLabel = deterministicIdentity ? "identity answer" : deterministicLocal ? "local reflection" : publicRouteLabel(route.capability);
+      const publicPrimary = deterministicLocal ? "active_mirror" : route.primary;
+      const publicProvider = deterministicLocal
         ? "active_mirror"
         : lastProvider || (lastModel === "local-deterministic" ? "active_mirror" : route.primary);
-      const publicModel = deterministicIdentity ? "none" : lastModel || "unknown";
-      const publicAttempts = deterministicIdentity ? ["active_mirror"] : uniqueRouteAttempts(lastAttempts.length ? lastAttempts : [route.primary]);
+      const publicModel = deterministicLocal ? "none" : lastModel || "unknown";
+      const publicAttempts = deterministicLocal ? ["active_mirror"] : uniqueRouteAttempts(lastAttempts.length ? lastAttempts : [route.primary]);
       const publicRoute = {
         capability: publicCapability,
         label: publicLabel,
@@ -1286,6 +1290,7 @@ function sanitizeInput(body) {
     boundary: BOUNDARIES[boundary] ? boundary : "personal",
     route: normalizeRoute(body?.route),
     turn: Number.isFinite(body?.turn) ? Math.max(1, Math.min(9999, Math.trunc(body.turn))) : 1,
+    mode: normalizeMirrorMode(body?.mode),
   };
 }
 
@@ -1357,6 +1362,11 @@ function cleanSourceText(value, maxLength) {
 function normalizeRoute(value) {
   const route = String(value || "auto").toLowerCase();
   return ["reflection", "chat", "media"].includes(route) ? route : "auto";
+}
+
+function normalizeMirrorMode(value) {
+  const mode = String(value || "standard").toLowerCase().replace(/[^a-z_]/g, "");
+  return ["standard", "short_start_followup"].includes(mode) ? mode : "standard";
 }
 
 // --- Routing: a runtime concern. Picks which provider/model answers a turn. ---
