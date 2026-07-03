@@ -131,6 +131,9 @@ function openAIArtifactResponse() {
         "",
         "Purpose: turn the scattered launch thought into one sendable note.",
         "",
+        "Assumptions:",
+        "The audience is not fixed yet.",
+        "",
         "Next move: write the first user promise and send it to one person.",
       ].join("\n"),
       checklist: ["Remove private details.", "Send one small version first."],
@@ -950,6 +953,8 @@ await check("artifact route creates a provider-backed document", async () => {
     assert.strictEqual(data.artifact.kind, "doc");
     assert.strictEqual(data.artifact.title, "Launch note");
     assert.ok(data.artifact.body.includes("Next move"), "artifact body missing usable content");
+    assert.match(data.artifact.body, /Still needed:/, "missing-detail label was not softened");
+    assert.doesNotMatch(data.artifact.body, /\bAssumptions?\b/i, "assumption label leaked into artifact");
     assert.doesNotMatch(data.artifact.body, /\b(I can help|you could|consider adding|here is how)\b/i, "weak artifact phrasing leaked");
     assert.strictEqual(data.route.label, "artifact help");
     assert.strictEqual(JSON.stringify(data).includes("test-openai-key"), false, "secret leaked into response");
@@ -995,8 +1000,8 @@ await check("artifact route replaces weak provider prose with a finished fallbac
     assert.strictEqual(data.ok, true);
     assert.strictEqual(data.fallback, true);
     assert.strictEqual(data.artifact.kind, "doc");
-    assert.strictEqual(data.artifact.title, "Launch Memo");
-    assert.match(data.artifact.body, /Hero copy|Reassurance line|Try the first step/i);
+    assert.strictEqual(data.artifact.title, "Working doc");
+    assert.match(data.artifact.body, /Title|Purpose|Next move/i);
     assert.doesNotMatch(data.artifact.body, /\b(I can help|you could|consider adding|here is how)\b/i, "weak provider phrasing survived");
   } finally {
     globalThis.fetch = originalFetch;
@@ -1050,6 +1055,58 @@ await check("artifact route replaces launch-page placeholders with exact starter
     assert.match(data.artifact.body, /Button label: Start now/i);
     assert.match(data.artifact.body, /Reassurance line: No setup guesswork/i);
     assert.doesNotMatch(data.artifact.body, /\[[^\]]+\]|Trust line/i, "placeholder or old trust-line wording survived");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+await check("artifact route replaces thin website docs with launch-page starter copy", async () => {
+  installEdgeCache();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("api.openai.com")) {
+      return Response.json({
+        output_text: JSON.stringify({
+          kind: "doc",
+          title: "Homepage Purpose",
+          body: "The homepage's purpose is to clearly show what the website offers, who it is for, and the first action a visitor should take.",
+          checklist: ["Confirm the one page the website must have first."],
+        }),
+      });
+    }
+    return originalFetch(url, init);
+  };
+
+  try {
+    const response = await post(
+      "/v1/mirror/artifact",
+      {
+        intent: "Create a short working document from this reflection, ready to copy: I want to make website.",
+        artifactKind: "doc",
+        boundary: "personal",
+        mirror: {
+          reflection: "You want a website, but the smallest useful first version should come first.",
+          question: "What is the one page the website must have first?",
+          move: "Write one sentence for the homepage purpose and stop there.",
+        },
+      },
+      {
+        MIRROR_BRIDGE_URL: "",
+        MIRROR_BRIDGE_TOKEN: "",
+        OPENAI_API_KEY: "test-openai-key",
+      },
+    );
+    const data = await response.json();
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(data.ok, true);
+    assert.strictEqual(data.fallback, true);
+    assert.strictEqual(data.artifact.kind, "doc");
+    assert.strictEqual(data.artifact.title, "Launch Page First-Action Draft");
+    assert.match(data.artifact.body, /Hero copy/i);
+    assert.match(data.artifact.body, /Headline: Try the first step in minutes/i);
+    assert.match(data.artifact.body, /Button label: Start now/i);
+    assert.match(data.artifact.body, /Reassurance line: No setup guesswork/i);
   } finally {
     globalThis.fetch = originalFetch;
   }

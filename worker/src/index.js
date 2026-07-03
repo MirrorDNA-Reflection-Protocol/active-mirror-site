@@ -1539,7 +1539,7 @@ function normalizeArtifactProvider(value) {
 function buildArtifactPrompt(input) {
   const kindGuidance = {
     doc: "Create a useful document the user can copy or download now. Include the finished document body, a one-sentence purpose, a short draft, and a concrete ask or next step. If this is for a launch page, homepage, landing page, headline, or button, write exact starter copy with no bracket placeholders, use the label 'Reassurance line', and make the first action obvious. Do not explain how to make the document; make it.",
-    code: "Create a small code starter or implementation capsule. If the stack is unclear, use the smallest useful vanilla JavaScript example plus assumptions. Include code, acceptance checks, and how to run or adapt it. Do not ask for more context unless code would be unsafe.",
+    code: "Create a small code starter or implementation capsule. If the stack is unclear, use the smallest useful vanilla JavaScript example and clear replaceable defaults. Include code, acceptance checks, and how to run or adapt it. Do not ask for more context unless code would be unsafe.",
     image: "Create a visual generation brief. It must be directly usable as an image/video prompt and include scene, composition, feeling, constraints, and what to avoid.",
     draft: "Create the smallest sendable draft or working note. It should be useful even if rough, with placeholders where needed.",
   }[input.kind];
@@ -1547,7 +1547,7 @@ function buildArtifactPrompt(input) {
   return [
     "You are Active Mirror's artifact maker.",
     "Trust by Design means: if the product offers an artifact, provide the smallest useful safe artifact now.",
-    "Do not refuse because context is imperfect. Use placeholders and state assumptions inside the artifact when needed.",
+    "Do not refuse because context is imperfect. Use placeholders when needed, and label missing details as 'Still needed' instead of 'Assumptions'.",
     "Do not mention policies, models, providers, gateways, receipts, or internal tokens.",
     "Do not start with meta-help such as 'I can help', 'you could', 'here is how', or 'consider'. Start with the artifact itself.",
     "Do not flatter, diagnose, scold, or write therapy language.",
@@ -1676,7 +1676,11 @@ function normalizeArtifactResult(text, input) {
 
 function artifactNeedsFallback(body, input = {}) {
   const text = String(body || "");
-  if (isLaunchArtifactInput(input) && (/\[[^\]]+\]/.test(text) || /\btrust line\b/i.test(text))) return true;
+  if (isLaunchArtifactInput(input)) {
+    if (/\[[^\]]+\]/.test(text) || /\btrust line\b/i.test(text)) return true;
+    const hasLaunchStarter = /Headline:/i.test(text) && /Button label:/i.test(text) && /Reassurance line:/i.test(text);
+    if (!hasLaunchStarter) return true;
+  }
   return WEAK_ARTIFACT_RE.test(text) || ARTIFACT_INTERNAL_RE.test(text);
 }
 
@@ -1712,6 +1716,10 @@ function cleanArtifactBody(value, fallback) {
     .replace(/[^\x09\x0a\x0d\x20-\x7e]/g, "")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{4,}/g, "\n\n\n")
+    .replace(/^Assumptions\s*:/gim, "Still needed:")
+    .replace(/^Assumption\s*$/gim, "Starting point")
+    .replace(/\bAssumptions\b/g, "Still needed")
+    .replace(/\bAssumption\b/g, "Starting point")
     .trim();
   return (clean || fallback).slice(0, 6000);
 }
@@ -1741,11 +1749,11 @@ function artifactContextText(input = {}) {
 }
 
 function isLaunchArtifactInput(input = {}) {
-  return /\b(?:launch|landing page|homepage|home page|site|website|hero|headline|button|cta|visitor|first[- ]time visitor|reassurance line)\b/i.test(artifactContextText(input));
+  return /\b(?:launch page|landing page|homepage|home page|site|website|hero|headline|button|cta|visitor|first[- ]time visitor|reassurance line)\b/i.test(artifactContextText(input));
 }
 
 function isMessageArtifactInput(input = {}) {
-  return /\b(?:message|email|dm|reply|note|ask a friend|send)\b/i.test(artifactContextText(input));
+  return /\b(?:message|email|dm|reply|sendable note|sendable message|ask a friend)\b/i.test(artifactContextText(input));
 }
 
 function launchArtifact(input, intent, question, move) {
@@ -1846,7 +1854,7 @@ function fallbackArtifact(input, reason = "provider") {
         "Goal",
         intent,
         "",
-        "Assumption",
+        "Starting point",
         "Use this as a tiny browser-safe starter until the exact stack is known.",
         "",
         "Acceptance",

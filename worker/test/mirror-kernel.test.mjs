@@ -118,13 +118,13 @@ await check("straitjacket rewrites blamey motive-reading into pattern language",
 
 await check("straitjacket softens vague-input scolding", () => {
   const { mirror, violations } = straitjacket({
-    reflection: "\"I'm stuck\" is too thin to aim at. You want to make a website, but that is too broad to start cleanly.",
+    reflection: "\"I'm stuck\" is too thin to aim at. You want to make a website, but that is too broad to start cleanly. \"Help me turn it into the smallest useful first version\" is still too broad to build from. The request is still broad enough to turn into a vague build.",
     question: "What is the one thing that is stuck: a decision, a draft, or a next action?",
     move: "Write one sentence that names what is stuck in plain words.",
     receipt: RECEIPT,
   });
   const combined = `${mirror.reflection} ${mirror.question} ${mirror.move}`;
-  assert.doesNotMatch(combined, /too blank|too thin to aim at|too broad to start|nothing to work with|not enough to work with|too little to work with/i, "vague-input scolding survived");
+  assert.doesNotMatch(combined, /too blank|too thin to aim at|too broad to start|too broad to build|vague build|nothing to work with|not enough to work with|too little to work with/i, "vague-input scolding survived");
   assert.match(combined, /enough to start|one thing|one sentence/i, "softened start language missing");
   assert.ok(violations.includes("tone_guard_applied"), "tone guard was not recorded");
 });
