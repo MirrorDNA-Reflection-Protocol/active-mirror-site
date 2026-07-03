@@ -978,9 +978,61 @@ await check("artifact route replaces weak provider prose with a finished fallbac
     assert.strictEqual(data.ok, true);
     assert.strictEqual(data.fallback, true);
     assert.strictEqual(data.artifact.kind, "doc");
-    assert.strictEqual(data.artifact.title, "Working doc");
-    assert.match(data.artifact.body, /Sendable version/);
+    assert.strictEqual(data.artifact.title, "Launch Memo");
+    assert.match(data.artifact.body, /Hero copy|Reassurance line|Try the first step/i);
     assert.doesNotMatch(data.artifact.body, /\b(I can help|you could|consider adding|here is how)\b/i, "weak provider phrasing survived");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+await check("artifact route replaces launch-page placeholders with exact starter copy", async () => {
+  installEdgeCache();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("api.openai.com")) {
+      return Response.json({
+        output_text: JSON.stringify({
+          kind: "doc",
+          title: "Launch page copy",
+          body: "Headline: [Product Name] helps you [main result].\nButton label: Start now\nTrust line: [proof point]",
+          checklist: ["Replace placeholders."],
+        }),
+      });
+    }
+    return originalFetch(url, init);
+  };
+
+  try {
+    const response = await post(
+      "/v1/mirror/artifact",
+      {
+        intent: "Create a launch page hero from this reflection.",
+        artifactKind: "doc",
+        boundary: "personal",
+        mirror: {
+          reflection: "For your launch page, start with the first action a visitor can take.",
+          question: "What should they try before they understand the whole product?",
+          move: "Draft one headline, one button label, and one reassurance line for your launch page.",
+        },
+      },
+      {
+        MIRROR_BRIDGE_URL: "",
+        MIRROR_BRIDGE_TOKEN: "",
+        OPENAI_API_KEY: "test-openai-key",
+      },
+    );
+    const data = await response.json();
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(data.ok, true);
+    assert.strictEqual(data.fallback, true);
+    assert.strictEqual(data.artifact.kind, "doc");
+    assert.strictEqual(data.artifact.title, "Launch Page First-Action Draft");
+    assert.match(data.artifact.body, /Headline: Try the first step in minutes/i);
+    assert.match(data.artifact.body, /Button label: Start now/i);
+    assert.match(data.artifact.body, /Reassurance line: No setup guesswork/i);
+    assert.doesNotMatch(data.artifact.body, /\[[^\]]+\]|Trust line/i, "placeholder or old trust-line wording survived");
   } finally {
     globalThis.fetch = originalFetch;
   }

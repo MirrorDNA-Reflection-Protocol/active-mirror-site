@@ -1538,7 +1538,7 @@ function normalizeArtifactProvider(value) {
 
 function buildArtifactPrompt(input) {
   const kindGuidance = {
-    doc: "Create a useful document the user can copy or download now. Include the finished document body, a one-sentence purpose, a short draft, and a concrete ask or next step. Do not explain how to make the document; make it.",
+    doc: "Create a useful document the user can copy or download now. Include the finished document body, a one-sentence purpose, a short draft, and a concrete ask or next step. If this is for a launch page, homepage, landing page, headline, or button, write exact starter copy with no bracket placeholders, use the label 'Reassurance line', and make the first action obvious. Do not explain how to make the document; make it.",
     code: "Create a small code starter or implementation capsule. If the stack is unclear, use the smallest useful vanilla JavaScript example plus assumptions. Include code, acceptance checks, and how to run or adapt it. Do not ask for more context unless code would be unsafe.",
     image: "Create a visual generation brief. It must be directly usable as an image/video prompt and include scene, composition, feeling, constraints, and what to avoid.",
     draft: "Create the smallest sendable draft or working note. It should be useful even if rough, with placeholders where needed.",
@@ -1554,6 +1554,7 @@ function buildArtifactPrompt(input) {
     "Do not invent current facts, citations, prices, legal/medical/financial advice, or private details.",
     "If a claim needs sources, make the artifact say where evidence is needed instead of making the claim sound proven.",
     "Use normal words. Keep it clean, human, and immediately usable.",
+    "Avoid bracket placeholders in user-facing copy unless private details must be removed.",
     "Return valid JSON only with kind, title, body, checklist.",
     "Plain ASCII only. No prose outside JSON.",
     `Artifact kind: ${input.kind}`,
@@ -1654,7 +1655,7 @@ function normalizeArtifactResult(text, input) {
     ? payload.checklist.map((item) => cleanArtifactText(item, "", 140)).filter(Boolean).slice(0, 4)
     : [];
 
-  if (!body || body.length < 20 || artifactNeedsFallback(body)) {
+  if (!body || body.length < 20 || artifactNeedsFallback(body, input)) {
     return {
       fallback: true,
       publicReason: "the live artifact needed a cleaner backup",
@@ -1673,8 +1674,9 @@ function normalizeArtifactResult(text, input) {
   };
 }
 
-function artifactNeedsFallback(body) {
+function artifactNeedsFallback(body, input = {}) {
   const text = String(body || "");
+  if (isLaunchArtifactInput(input) && (/\[[^\]]+\]/.test(text) || /\btrust line\b/i.test(text))) return true;
   return WEAK_ARTIFACT_RE.test(text) || ARTIFACT_INTERNAL_RE.test(text);
 }
 
@@ -1727,6 +1729,72 @@ function defaultArtifactChecklist(kind) {
   if (kind === "code") return ["Test the smallest path first.", "Keep private inputs out of logs."];
   if (kind === "image") return ["Remove private details before media generation.", "Use the brief as the creative prompt."];
   return ["Remove private details before sharing.", "Keep the first version small enough to use."];
+}
+
+function artifactContextText(input = {}) {
+  return [
+    input.intent,
+    input.mirror?.reflection,
+    input.mirror?.question,
+    input.mirror?.move,
+  ].map((item) => String(item || "")).join(" ");
+}
+
+function isLaunchArtifactInput(input = {}) {
+  return /\b(?:launch|landing page|homepage|home page|site|website|hero|headline|button|cta|visitor|first[- ]time visitor|reassurance line)\b/i.test(artifactContextText(input));
+}
+
+function isMessageArtifactInput(input = {}) {
+  return /\b(?:message|email|dm|reply|note|ask a friend|send)\b/i.test(artifactContextText(input));
+}
+
+function launchArtifact(input, intent, question, move) {
+  const pageLike = /\b(?:page|homepage|home page|landing|site|website|hero|headline|button|cta|visitor)\b/i.test(artifactContextText(input));
+  const title = pageLike ? "Launch Page First-Action Draft" : "Launch Memo";
+  return {
+    kind: "doc",
+    title,
+    body: [
+      "Purpose: Give a first-time visitor one clear action they can take before they understand the whole product.",
+      "",
+      "Hero copy:",
+      "Headline: Try the first step in minutes.",
+      "Button label: Start now",
+      "Reassurance line: No setup guesswork. Start with one simple action and see how it works.",
+      "",
+      "Short draft:",
+      "The page should lead with the first thing a visitor can do. Keep the promise clear, make the button specific, and explain the rest only after the visitor knows what to try.",
+      "",
+      "Concrete next step:",
+      move,
+      "",
+      "Quick test:",
+      "Show this first screen to one person and ask: What would you click first?",
+    ].join("\n"),
+    checklist: [
+      "Keep the first action visible above the fold.",
+      "Use the button label as the action, not a vague tour.",
+      "Keep the reassurance line close to the button.",
+      "Test whether a visitor knows what to do without reading more.",
+    ],
+  };
+}
+
+function messageArtifact(intent, question, move) {
+  return {
+    kind: "draft",
+    title: "Sendable message",
+    body: [
+      "Can I get one honest reaction to this?",
+      "",
+      `I am working on: ${intent}`,
+      `The part I want to improve first: ${question}`,
+      `The next step I am considering: ${move}`,
+      "",
+      "What is unclear, and what would make you more likely to act on it?",
+    ].join("\n"),
+    checklist: ["Send this to one person.", "Ask for one unclear part, not general feedback."],
+  };
 }
 
 function fallbackArtifact(input, reason = "provider") {
@@ -1827,6 +1895,9 @@ function fallbackArtifact(input, reason = "provider") {
   }
 
   if (kind === "doc") {
+    if (isLaunchArtifactInput(input)) return launchArtifact(input, intent, question, move);
+    if (isMessageArtifactInput(input)) return messageArtifact(intent, question, move);
+
     return {
       kind,
       title: "Working doc",

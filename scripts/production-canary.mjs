@@ -259,6 +259,7 @@ async function main() {
     assert(typeof data.artifact?.title === "string" && data.artifact.title.length > 2, "artifact title missing");
     assert(typeof data.artifact?.body === "string" && data.artifact.body.length > 40, "artifact body too thin");
     assert(!/\b(I can help|you could|consider adding|here is how|template for)\b/i.test(data.artifact.body), "artifact returned weak helper prose");
+    assert(!/\[[^\]]+\]|\bTrust line\b/i.test(data.artifact.body), "artifact returned placeholder or old trust-line copy");
     assert(Array.isArray(data.artifact?.checklist), "artifact checklist missing");
     assert(data.route?.label === "artifact help", "artifact route label missing");
   });
