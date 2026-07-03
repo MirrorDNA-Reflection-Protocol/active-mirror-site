@@ -247,6 +247,17 @@ function isShortStartFollowupMode(mode = "") {
   return String(mode || "").toLowerCase() === "short_start_followup";
 }
 
+function isUnderSpecifiedIntent(intent = "") {
+  const text = compactIntentPhrase(intent).toLowerCase();
+  if (!text || isShortStartIntent(text)) return false;
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length > 5) return false;
+  if (/\b(make|create|build|write|draft|send|decide|choose|fix|repair|understand|explain|check|verify|research|compare|plan|launch|ship|test|learn)\b/.test(text)) {
+    return false;
+  }
+  return /\b(website|business|money|career|idea|work|project|product|app|portfolio|content|strategy|relationship|habit|focus|school|job|life)\b/.test(text);
+}
+
 function topicFromIntent(intent = "") {
   const clean = compactIntentPhrase(intent) || "this";
   const topic = clean
@@ -294,6 +305,9 @@ function classifyIntent(intent = "") {
   }
   if (/\b(draft|write|document|memo|email|pdf|deck|file|artifact|output|useful)\b/.test(text)) {
     return "artifact";
+  }
+  if (isUnderSpecifiedIntent(text)) {
+    return "needs_detail";
   }
   return "general";
 }
@@ -861,6 +875,11 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
       question: "What do you want help with first?",
       move: "Write one plain sentence that starts with: I want help with.",
     },
+    needs_detail: {
+      reflection: "I can start, but I need one direction so I do not guess.",
+      question: "Which lane fits best: make, decide, fix, or understand?",
+      move: "Pick one word: make, decide, fix, or understand. Then add one sentence.",
+    },
     source_check: {
       reflection: "This needs a source before it becomes a direction. A fresh-sounding answer is not enough to build on.",
       question: "Which claim would change what you do if it turned out to be false?",
@@ -901,9 +920,9 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
           reflection: "This wants to become something you can use, not another pass of thinking about it.",
           question: "What output would still be useful if it were rough?",
           move: "Draft the smallest usable version with a title, three bullets, and one ask.",
-        },
+    },
     general: {
-      reflection: "The thought is staying big because the useful version is still too vague to test. Shrink it until it can meet the real world today.",
+      reflection: "The thought is still wide. Make it small enough to test in the real world today.",
       question: "What is the smallest version of this that could be tested today?",
       move: "Write the testable version in one sentence, then show it to one person.",
     },
@@ -1070,12 +1089,14 @@ export async function reflect({ intent, boundary = "personal", turn = 1, capabil
     };
   }
 
-  if (modelKind === "identity" || modelKind === "sycophancy" || modelKind === "short_start") {
+  if (modelKind === "identity" || modelKind === "sycophancy" || modelKind === "short_start" || modelKind === "needs_detail") {
     const routeText =
       modelKind === "identity"
         ? "Plain product answer; no external model was needed."
         : modelKind === "short_start"
         ? "Short-start intake; no external model was needed."
+        : modelKind === "needs_detail"
+        ? "One-detail intake; no external model was needed."
         : "Agreement-bait guard; no external model was needed.";
     const normalized = normalizeMirror(null, { intent: modelIntent, boundary }, boundaryDef, routeText);
     const { mirror, violations } = straitjacket(normalized, { intent: modelIntent });
@@ -1090,7 +1111,16 @@ export async function reflect({ intent, boundary = "personal", turn = 1, capabil
       receipt_id,
       mirror,
       truth_state,
-      straitjacket: [...violations, modelKind === "identity" ? "deterministic_identity" : modelKind === "short_start" ? "deterministic_short_start" : "deterministic_sycophancy"],
+      straitjacket: [
+        ...violations,
+        modelKind === "identity"
+          ? "deterministic_identity"
+          : modelKind === "short_start"
+          ? "deterministic_short_start"
+          : modelKind === "needs_detail"
+          ? "deterministic_needs_detail"
+          : "deterministic_sycophancy",
+      ],
     };
   }
 

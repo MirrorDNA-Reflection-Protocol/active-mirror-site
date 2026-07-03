@@ -140,6 +140,32 @@ async function main() {
     }
   });
 
+  await check("loose noun turns into one-detail intake", async () => {
+    const response = await fetchWithTimeout(`${GATEWAY}/v1/mirror/create`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Active-Mirror-Session": `canary-needs-detail-${RUN_ID}`,
+      },
+      body: JSON.stringify({
+        intent: "website",
+        boundary: "personal",
+        route: "reflection",
+        turn: 1,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    const visible = `${data.mirror?.reflection || ""} ${data.mirror?.question || ""} ${data.mirror?.move || ""}`;
+
+    assert(response.ok, `needs-detail status ${response.status} ${data.error || ""}`.trim());
+    assert(data.ok === true, "needs-detail ok was not true");
+    assert(Array.isArray(data.straitjacket) && data.straitjacket.includes("deterministic_needs_detail"), "needs-detail deterministic route missing");
+    assert(data.route?.provider === "active_mirror", `needs-detail provider was ${data.route?.provider || "missing"}`);
+    assert(data.route?.model === "none", `needs-detail model was ${data.route?.model || "missing"}`);
+    assert(data.glass?.prompt?.sent_to === "none", "needs-detail prompt was marked as model-routed");
+    assert(/make, decide, fix, or understand|one direction|one sentence/i.test(visible), "needs-detail response did not ask for one useful direction");
+  });
+
   await check("privacy event rail accepts metadata only", async () => {
     const response = await fetchWithTimeout(`${GATEWAY}/v1/events`, {
       method: "POST",

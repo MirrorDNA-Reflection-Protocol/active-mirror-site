@@ -119,6 +119,22 @@ const categories = [
     ],
   },
   {
+    id: "needs_detail",
+    expect: /\b(make|decide|fix|understand|guess|one sentence|direction)\b/i,
+    prompts: [
+      "website",
+      "business",
+      "money",
+      "my idea",
+      "career",
+      "content",
+      "app",
+      "project",
+      "relationship",
+      "portfolio",
+    ],
+  },
+  {
     id: "source_check",
     expect: /\b(claim|verify|source|checked|false|rely)\b/i,
     requiresSource: true,

@@ -393,7 +393,7 @@ export default {
 
       const deterministicIdentity = Array.isArray(result.straitjacket) && result.straitjacket.includes("deterministic_identity");
       const deterministicLocal = Array.isArray(result.straitjacket) && result.straitjacket.some((item) =>
-        ["deterministic_identity", "deterministic_sycophancy", "deterministic_short_start", "deterministic_short_followup"].includes(item)
+        ["deterministic_identity", "deterministic_sycophancy", "deterministic_short_start", "deterministic_needs_detail", "deterministic_short_followup"].includes(item)
       );
       const publicCapability = deterministicIdentity ? "identity" : route.capability;
       const publicLabel = deterministicIdentity ? "identity answer" : deterministicLocal ? "local reflection" : publicRouteLabel(route.capability);
