@@ -176,6 +176,7 @@ export const ACTIVE_MIRROR_BOOTLOAD = [
   "When the user asks who you are or what you can do, answer plainly in one sentence and move them back to one useful action.",
   "Never position yourself as the authority on what the user needs to hear. Do not say 'what you need to hear', 'not what you want to hear', or similar paternal lines.",
   "If a privacy boundary is triggered, help the user rewrite with placeholders. Do not scold them, reject them, or make privacy feel like a failure.",
+  "If the user's input is vague or short, treat it as enough to begin. Ask for one concrete detail; never say they gave nothing, too little, or something too blank to work with.",
   "Tone: calm, sharp, plain, human. Warmth comes from usefulness, not emotional padding.",
   "Direct does not mean harsh. Challenge the idea, plan, or next move; never attack, diagnose, or narrate the person's motives.",
   "Avoid blamey mind-reading such as 'you keep doing X to avoid Y' or 'you are using X to delay Y'. Say what the pattern is doing instead: 'This is turning into a loop. Make one small version and test it.'",
@@ -234,6 +235,14 @@ function needsSourceCheckText(text = "") {
   return explicitSourceAsk || timedFactAsk;
 }
 
+function isShortStartIntent(intent = "") {
+  const text = compactIntentPhrase(intent).toLowerCase();
+  if (!text) return false;
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length > 7) return false;
+  return /^(?:i'?m\s+stuck|i\s+am\s+stuck|stuck|help|help\s+me|i\s+need\s+help|not\s+sure(?:\s+what\s+to\s+(?:ask|do))?|i\s+don'?t\s+know(?:\s+what\s+to\s+do|\s+where\s+to\s+start)?|i\s+do\s+not\s+know(?:\s+what\s+to\s+do|\s+where\s+to\s+start)?|what\s+now|start)$/i.test(text);
+}
+
 function classifyIntent(intent = "") {
   const text = compactIntentPhrase(intent).toLowerCase();
   if (/\b(who are you|what are you|what is active mirror|what can you do|what can you not do|what do you do|what model are you|which model are you|are you chatgpt|are you claude|are you gemini|are you copilot|are you an ai|are you a language model)\b/.test(text)) {
@@ -241,6 +250,9 @@ function classifyIntent(intent = "") {
   }
   if (isSycophancyBait(text)) {
     return "sycophancy";
+  }
+  if (isShortStartIntent(text)) {
+    return "short_start";
   }
   if (/\b(models?|browser|ai apps?|apple|memory|genui)\b.*\bnow\b/.test(text)) {
     return "source_check";
@@ -476,6 +488,8 @@ const PERSON_ATTACK_RE =
 const HARSH_VERDICT_RE = /\b(?:this|that|your plan|your idea|your work|your question)\s+is\s+(?:stupid|dumb|idiotic|pathetic|delusional|ridiculous|trash|garbage)\b/i;
 const STILTED_VOICE_RE =
   /\b(?:stuck|lost|ready|clear|useful|true|private|safe|visible|testable|earned|needed|big),\s+(?:you|this|it|the|that|is|are|make|must|should)\b|\b(?:must you|should you|can you)\s+(?:now|then|first)\b/i;
+const INPUT_SCOLD_RE =
+  /\b(?:you\s+(?:gave|provided|sent|submitted)\s+(?:almost\s+)?(?:nothing|too little|not enough)[^.!?]{0,80}\b(?:work|aim|act|answer|use)\s+(?:with|from|at|on)?|(?:this|that|the ask|the request|the question|"?i'?m stuck"?)\s+(?:is|feels|looks)\s+(?:too\s+)?(?:blank|vague|thin|empty|generic|broad)\s+to\s+(?:work\s+(?:with|from)|aim\s+at|act\s+on|answer|use)|(?:there\s+(?:is|isn't|was|wasn't)|there's)\s+(?:almost\s+)?(?:nothing|not enough|too little)[^.!?]{0,80}\b(?:work|aim|act|answer|use)\s+(?:with|from|at|on)?)\b/i;
 const BLAMEY_MOTIVE_RE =
   /\b(?:you\s+keep\s+[^.!?]{0,100}|you\s+(?:are\s+using|use|seem\s+to|may\s+be|might\s+be)\s+[^.!?]{0,100}\b(?:avoid|avoiding|delay|delaying|procrastinat|hiding|dodging)\b|you\s+are\s+using\s+[^.!?]{0,80}\b(?:to avoid|to delay|as a way to avoid|as a way to delay)\b|what[^?]{0,100}\bare\s+you\s+(?:avoid|avoiding|delaying|dodging|hiding))\b/i;
 const MISSING_ARTIFACT_SCOLD_RE =
@@ -549,6 +563,10 @@ function removeCannedPhrases(text) {
 function removeToneViolations(text) {
   return String(text || "")
     .replace(/((?:"[^"]+"|'[^']+'|this|that|the ask|the question))\s+(?:is|feels)\s+too\s+thin\s+to\s+work\s+from\b/gi, "$1 is enough to start, but it needs one detail")
+    .replace(/((?:"[^"]+"|'[^']+'|this|that|the ask|the request|the question))\s+(?:is|feels|looks)\s+(?:too\s+)?(?:blank|vague|empty|generic|broad)\s+to\s+work\s+(?:with|from)\b/gi, "$1 is enough to start, but it needs one detail")
+    .replace(/((?:"[^"]+"|'[^']+'|this|that|the ask|the request|the question))\s+(?:is|feels|looks)\s+(?:too\s+)?(?:thin|blank|vague|empty|generic|broad)\s+to\s+(?:aim\s+at|act\s+on|answer|use)\b/gi, "$1 is enough to start, but it needs one detail")
+    .replace(/\byou\s+(?:gave|provided|sent|submitted)\s+(?:almost\s+)?(?:nothing|too little|not enough)\s+to\s+work\s+(?:with|from)\b,?\s*(?:so\s+)?/gi, "That is enough to start. ")
+    .replace(/\b(?:there\s+(?:is|isn't|was|wasn't)|there's)\s+(?:almost\s+)?(?:nothing|not enough|too little)\s+to\s+work\s+(?:with|from)\b/gi, "That is enough to start")
     .replace(/\byou(?:'re| are)?\s+(?:delusional|stupid|lazy|crazy|pathetic|weak|broken|a failure|unserious|not serious|irrational|naive)\b/gi, "this is not solid yet")
     .replace(/\band\s+(?:delusional|stupid|lazy|crazy|pathetic|weak|broken|a failure|unserious|not serious|irrational|naive)\b/gi, "")
     .replace(/\byour\s+(?:thinking|idea|plan|work|question)\s+is\s+(?:stupid|dumb|idiotic|pathetic|delusional|ridiculous|trash|garbage)\b/gi, "this needs a smaller test")
@@ -637,7 +655,7 @@ export function straitjacket(mirror, options = {}) {
   if (CANNED_PHRASE_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`) || ABSTRACT_HELPER_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
     violations.push("canned_phrase_removed");
   }
-  if (PERSON_ATTACK_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`) || HARSH_VERDICT_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`) || STILTED_VOICE_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
+  if (PERSON_ATTACK_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`) || HARSH_VERDICT_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`) || STILTED_VOICE_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`) || INPUT_SCOLD_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
     violations.push("tone_guard_applied");
   }
   if (BLAMEY_MOTIVE_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
@@ -651,9 +669,11 @@ export function straitjacket(mirror, options = {}) {
   if (MISSING_ARTIFACT_SCOLD_RE.test(reflection)) {
     reflection = "I can help, but I need the actual text to avoid guessing at the risk.";
   }
-  if (STILTED_VOICE_RE.test(reflection) || ABSTRACT_HELPER_RE.test(reflection) || PERSON_ATTACK_RE.test(reflection) || HARSH_VERDICT_RE.test(reflection) || BLAMEY_MOTIVE_RE.test(reflection)) {
+  if (STILTED_VOICE_RE.test(reflection) || ABSTRACT_HELPER_RE.test(reflection) || PERSON_ATTACK_RE.test(reflection) || HARSH_VERDICT_RE.test(reflection) || INPUT_SCOLD_RE.test(reflection) || BLAMEY_MOTIVE_RE.test(reflection)) {
     reflection = BLAMEY_MOTIVE_RE.test(reflection)
       ? "This is turning into a loop. Make one small version and test it."
+      : INPUT_SCOLD_RE.test(reflection)
+      ? "That is enough to start. Add one concrete detail so the next step can be real."
       : "This is getting too abstract. Make the next step plain.";
     if (!violations.includes("tone_guard_applied")) violations.push("tone_guard_applied");
   }
@@ -662,7 +682,7 @@ export function straitjacket(mirror, options = {}) {
   if (MISSING_ARTIFACT_SCOLD_RE.test(question)) {
     question = vagueWritingRequest ? writingIntakeQuestion(intent) : "Which part do you want checked before you send it?";
   }
-  if (STILTED_VOICE_RE.test(question) || ABSTRACT_HELPER_RE.test(question) || PERSON_ATTACK_RE.test(question) || HARSH_VERDICT_RE.test(question) || BLAMEY_MOTIVE_RE.test(question)) {
+  if (STILTED_VOICE_RE.test(question) || ABSTRACT_HELPER_RE.test(question) || PERSON_ATTACK_RE.test(question) || HARSH_VERDICT_RE.test(question) || INPUT_SCOLD_RE.test(question) || BLAMEY_MOTIVE_RE.test(question)) {
     question = "What would make this simpler right now?";
     if (!violations.includes("tone_guard_applied")) violations.push("tone_guard_applied");
   }
@@ -684,7 +704,7 @@ export function straitjacket(mirror, options = {}) {
 
   const cleanedMove = trimWords(oneThing(deflatter(moveRaw)), 26);
   const missingArtifactMove = MISSING_ARTIFACT_SCOLD_RE.test(cleanedMove);
-  const toneBadMove = STILTED_VOICE_RE.test(cleanedMove) || ABSTRACT_HELPER_RE.test(cleanedMove) || PERSON_ATTACK_RE.test(cleanedMove) || HARSH_VERDICT_RE.test(cleanedMove) || BLAMEY_MOTIVE_RE.test(cleanedMove);
+  const toneBadMove = STILTED_VOICE_RE.test(cleanedMove) || ABSTRACT_HELPER_RE.test(cleanedMove) || PERSON_ATTACK_RE.test(cleanedMove) || HARSH_VERDICT_RE.test(cleanedMove) || INPUT_SCOLD_RE.test(cleanedMove) || BLAMEY_MOTIVE_RE.test(cleanedMove);
   if (toneBadMove && !violations.includes("tone_guard_applied")) violations.push("tone_guard_applied");
   const move = missingArtifactMove
     ? vagueWritingRequest
@@ -822,6 +842,11 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
       question: "What do you want help with right now?",
       move: "Write one sentence about the thing you want to move.",
     },
+    short_start: {
+      reflection: "We can start there. The first move is to name the thing, not solve all of it.",
+      question: "What do you want help with first?",
+      move: "Write one plain sentence that starts with: I want help with.",
+    },
     source_check: {
       reflection: "This needs a source before it becomes a direction. A fresh-sounding answer is not enough to build on.",
       question: "Which claim would change what you do if it turned out to be false?",
@@ -956,10 +981,12 @@ export async function reflect({ intent, boundary = "personal", turn = 1, capabil
   const redactedForModel = modelIntent !== String(intent || "");
   const modelKind = classifyIntent(modelIntent);
 
-  if (modelKind === "identity" || modelKind === "sycophancy") {
+  if (modelKind === "identity" || modelKind === "sycophancy" || modelKind === "short_start") {
     const routeText =
       modelKind === "identity"
         ? "Plain product answer; no external model was needed."
+        : modelKind === "short_start"
+        ? "Short-start intake; no external model was needed."
         : "Agreement-bait guard; no external model was needed.";
     const normalized = normalizeMirror(null, { intent: modelIntent, boundary }, boundaryDef, routeText);
     const { mirror, violations } = straitjacket(normalized, { intent: modelIntent });
@@ -974,7 +1001,7 @@ export async function reflect({ intent, boundary = "personal", turn = 1, capabil
       receipt_id,
       mirror,
       truth_state,
-      straitjacket: [...violations, modelKind === "identity" ? "deterministic_identity" : "deterministic_sycophancy"],
+      straitjacket: [...violations, modelKind === "identity" ? "deterministic_identity" : modelKind === "short_start" ? "deterministic_short_start" : "deterministic_sycophancy"],
     };
   }
 

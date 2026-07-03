@@ -116,6 +116,19 @@ await check("straitjacket rewrites blamey motive-reading into pattern language",
   assert.ok(violations.includes("motive_guard_applied"), "motive guard was not recorded");
 });
 
+await check("straitjacket softens vague-input scolding", () => {
+  const { mirror, violations } = straitjacket({
+    reflection: "\"I'm stuck\" is too thin to aim at. The tradeoff is that a vague label feels true, but it does not tell the next move.",
+    question: "What is the one thing that is stuck: a decision, a draft, or a next action?",
+    move: "Write one sentence that names what is stuck in plain words.",
+    receipt: RECEIPT,
+  });
+  const combined = `${mirror.reflection} ${mirror.question} ${mirror.move}`;
+  assert.doesNotMatch(combined, /too blank|too thin to aim at|nothing to work with|not enough to work with|too little to work with/i, "vague-input scolding survived");
+  assert.match(combined, /enough to start|one thing|one sentence/i, "softened start language missing");
+  assert.ok(violations.includes("tone_guard_applied"), "tone guard was not recorded");
+});
+
 // 2. A single-sentence move with internal punctuation survives whole (the bug we caught live).
 await check("a single move with an internal ellipsis is NOT truncated", () => {
   const { mirror, violations } = straitjacket({
@@ -197,6 +210,33 @@ await check("reflect() handles explicit agreement bait before model routing", as
   assert.doesNotMatch(combined, /absolutely right|definitely do it|spend the money now/i, "sycophancy reached the user");
   assert.match(combined, /\b(test|evidence|weak|risk|challenge|before)\b/i, "the premise was not challenged");
   assert.match(out.mirror.move, /\b(write|ask)\b/i, "move was not observable");
+});
+
+await check("reflect() handles short first-touch starts before model routing", async () => {
+  let modelWasCalled = false;
+  const spy = async () => {
+    modelWasCalled = true;
+    return {
+      mirror: {
+        reflection: "\"I'm stuck\" is too thin to aim at.",
+        question: "What is missing?",
+        move: "Write more context.",
+        receipt: RECEIPT,
+      },
+      fallback: false,
+      routeText: "mock",
+    };
+  };
+
+  for (const intent of ["I'm stuck.", "Help me.", "I don't know what to do.", "Not sure what to ask."]) {
+    modelWasCalled = false;
+    const out = await reflect({ intent, boundary: "personal", callModel: spy });
+    const combined = `${out.mirror.reflection} ${out.mirror.question} ${out.mirror.move}`;
+    assert.strictEqual(modelWasCalled, false, `${intent} reached the model`);
+    assert.ok(out.straitjacket.includes("deterministic_short_start"), "short-start guard was not recorded");
+    assert.doesNotMatch(combined, /too thin|too blank|nothing to work with|too broad/i, "short-start scolding reached the user");
+    assert.match(combined, /start|help|one plain sentence/i, "short-start intake did not stay useful");
+  }
 });
 
 // 5. A secret in the intent never reaches the injected model at all.
@@ -500,7 +540,7 @@ await check("reflect turns vague writing asks into simple intake", async () => {
 
 await check("reflect softens harsh short-start language", async () => {
   const out = await reflect({
-    intent: "I'm stuck.",
+    intent: "I am stuck on the launch page.",
     boundary: "personal",
     callModel: async () => ({
       mirror: {
