@@ -498,6 +498,27 @@ await check("reflect turns vague writing asks into simple intake", async () => {
   assert.ok(out.straitjacket.includes("question_forced"), "writing intake repair was not recorded");
 });
 
+await check("reflect softens harsh short-start language", async () => {
+  const out = await reflect({
+    intent: "I'm stuck.",
+    boundary: "personal",
+    callModel: async () => ({
+      mirror: {
+        reflection: "\"I'm stuck\" is too thin to work from, so the next move is to name one concrete thing.",
+        question: "What exactly is stuck: the decision, the draft, or the first action?",
+        move: "Name the one thing you cannot start in 10 words or less.",
+        receipt: RECEIPT,
+        visual: { kind: "none", left: "", right: "", note: "" },
+      },
+      fallback: false,
+      routeText: "mock",
+    }),
+  });
+  const visible = `${out.mirror.reflection} ${out.mirror.question} ${out.mirror.move}`;
+  assert.doesNotMatch(visible, /too thin to work from/i, "harsh short-start wording survived");
+  assert.match(visible, /enough to start/i, "short-start wording did not become workable");
+});
+
 await check("who-are-you fallback stays plain and useful", async () => {
   let modelWasCalled = false;
   const out = await reflect({

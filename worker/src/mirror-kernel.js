@@ -548,6 +548,7 @@ function removeCannedPhrases(text) {
 
 function removeToneViolations(text) {
   return String(text || "")
+    .replace(/((?:"[^"]+"|'[^']+'|this|that|the ask|the question))\s+(?:is|feels)\s+too\s+thin\s+to\s+work\s+from\b/gi, "$1 is enough to start, but it needs one detail")
     .replace(/\byou(?:'re| are)?\s+(?:delusional|stupid|lazy|crazy|pathetic|weak|broken|a failure|unserious|not serious|irrational|naive)\b/gi, "this is not solid yet")
     .replace(/\band\s+(?:delusional|stupid|lazy|crazy|pathetic|weak|broken|a failure|unserious|not serious|irrational|naive)\b/gi, "")
     .replace(/\byour\s+(?:thinking|idea|plan|work|question)\s+is\s+(?:stupid|dumb|idiotic|pathetic|delusional|ridiculous|trash|garbage)\b/gi, "this needs a smaller test")
