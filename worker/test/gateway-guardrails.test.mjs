@@ -179,6 +179,30 @@ await check("mirror request succeeds before budget is exhausted", async () => {
   assert.match(data.receipt_id, /^[0-9a-f]{24}$/);
 });
 
+await check("mirror accepts natural short stuck turns", async () => {
+  const response = await post("/v1/mirror/create", {
+    intent: "I'm stuck.",
+    boundary: "personal",
+    route: "reflection",
+  });
+  const data = await response.json();
+  assert.strictEqual(response.status, 200);
+  assert.strictEqual(data.ok, true);
+  assert.match(data.receipt_id, /^[0-9a-f]{24}$/);
+});
+
+await check("mirror still rejects non-language noise", async () => {
+  const response = await post("/v1/mirror/create", {
+    intent: "....",
+    boundary: "personal",
+    route: "reflection",
+  });
+  const data = await response.json();
+  assert.strictEqual(response.status, 400);
+  assert.strictEqual(data.ok, false);
+  assert.strictEqual(data.error, "intent_too_short");
+});
+
 await check("MirrorDash Glass exposes transparent router facts without prompt body", async () => {
   installEdgeCache();
   const response = await post("/v1/mirror/create", {

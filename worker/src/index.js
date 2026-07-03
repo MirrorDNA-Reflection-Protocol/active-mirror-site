@@ -43,7 +43,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-07-02-first-turn-source-voice-v1";
+const WORKER_VERSION = "2026-07-03-first-turn-intake-v1";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
@@ -1279,7 +1279,7 @@ function logSafe(ctx, payload) {
 
 function sanitizeInput(body) {
   const intent = String(body?.intent || body?.input || "").replace(/\s+/g, " ").trim().slice(0, 1000);
-  if (intent.length < 12) throw httpError(400, "intent_too_short");
+  if (!hasUsableMirrorIntent(intent)) throw httpError(400, "intent_too_short");
   const boundary = String(body?.boundary || "personal").toLowerCase();
   return {
     intent,
@@ -1287,6 +1287,14 @@ function sanitizeInput(body) {
     route: normalizeRoute(body?.route),
     turn: Number.isFinite(body?.turn) ? Math.max(1, Math.min(9999, Math.trunc(body.turn))) : 1,
   };
+}
+
+function hasUsableMirrorIntent(intent = "") {
+  const normalized = String(intent || "").trim();
+  if (!normalized) return false;
+  const lettersAndNumbers = normalized.replace(/[^a-z0-9]/gi, "");
+  if (lettersAndNumbers.length < 4) return false;
+  return /[a-z]/i.test(lettersAndNumbers);
 }
 
 function sanitizeSourceCheckInput(body) {

@@ -476,6 +476,28 @@ await check("reflect cleans missing-artifact scolding from receipts", async () =
   assert.doesNotMatch(text, /text itself is missing|draft itself is missing|work is blocked|surface the draft/i, "receipt kept missing-artifact scold");
 });
 
+await check("reflect turns vague writing asks into simple intake", async () => {
+  const out = await reflect({
+    intent: "Can you write this for me?",
+    boundary: "personal",
+    callModel: async () => ({
+      mirror: {
+        reflection: "You want this written, but this is not enough to work with.",
+        question: "What exactly needs checking before you rely on it?",
+        move: "Paste the sentence or paragraph you want written, then I will rewrite it.",
+        receipt: RECEIPT,
+        visual: { kind: "none", left: "", right: "", note: "" },
+      },
+      fallback: false,
+      routeText: "mock",
+    }),
+  });
+  const visible = `${out.mirror.reflection} ${out.mirror.question} ${out.mirror.move}`;
+  assert.strictEqual(out.mirror.question, "What are you trying to make, and who is it for?");
+  assert.doesNotMatch(visible, /checking before you rely|source|claim|evidence/i, "vague writing ask became source-check language");
+  assert.ok(out.straitjacket.includes("question_forced"), "writing intake repair was not recorded");
+});
+
 await check("who-are-you fallback stays plain and useful", async () => {
   let modelWasCalled = false;
   const out = await reflect({

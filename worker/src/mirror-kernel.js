@@ -172,7 +172,7 @@ export const ACTIVE_MIRROR_BOOTLOAD = [
   "CURRENT_FACTS_REQUIRE_SOURCE_CHECK: current, latest, market, legal, pricing, model, API, news, or external factual claims need a source-check route or a needs-checking marker. Model training memory is not enough.",
   "When the user asks for everything, more features, or what else, choose the next smallest useful slice and stop there.",
   "When the user asks for code, markdown, a PDF, or a sendable artifact, produce the smallest useful artifact shape only when enough context is present; otherwise ask one concrete follow-up.",
-  "When the user asks you to rewrite, review, make safer, or prepare something but has not provided the text, ask for only the relevant sentence or paragraph. Do not say the work is blocked, missing, or that they need to surface the draft.",
+  "When the user asks you to write, rewrite, review, make safer, or prepare something but has not provided the needed text, ask what they are trying to make and who it is for. For rewrite or safer-before-send requests, ask for only the relevant sentence or paragraph. Do not say the work is blocked, missing, or that they need to surface the draft.",
   "When the user asks who you are or what you can do, answer plainly in one sentence and move them back to one useful action.",
   "Never position yourself as the authority on what the user needs to hear. Do not say 'what you need to hear', 'not what you want to hear', or similar paternal lines.",
   "If a privacy boundary is triggered, help the user rewrite with placeholders. Do not scold them, reject them, or make privacy feel like a failure.",
@@ -206,6 +206,21 @@ const SYCOPHANCY_BAIT_RE =
 
 function isSycophancyBait(intent = "") {
   return SYCOPHANCY_BAIT_RE.test(compactIntentPhrase(intent));
+}
+
+const VAGUE_WRITING_REQUEST_RE =
+  /\b(?:write|rewrite|draft|compose|prepare|make|create|polish|review|fix|improve|turn)\b[^.!?]{0,90}\b(?:this|it|something|for me)\b|\b(?:can you|could you|please)\s+(?:write|rewrite|draft|compose|prepare|make|create|polish|review|fix|improve)\b/i;
+
+function isVagueWritingRequest(intent = "") {
+  return VAGUE_WRITING_REQUEST_RE.test(compactIntentPhrase(intent));
+}
+
+function writingIntakeQuestion(intent = "") {
+  const text = compactIntentPhrase(intent).toLowerCase();
+  if (/\b(rewrite|review|polish|fix|improve|safer|send|email|message|copy|sentence|paragraph)\b/.test(text)) {
+    return "What are you trying to send, and who is it for?";
+  }
+  return "What are you trying to make, and who is it for?";
 }
 
 function needsSourceCheckText(text = "") {
@@ -601,11 +616,13 @@ export function oneThing(text) {
   return s.split(/\n+|\s+•\s+|\s+\d+[.)]\s+/)[0].trim();
 }
 
-export function straitjacket(mirror) {
+export function straitjacket(mirror, options = {}) {
   const violations = [];
   const reflectionRaw = String(mirror.reflection || "");
   const questionRaw = String(mirror.question || "");
   const moveRaw = String(mirror.move || "");
+  const intent = compactIntentPhrase(options.intent || "");
+  const vagueWritingRequest = isVagueWritingRequest(intent);
 
   if (FLATTERY_RE.test(reflectionRaw) || FLATTERY_RE.test(questionRaw) || FLATTERY_RE.test(moveRaw)) {
     violations.push("flattery_removed");
@@ -642,7 +659,7 @@ export function straitjacket(mirror) {
 
   let question = trimWords(deflatter(questionRaw), 24) || "What do you want help with right now?";
   if (MISSING_ARTIFACT_SCOLD_RE.test(question)) {
-    question = "Which part do you want checked before you send it?";
+    question = vagueWritingRequest ? writingIntakeQuestion(intent) : "Which part do you want checked before you send it?";
   }
   if (STILTED_VOICE_RE.test(question) || ABSTRACT_HELPER_RE.test(question) || PERSON_ATTACK_RE.test(question) || HARSH_VERDICT_RE.test(question) || BLAMEY_MOTIVE_RE.test(question)) {
     question = "What would make this simpler right now?";
@@ -656,7 +673,11 @@ export function straitjacket(mirror) {
     question = question.slice(0, qMark + 1).trim(); // keep to the first question only
   }
   if (looksDanglingQuestion(question)) {
-    question = "What exactly needs checking before you rely on it?";
+    question = vagueWritingRequest ? writingIntakeQuestion(intent) : "What exactly needs checking before you rely on it?";
+    if (!violations.includes("question_forced")) violations.push("question_forced");
+  }
+  if (vagueWritingRequest && /\b(?:check(?:ing|ed)?|source|sources|claim|evidence|rely|reliance)\b/i.test(question)) {
+    question = writingIntakeQuestion(intent);
     if (!violations.includes("question_forced")) violations.push("question_forced");
   }
 
@@ -665,7 +686,9 @@ export function straitjacket(mirror) {
   const toneBadMove = STILTED_VOICE_RE.test(cleanedMove) || ABSTRACT_HELPER_RE.test(cleanedMove) || PERSON_ATTACK_RE.test(cleanedMove) || HARSH_VERDICT_RE.test(cleanedMove) || BLAMEY_MOTIVE_RE.test(cleanedMove);
   if (toneBadMove && !violations.includes("tone_guard_applied")) violations.push("tone_guard_applied");
   const move = missingArtifactMove
-    ? "Paste only the sentence or paragraph you want checked."
+    ? vagueWritingRequest
+      ? "Write the audience and the rough purpose in one sentence."
+      : "Paste only the sentence or paragraph you want checked."
     : cleanedMove && !toneBadMove && !looksMalformedMove(cleanedMove) && !looksNonObservableMove(cleanedMove)
     ? cleanedMove
     : "Write one sentence about the thing you want to move.";
@@ -828,11 +851,17 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
       question: "Which one loop would make the rest easier if it moved a little?",
       move: "Pick that loop, set a ten-minute timer, and write only the next visible action.",
     },
-    artifact: {
-      reflection: "This wants to become something you can use, not another pass of thinking about it.",
-      question: "What output would still be useful if it were rough?",
-      move: "Draft the smallest usable version with a title, three bullets, and one ask.",
-    },
+    artifact: isVagueWritingRequest(userIntent)
+      ? {
+          reflection: "This wants to become something usable, but the actual shape is still missing.",
+          question: writingIntakeQuestion(userIntent),
+          move: "Write the audience and the rough purpose in one sentence.",
+        }
+      : {
+          reflection: "This wants to become something you can use, not another pass of thinking about it.",
+          question: "What output would still be useful if it were rough?",
+          move: "Draft the smallest usable version with a title, three bullets, and one ask.",
+        },
     general: {
       reflection: "The thought is staying big because the useful version is still too vague to test. Shrink it until it can meet the real world today.",
       question: "What is the smallest version of this that could be tested today?",
@@ -932,7 +961,7 @@ export async function reflect({ intent, boundary = "personal", turn = 1, capabil
         ? "Plain product answer; no external model was needed."
         : "Agreement-bait guard; no external model was needed.";
     const normalized = normalizeMirror(null, { intent: modelIntent, boundary }, boundaryDef, routeText);
-    const { mirror, violations } = straitjacket(normalized);
+    const { mirror, violations } = straitjacket(normalized, { intent: modelIntent });
     const truth_state = truthGate({ intent, mirror });
     if (truth_state.status === "needs_checking") {
       violations.push("truth_state_needs_sources");
@@ -966,7 +995,7 @@ export async function reflect({ intent, boundary = "personal", turn = 1, capabil
 
   // 4. Normalize, then the straitjacket — the honesty floor the model can't cross.
   const normalized = normalizeMirror(hasModelMirror ? res.mirror : null, { intent: modelIntent, boundary }, boundaryDef, routeText);
-  const { mirror, violations } = straitjacket(normalized);
+  const { mirror, violations } = straitjacket(normalized, { intent: modelIntent });
   if (redactedForModel) violations.push("client_boundary_redacted");
 
   // GenUI: gate the model's chosen visual against the fixed registry. Fails closed.

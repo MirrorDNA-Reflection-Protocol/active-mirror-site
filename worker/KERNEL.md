@@ -45,8 +45,9 @@ The boot packet is steering, not enforcement. It tells the model to:
 - narrow "do everything / what else" turns to the next smallest useful slice;
 - produce only the smallest useful artifact shape when the user asks for code,
   markdown, a PDF, or a sendable output;
-- ask for only the relevant sentence or paragraph when the user asks to rewrite,
-  review, prepare, or make something safer but has not provided the text;
+- ask what the user is trying to make and who it is for when they ask to write
+  or prepare something without enough context; for rewrite/review/safer-before-send
+  requests, ask only for the relevant sentence or paragraph;
 - answer "who are you / what can you do" plainly and move the user back to one useful action;
 - avoid therapy, professor, brand-strategy, and internal-evaluator voice;
 - challenge the idea, plan, or next move without attacking the person;
@@ -133,7 +134,7 @@ claim as needing sources.
 
 | field | type | required | notes |
 |---|---|---|---|
-| `intent` | string | yes | the one thing the user is stuck on. **12–1000 chars** (enforce the 12 min client-side; shorter throws). |
+| `intent` | string | yes | the one thing the user is stuck on. **4–1000 alphanumeric chars** after cleanup. Natural short starts such as `"I'm stuck."` are valid; punctuation-only noise throws. |
 | `boundary` | string | no | `"personal"` (default) · `"client"` · `"secrets"` · `"drafts"`. Controls declared exclusions and, for `client`, best-effort masking before model/source-check routing. |
 | `route` | string | no | `"reflection"` (use this) · `"chat"` · `"media"` · `"auto"` (default). |
 | `turn` | integer | no | 1–9999, default 1. Increment per turn in a session. |
@@ -254,7 +255,7 @@ claim as needing sources.
   `"flattery_removed"`, `"canned_phrase_removed"`, `"internal_tokens_removed"`, `"model_identity_removed"`, `"tone_guard_applied"`, `"question_forced"`, `"move_made_singular"`, `"visual_dropped"`, `"truth_state_needs_sources"`, `"deterministic_identity"`, `"missing_artifact_reframed"`.
   `"client_boundary_redacted"` appears when obvious client-boundary sensitive patterns were masked before model routing.
   `"professional_redirect"` appears when medical, legal, financial, or regulatory-risk advice was framed before model routing.
-  `"missing_artifact_reframed"` appears when provider wording blames the user for a missing draft/text and is rewritten into a plain request for only the relevant sentence or paragraph.
+  `"missing_artifact_reframed"` appears when provider wording blames the user for a missing draft/text and is rewritten into a plain request for what they are making, who it is for, or only the relevant sentence/paragraph.
   `"deterministic_identity"` appears when product identity prompts such as "who are you?" or "what can you do?" are answered by the stable kernel path instead of a provider.
   (Empty array = the model stayed inside the cage on its own.)
 
@@ -388,8 +389,8 @@ If `visual` is `null`, render nothing — most turns have no visual.
   the model is **not called** for medical, legal, financial, or regulatory advice.
   `truth_state.status` is `needs_checking`, `straitjacket` includes
   `"professional_redirect"`, and the move routes to a qualified person/source.
-- **`intent` < 12 chars or malformed body** → `400 { "ok": false, "error": "intent_too_short" }` or `400 { "ok": false, "error": "invalid_json" }`.
-  Prevent this client-side (require ≥12 chars before POST).
+- **`intent` has fewer than 4 alphanumeric chars, has no letters, or body is malformed** → `400 { "ok": false, "error": "intent_too_short" }` or `400 { "ok": false, "error": "invalid_json" }`.
+  Prevent this client-side by requiring a real short phrase, not punctuation-only input.
 - **Payload over gateway cap** → `413`:
   ```json
   { "ok": false, "error": "payload_too_large" }
