@@ -30,6 +30,8 @@ Prefer:
 - What do you want?
 - Start here.
 - Already have one?
+- Set it up.
+- Saved on this device.
 - Use my mirror.
 - Use placeholders for anything private.
 - Make one small version and test it.
