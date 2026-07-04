@@ -15,6 +15,10 @@ const routes = [
       /Start here/i,
       /Already have one\?/i,
       /Send/i,
+      /\bMake\b/i,
+      /\bDecide\b/i,
+      /\bFix\b/i,
+      /\bUnderstand\b/i,
     ],
     interact: true,
   },
@@ -42,7 +46,7 @@ const routes = [
   {
     name: "mirror",
     path: "/mirror",
-    mustSee: [/What do you want\?/i, /Start here/i, /Already have one\?/i, /Send/i],
+    mustSee: [/What do you want\?/i, /Start here/i, /Already have one\?/i, /Send/i, /\bMake\b/i, /\bDecide\b/i, /\bFix\b/i, /\bUnderstand\b/i],
   },
   {
     name: "enterprise",
