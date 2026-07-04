@@ -141,14 +141,12 @@ async function exerciseFirstInput(page) {
   await page.getByRole("button", { name: /^Save$/ }).waitFor({ timeout: 30000 });
   await page.getByRole("button", { name: /^Save$/ }).click();
   await page.getByRole("button", { name: /^Saved$/ }).waitFor({ timeout: 10000 });
-  await page.getByRole("button", { name: /^(Different angle|Another angle)$/ }).last().waitFor({ timeout: 10000 });
-  const artifactButton = page.getByRole("button", { name: /^(Draft it|Make doc|Make code starter|Make visual brief)$/ }).first();
+  await page.getByRole("button", { name: /^(Different angle|Another angle|Make page copy|Test it)$/ }).last().waitFor({ timeout: 10000 });
+  const artifactButton = page.getByRole("button", { name: /^(Draft it|Make doc|Make code starter|Make visual brief|Make page copy|Test it)$/ }).first();
   await artifactButton.waitFor({ timeout: 10000 });
   await artifactButton.click();
   await page.getByRole("button", { name: /^Download(?: \.[a-z0-9]+| brief| code)?$/ }).last().waitFor({ timeout: 30000 });
   await page.getByRole("button", { name: /^Copy$/ }).last().waitFor({ timeout: 10000 });
-  await page.getByRole("button", { name: /^(Different angle|Another angle)$/ }).last().click();
-  await page.waitForTimeout(1500);
   if (await page.getByText("This asks for current facts.", { exact: true }).isVisible().catch(() => false)) {
     fail("Starter/feedback reflection leaked source-check UI.");
   }
