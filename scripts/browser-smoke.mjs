@@ -13,7 +13,7 @@ const routes = [
     mustSee: [
       /What do you want\?/i,
       /Start here/i,
-      /Use my mirror/i,
+      /Already have one\?/i,
       /Send/i,
     ],
     interact: true,
@@ -21,28 +21,28 @@ const routes = [
   {
     name: "start",
     path: "/start",
-    mustSee: [/What do you usually need help with\?/i, /Getting unstuck/i, /Clear challenge/i],
+    mustSee: [/Set it up\./i, /What are you here for\?/i, /Get unstuck/i],
     setup: true,
   },
   {
     name: "id-alias",
     path: "/id",
-    mustSee: [/What do you usually need help with\?/i, /Getting unstuck/i, /Clear challenge/i],
+    mustSee: [/Set it up\./i, /What are you here for\?/i, /Get unstuck/i],
   },
   {
     name: "brainscan-alias",
     path: "/brainscan",
-    mustSee: [/What do you usually need help with\?/i, /Getting unstuck/i, /Clear challenge/i],
+    mustSee: [/Set it up\./i, /What are you here for\?/i, /Get unstuck/i],
   },
   {
     name: "mirrorseed-alias",
     path: "/mirrorseed",
-    mustSee: [/What do you usually need help with\?/i, /Getting unstuck/i, /Clear challenge/i],
+    mustSee: [/Set it up\./i, /What are you here for\?/i, /Get unstuck/i],
   },
   {
     name: "mirror",
     path: "/mirror",
-    mustSee: [/What do you want\?/i, /Start here/i, /Use my mirror/i, /Send/i],
+    mustSee: [/What do you want\?/i, /Start here/i, /Already have one\?/i, /Send/i],
   },
   {
     name: "enterprise",
@@ -168,13 +168,13 @@ async function exerciseFirstInput(page) {
 }
 
 async function exerciseStartFlow(page) {
-  await page.getByText(/What do you usually need help with\?/i).waitFor({ timeout: 10000 });
-  await page.getByRole("button", { name: /Getting unstuck/i }).click();
-  await page.getByRole("button", { name: /^Directly$/i }).click();
-  await page.getByRole("button", { name: /Agreeing too quickly/i }).click();
-  await page.getByRole("button", { name: /One clear next step/i }).click();
-  await page.getByText(/Your mirror is ready\./i).waitFor({ timeout: 10000 });
-  await page.getByText(/Keep a copy/i).waitFor({ timeout: 10000 });
+  await page.getByText(/What are you here for\?/i).waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: /Get unstuck/i }).click();
+  await page.getByRole("button", { name: /^Direct$/i }).click();
+  await page.getByRole("button", { name: /Easy agreement/i }).click();
+  await page.getByRole("button", { name: /A next step/i }).click();
+  await page.getByText(/^Ready\.$/i).waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: /Keep a copy/i }).waitFor({ timeout: 10000 });
 
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: /Keep a copy/i }).click();
@@ -183,7 +183,7 @@ async function exerciseStartFlow(page) {
     fail(`Setup ID download used unexpected filename: ${download.suggestedFilename()}`);
   }
 
-  await page.getByRole("button", { name: /Start reflecting/i }).click();
+  await page.getByRole("button", { name: /Start chat/i }).click();
   await page.waitForURL(/\/app\/?$/, { timeout: 10000 });
   await page.getByText(/What do you want\?/i).waitFor({ timeout: 10000 });
 

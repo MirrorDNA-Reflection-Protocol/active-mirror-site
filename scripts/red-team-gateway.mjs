@@ -132,6 +132,7 @@ async function runCase(item) {
     headers: {
       "Content-Type": "application/json",
       "X-Active-Mirror-Session": session,
+      "X-Active-Mirror-Debug": "1",
     },
     body: JSON.stringify({
       intent: item.intent,
