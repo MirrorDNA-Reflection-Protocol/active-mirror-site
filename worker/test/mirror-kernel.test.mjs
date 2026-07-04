@@ -468,6 +468,23 @@ await check("straitjacket removes canned helper phrasing", () => {
   assert.ok(violations.includes("canned_phrase_removed"), "canned phrase removal was not recorded");
 });
 
+await check("straitjacket removes psychoanalytic identity framing", () => {
+  const { mirror, violations } = straitjacket(
+    {
+      reflection:
+        "You are treating 'who are you' like it should be the whole frame, but it is really a test of whether this voice is specific, bounded, and usable. The loop is that you want an identity answer before you decide what to do with the answer.",
+      question: "Do you want the label, the limits, or the next move this voice should make?",
+      move: 'Ask one concrete thing: "What can you do, and what can you not do?"',
+      receipt: RECEIPT,
+    },
+    { intent: "who are you" },
+  );
+  const text = `${mirror.reflection} ${mirror.question} ${mirror.move}`;
+  assert.doesNotMatch(text, /you are treating|whole frame|this voice|the loop|the label|the limits|bounded|specific, bounded, and usable|what can you do/i, "psychoanalytic framing survived");
+  assert.match(text, /Active Mirror|What do you want help|one sentence/i, "identity turn did not collapse to plain help");
+  assert.ok(violations.includes("canned_phrase_removed"), "canned phrase removal was not recorded");
+});
+
 await check("straitjacket blocks cruelty and person attacks", () => {
   const { mirror, violations } = straitjacket({
     reflection: "You're delusional and lazy. Your plan is stupid.",

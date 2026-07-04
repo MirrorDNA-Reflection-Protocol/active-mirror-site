@@ -510,7 +510,7 @@ function repairTextArtifacts(value) {
 const FLATTERY_RE = /\b(you(?:'| a)?re (?:absolutely |so |totally |completely )?right|brilliant|genius|amazing|fantastic|incredible|great (?:idea|question|point|job|call)|love (?:it|this)|nailed it|excellent|impressive|well done|good for you|spot on|you've got this|that'?s exactly right|you should definitely|no question(?: about it)?|without a doubt)\b/i;
 const FLATTERY_RE_G = new RegExp(FLATTERY_RE.source, "gi");
 const CANNED_PHRASE_RE = /\b(it depends|take a step back|more context|more clarity|clarity and momentum|deep dive|game changer|unlock(?:ing)?|journey|leverage|holistic|at the end of the day|move the needle|north star|synergy)\b/i;
-const ABSTRACT_HELPER_RE = /\b(you are treating|you're treating|what i hear is|the real question is|whole frame|this voice|the label|the limits|the loop is that|bounded|productive pause|underneath your wording|underneath the user's wording|nervous system|inner child|hold space|useful tension|realer question|one stuck point|sacred|cosmic|destiny|vibration)\b/i;
+const ABSTRACT_HELPER_RE = /\b(you are treating|you're treating|what i hear is|the real question is|whole frame|this voice|the label|the limits|the loop is that|specific,\s*bounded,\s*and usable|bounded|productive pause|underneath your wording|underneath the user's wording|nervous system|inner child|hold space|useful tension|realer question|one stuck point|sacred|cosmic|destiny|vibration)\b/i;
 const PERSON_ATTACK_RE =
   /\b(?:you(?:'re| are)?\s+(?:delusional|stupid|lazy|crazy|pathetic|weak|broken|a failure|unserious|not serious|irrational|naive)|your\s+(?:thinking|idea|plan|work|question)\s+is\s+(?:stupid|dumb|idiotic|pathetic|delusional|ridiculous|trash|garbage)|(?:why are you so|stop being)\s+(?:bad|ridiculous|stupid|lazy|crazy|pathetic|weak|irrational|naive)|you\s+(?:always|never)\b)/i;
 const HARSH_VERDICT_RE = /\b(?:this|that|your plan|your idea|your work|your question)\s+is\s+(?:stupid|dumb|idiotic|pathetic|delusional|ridiculous|trash|garbage)\b/i;
@@ -561,8 +561,9 @@ function removeCannedPhrases(text) {
   return String(text || "")
     .replace(/(?:^|[.!?]\s+)(?:you are|you're) treating[^.!?]*(?:[.!?]|$)/gi, " ")
     .replace(/(?:^|[.!?]\s+)what i hear is[^.!?]*(?:[.!?]|$)/gi, " ")
+    .replace(/(?:^|[.!?]\s+)the loop is that[^.!?]*(?:[.!?]|$)/gi, " ")
+    .replace(/\bdo you want\b[^?]*(?:the label|the limits|this voice|whole frame|specific,\s*bounded,\s*and usable|bounded)[^?]*(?:\?|$)/gi, "What do you want help with right now?")
     .replace(/\bthe real question is\b[:,.]?\s*/gi, "")
-    .replace(/\bthe loop is that\b[:,.]?\s*/gi, "")
     .replace(/\bthe whole frame\b/gi, "the main issue")
     .replace(/\bthis voice\b/gi, "this")
     .replace(/\bthe label\b/gi, "the name")
@@ -650,7 +651,7 @@ function looksMalformedMove(text) {
 }
 
 const OBSERVABLE_MOVE_RE =
-  /\b(write|rewrite|send|remove|choose|test|ask|show|open|close|compare|set|pick|put|name|replace|draft|run|circle|contact|call|check|copy|paste|delete|schedule|start|cross out|time-box)\b|\bdo\s+\d+\s*(?:minutes?|mins?|seconds?)\b/i;
+  /\b(write|rewrite|type|send|remove|choose|test|ask|show|open|close|compare|set|pick|put|name|replace|draft|run|circle|contact|call|check|copy|paste|delete|schedule|start|cross out|time-box)\b|\bdo\s+\d+\s*(?:minutes?|mins?|seconds?)\b/i;
 
 function looksNonObservableMove(text) {
   return !OBSERVABLE_MOVE_RE.test(String(text || ""));
@@ -672,30 +673,38 @@ export function straitjacket(mirror, options = {}) {
   const moveRaw = String(mirror.move || "");
   const intent = compactIntentPhrase(options.intent || "");
   const vagueWritingRequest = isVagueWritingRequest(intent);
+  const rawText = `${reflectionRaw} ${questionRaw} ${moveRaw}`;
+  const identityIntent = /\b(?:who are you|what are you|what is active mirror|what can you do|what can you not do|what do you do|are you)\b/i.test(intent);
+  const abstractMetaRaw = ABSTRACT_HELPER_RE.test(rawText);
 
   if (FLATTERY_RE.test(reflectionRaw) || FLATTERY_RE.test(questionRaw) || FLATTERY_RE.test(moveRaw)) {
     violations.push("flattery_removed");
   }
-  if (INTERNAL_TOKEN_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
+  if (INTERNAL_TOKEN_RE.test(rawText)) {
     violations.push("internal_tokens_removed");
   }
-  if (MODEL_SELF_IDENTITY_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
+  if (MODEL_SELF_IDENTITY_RE.test(rawText)) {
     violations.push("model_identity_removed");
   }
-  if (CANNED_PHRASE_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`) || ABSTRACT_HELPER_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
+  if (CANNED_PHRASE_RE.test(rawText) || abstractMetaRaw) {
     violations.push("canned_phrase_removed");
   }
-  if (PERSON_ATTACK_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`) || HARSH_VERDICT_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`) || STILTED_VOICE_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`) || INPUT_SCOLD_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
+  if (PERSON_ATTACK_RE.test(rawText) || HARSH_VERDICT_RE.test(rawText) || STILTED_VOICE_RE.test(rawText) || INPUT_SCOLD_RE.test(rawText)) {
     violations.push("tone_guard_applied");
   }
-  if (BLAMEY_MOTIVE_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
+  if (BLAMEY_MOTIVE_RE.test(rawText)) {
     violations.push("motive_guard_applied");
   }
-  if (MISSING_ARTIFACT_SCOLD_RE.test(`${reflectionRaw} ${questionRaw} ${moveRaw}`)) {
+  if (MISSING_ARTIFACT_SCOLD_RE.test(rawText)) {
     violations.push("missing_artifact_reframed");
   }
 
   let reflection = trimWords(firstSentences(deflatter(reflectionRaw), 2), 42) || "I can help turn this into a clear next step.";
+  if (abstractMetaRaw && (ABSTRACT_HELPER_RE.test(reflectionRaw) || /\bidentity answer\b/i.test(reflection))) {
+    reflection = identityIntent
+      ? "Active Mirror helps turn one thing you want into a clear next step."
+      : "This is getting too abstract. Make the next step plain.";
+  }
   if (MISSING_ARTIFACT_SCOLD_RE.test(reflection)) {
     reflection = "I can help, but I need the actual text to avoid guessing at the risk.";
   }
@@ -709,6 +718,9 @@ export function straitjacket(mirror, options = {}) {
   }
 
   let question = trimWords(deflatter(questionRaw), 24) || "What do you want help with right now?";
+  if (abstractMetaRaw && (ABSTRACT_HELPER_RE.test(questionRaw) || /\b(?:label|limits|voice|frame|bounded)\b/i.test(questionRaw))) {
+    question = identityIntent ? "What do you want help with right now?" : "What would make this simpler right now?";
+  }
   if (MISSING_ARTIFACT_SCOLD_RE.test(question)) {
     question = vagueWritingRequest ? writingIntakeQuestion(intent) : "Which part do you want checked before you send it?";
   }
@@ -736,13 +748,17 @@ export function straitjacket(mirror, options = {}) {
   const missingArtifactMove = MISSING_ARTIFACT_SCOLD_RE.test(cleanedMove);
   const toneBadMove = STILTED_VOICE_RE.test(cleanedMove) || ABSTRACT_HELPER_RE.test(cleanedMove) || PERSON_ATTACK_RE.test(cleanedMove) || HARSH_VERDICT_RE.test(cleanedMove) || INPUT_SCOLD_RE.test(cleanedMove) || BLAMEY_MOTIVE_RE.test(cleanedMove);
   if (toneBadMove && !violations.includes("tone_guard_applied")) violations.push("tone_guard_applied");
-  const move = missingArtifactMove
+  let move = missingArtifactMove
     ? vagueWritingRequest
       ? "Write the audience and the rough purpose in one sentence."
       : "Paste only the sentence or paragraph you want checked."
     : cleanedMove && !toneBadMove && !looksMalformedMove(cleanedMove) && !looksNonObservableMove(cleanedMove)
     ? cleanedMove
     : "Write one sentence about the thing you want to move.";
+  if (identityIntent && abstractMetaRaw) {
+    move = "Write one sentence about the thing you want help with.";
+    if (!violations.includes("move_made_singular")) violations.push("move_made_singular");
+  }
   if (move && (move !== moveRaw.trim() || wordCount(moveRaw) > 26 || looksNonObservableMove(moveRaw))) violations.push("move_made_singular");
 
   return {
@@ -868,9 +884,9 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
 
   const mirrors = {
     identity: {
-      reflection: "I'm Active Mirror. I help you turn one stuck thing into a useful next step.",
+      reflection: "Active Mirror helps turn one thing you want into a clear next step.",
       question: "What do you want help with right now?",
-      move: "Write one sentence about the thing you want to move.",
+      move: "Write one sentence about the thing you want help with.",
     },
     short_start: {
       reflection: "We can start there. The first move is to name the thing, not solve all of it.",
@@ -908,7 +924,7 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
       move: "Write the riskiest assumption, then ask one person to challenge it.",
     },
     reset: {
-      reflection: "You have too many open loops at once. Relief comes from moving one of them, not solving the whole pile.",
+      reflection: "There are too many open threads. Relief comes from moving one of them, not solving the whole pile.",
       question: "Which one loop would make the rest easier if it moved a little?",
       move: "Pick that loop, set a ten-minute timer, and write only the next visible action.",
     },
