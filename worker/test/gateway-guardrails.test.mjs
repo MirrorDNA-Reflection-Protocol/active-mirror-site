@@ -100,6 +100,24 @@ async function post(path, body, overrides = {}, headers = {}) {
         "Content-Type": "application/json",
         "X-Active-Mirror-Session": "test-session",
         "CF-Connecting-IP": "203.0.113.10",
+        "X-Active-Mirror-Debug": "1",
+        ...headers,
+      },
+      body: JSON.stringify(body),
+    }),
+    env(overrides),
+    ctx(),
+  );
+}
+
+async function postPublic(path, body, overrides = {}, headers = {}) {
+  return worker.fetch(
+    new Request(`https://gateway.activemirror.ai${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Active-Mirror-Session": "public-test-session",
+        "CF-Connecting-IP": "203.0.113.20",
         ...headers,
       },
       body: JSON.stringify(body),
@@ -180,6 +198,30 @@ await check("mirror request succeeds before budget is exhausted", async () => {
   assert.strictEqual(data.ok, true);
   assert.strictEqual(data.fallback, false);
   assert.match(data.receipt_id, /^[0-9a-f]{24}$/);
+});
+
+await check("public mirror response hides internal router and Glass details by default", async () => {
+  installEdgeCache();
+  const response = await postPublic("/v1/mirror/create", {
+    intent: "I do not know what to do next, and I need one small move.",
+    boundary: "personal",
+    route: "reflection",
+  });
+  const data = await response.json();
+
+  assert.strictEqual(response.status, 200);
+  assert.strictEqual(data.ok, true);
+  assert.match(data.receipt_id, /^[0-9a-f]{24}$/);
+  assert.strictEqual(data.glass, undefined);
+  assert.strictEqual(data.resolution, undefined);
+  assert.strictEqual(data.straitjacket, undefined);
+  assert.deepStrictEqual(Object.keys(data.route).sort(), ["capability", "fallback", "label"].sort());
+  assert.strictEqual(data.route.capability, "reflection");
+  assert.strictEqual(data.route.label, "reflection help");
+  assert.strictEqual(data.route.fallback, null);
+  assert.strictEqual(JSON.stringify(data).includes("test-bridge"), false, "model detail leaked");
+  assert.strictEqual(JSON.stringify(data).includes("mini.example"), false, "upstream host leaked");
+  assert.strictEqual(JSON.stringify(data).includes("transparent_router"), false, "Glass contract leaked");
 });
 
 await check("mirror accepts natural short stuck turns", async () => {

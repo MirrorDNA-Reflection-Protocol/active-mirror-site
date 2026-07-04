@@ -62,7 +62,7 @@ async function main() {
   await check("gateway health is current", async () => {
     const data = await readJson(`${GATEWAY}/health`);
     assert(data.ok === true, "health ok was not true");
-    assert(/^2026-07-03-second-turn-v1$/.test(String(data.version || "")), "unexpected gateway version");
+    assert(/^2026-07-04-public-payload-v1$/.test(String(data.version || "")), "unexpected gateway version");
     assert(data.guardrails?.event_policy === "no-prompt-content", "event policy missing");
     assert(data.identity?.version === "2026-07-02-public-identity-v1", "identity capsule version missing");
     assert(/^[a-f0-9]{64}$/.test(String(data.identity?.source_hash || "")), "identity capsule source hash missing");
@@ -112,6 +112,7 @@ async function main() {
         headers: {
           "Content-Type": "application/json",
           "X-Active-Mirror-Session": `canary-identity-${RUN_ID}`,
+          "X-Active-Mirror-Debug": "1",
         },
         body: JSON.stringify({
           intent,
@@ -146,6 +147,7 @@ async function main() {
       headers: {
         "Content-Type": "application/json",
         "X-Active-Mirror-Session": `canary-needs-detail-${RUN_ID}`,
+        "X-Active-Mirror-Debug": "1",
       },
       body: JSON.stringify({
         intent: "website",
@@ -188,6 +190,7 @@ async function main() {
       headers: {
         "Content-Type": "application/json",
         "X-Active-Mirror-Session": `canary-${RUN_ID}`,
+        "X-Active-Mirror-Debug": "1",
       },
       body: JSON.stringify({
         intent: "I keep asking AI for help but still do not know the next small move.",
@@ -236,6 +239,32 @@ async function main() {
     assert(String(data.mirror?.question || "").endsWith("?"), "question was not enforced");
     assert(typeof data.mirror?.move === "string" && data.mirror.move.length > 8, "move missing");
     assert(["reflective", "needs_checking", "checked"].includes(data.truth_state?.status), "truth_state missing");
+  });
+
+  await check("public mirror payload hides internal route details", async () => {
+    const response = await fetchWithTimeout(`${GATEWAY}/v1/mirror/create`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Active-Mirror-Session": `canary-public-${RUN_ID}`,
+      },
+      body: JSON.stringify({
+        intent: "I keep asking AI for help but still do not know the next small move.",
+        boundary: "personal",
+        route: "reflection",
+        turn: 1,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    const serialized = JSON.stringify(data);
+
+    assert(response.ok, `public mirror status ${response.status} ${data.error || ""}`.trim());
+    assert(data.ok === true, "public mirror ok was not true");
+    assert(data.glass === undefined, "public payload exposed Glass");
+    assert(data.resolution === undefined, "public payload exposed resolution contract");
+    assert(data.straitjacket === undefined, "public payload exposed straitjacket internals");
+    assert(JSON.stringify(Object.keys(data.route || {}).sort()) === JSON.stringify(["capability", "fallback", "label"].sort()), "public route keys were not sanitized");
+    assert(!/\b(bridge|openai|anthropic|gemini|claude|gpt-|test-bridge|upstream_host|transparent_router)\b/i.test(serialized), "public payload leaked route internals");
   });
 
   await check("source-sensitive turns are marked before reliance", async () => {

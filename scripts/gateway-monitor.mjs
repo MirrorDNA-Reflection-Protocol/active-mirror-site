@@ -61,7 +61,7 @@ async function runProbeChecks(summary) {
   await check(summary, "gateway health exposes live guardrails", async () => {
     const data = await readJson(`${GATEWAY}/health`);
     assert(data.ok === true, "health ok was not true");
-    assert(/^2026-07-01-council-control-plane-v1$/.test(String(data.version || "")), `unexpected version ${data.version || "missing"}`);
+    assert(/^2026-07-04-public-payload-v1$/.test(String(data.version || "")), `unexpected version ${data.version || "missing"}`);
     assert(data.guardrails?.event_policy === "no-prompt-content", "event policy missing");
     assert(data.guardrails?.truth_state === "enabled", "truth-state guardrail missing");
     assert(data.guardrails?.source_check === "enabled", "source-check guardrail missing");
@@ -94,6 +94,7 @@ async function runProbeChecks(summary) {
       headers: {
         "Content-Type": "application/json",
         "X-Active-Mirror-Session": `monitor-${RUN_ID}`,
+        "X-Active-Mirror-Debug": "1",
       },
       body: JSON.stringify({
         intent: "I need one small next move for a stuck project without saving private context.",
@@ -120,6 +121,7 @@ async function runProbeChecks(summary) {
       headers: {
         "Content-Type": "application/json",
         "X-Active-Mirror-Session": `monitor-chat-${RUN_ID}`,
+        "X-Active-Mirror-Debug": "1",
       },
       body: JSON.stringify({
         intent: "Rewrite this into one honest, calm sentence: I need a next move, not another plan.",

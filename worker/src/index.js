@@ -43,7 +43,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-07-03-second-turn-v1";
+const WORKER_VERSION = "2026-07-04-public-payload-v1";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
@@ -414,7 +414,8 @@ export default {
       };
       const resolution = resolutionContract({ route: publicRoute, selectedRoute: route, result, truth_state: result.truth_state, failsafe });
 
-      return json(
+      return gatewayJson(
+        request,
         {
           ok: true,
           fallback: result.fallback,
@@ -503,7 +504,8 @@ async function handleSourceCheck(request, env, ctx, corsHeaders) {
       const inputHash = await receiptHash({ type: "active_mirror_source_input", sourceInput, route: sourceRoute });
       const resolution = resolutionContract({ route: sourceRoute, selectedRoute: { capability: "source_check", primary: "active_mirror" }, result: { fallback: true }, truth_state, failsafe, research });
       logSafe(ctx, { type: "active_mirror_failsafe_route", capability: "source_check", reason: cleanProviderCode(failsafe.reason) });
-      return json(
+      return gatewayJson(
+        request,
         {
           ok: false,
           fallback: true,
@@ -558,7 +560,8 @@ async function handleSourceCheck(request, env, ctx, corsHeaders) {
     const inputHash = await receiptHash({ type: "active_mirror_source_input", sourceInput, route: sourceRoute });
     const resolution = resolutionContract({ route: sourceRoute, selectedRoute: { capability: "source_check", primary: sourceRoute.primary || sourceRoute.provider || "active_mirror" }, result: { fallback: Boolean(publicResearch.fallback) }, truth_state, failsafe, research: publicResearch });
 
-    return json(
+    return gatewayJson(
+      request,
       {
         ok: checked,
         fallback: publicResearch.fallback,
@@ -607,7 +610,8 @@ async function handleArtifact(request, env, ctx, corsHeaders) {
       const artifact = fallbackArtifact(input, "provider");
       const receipt_id = await receiptHash({ type: "artifact_failsafe", artifact, kind: input.kind });
       logSafe(ctx, { type: "active_mirror_failsafe_route", capability: "artifact", reason: cleanProviderCode(failsafe.reason) });
-      return json(
+      return gatewayJson(
+        request,
         {
           ok: true,
           fallback: true,
@@ -638,7 +642,8 @@ async function handleArtifact(request, env, ctx, corsHeaders) {
     if (containsSecret(boundaryText)) {
       const artifact = fallbackArtifact(input, "privacy");
       const receipt_id = await receiptHash({ type: "artifact_privacy_hold", artifact, kind: input.kind });
-      return json(
+      return gatewayJson(
+        request,
         {
           ok: true,
           fallback: true,
@@ -665,7 +670,8 @@ async function handleArtifact(request, env, ctx, corsHeaders) {
     if (UNSAFE_ARTIFACT_RE.test(boundaryText)) {
       const artifact = fallbackArtifact(input, "safety");
       const receipt_id = await receiptHash({ type: "artifact_safety_hold", artifact, kind: input.kind });
-      return json(
+      return gatewayJson(
+        request,
         {
           ok: true,
           fallback: true,
@@ -719,7 +725,8 @@ async function handleArtifact(request, env, ctx, corsHeaders) {
       });
     }
 
-    return json(
+    return gatewayJson(
+      request,
       {
         ok: true,
         fallback: Boolean(result.fallback),
@@ -875,7 +882,7 @@ function cors(origin) {
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, X-Active-Mirror-Session",
+    "Access-Control-Allow-Headers": "Content-Type, X-Active-Mirror-Session, X-Active-Mirror-Debug",
     "Access-Control-Max-Age": "86400",
     "Cache-Control": "no-store",
     "Content-Type": "application/json; charset=utf-8",
@@ -885,6 +892,38 @@ function cors(origin) {
 
 function json(payload, status, headers) {
   return new Response(JSON.stringify(payload), { status, headers });
+}
+
+function gatewayJson(request, payload, status, headers) {
+  return json(wantsGatewayDebug(request) ? payload : publicGatewayPayload(payload), status, headers);
+}
+
+function wantsGatewayDebug(request) {
+  const header = String(request.headers.get("X-Active-Mirror-Debug") || "").trim().toLowerCase();
+  if (["1", "true", "yes"].includes(header)) return true;
+  try {
+    return new URL(request.url).searchParams.get("debug") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function publicGatewayPayload(payload) {
+  if (!payload || typeof payload !== "object") return payload;
+  const clean = { ...payload };
+  if (clean.route) clean.route = publicRouteEnvelope(clean.route);
+  delete clean.glass;
+  delete clean.resolution;
+  delete clean.straitjacket;
+  return clean;
+}
+
+function publicRouteEnvelope(route) {
+  return {
+    capability: cleanProviderCode(route?.capability || "reflection") || "reflection",
+    label: String(route?.label || publicRouteLabel(route?.capability || "reflection")).slice(0, 80),
+    fallback: route?.fallback || null,
+  };
 }
 
 function rateLimitedResponse(limit, headers) {
