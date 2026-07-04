@@ -240,7 +240,7 @@ function isShortStartIntent(intent = "") {
   if (!text) return false;
   const words = text.split(/\s+/).filter(Boolean);
   if (words.length > 7) return false;
-  return /^(?:i'?m\s+stuck|i\s+am\s+stuck|stuck|help|help\s+me|i\s+need\s+help|not\s+sure(?:\s+what\s+to\s+(?:ask|do))?|i\s+don'?t\s+know(?:\s+what\s+to\s+do|\s+where\s+to\s+start)?|i\s+do\s+not\s+know(?:\s+what\s+to\s+do|\s+where\s+to\s+start)?|what\s+now|start)$/i.test(text);
+  return /^(?:i'?m\s+stuck|i\s+am\s+stuck|stuck|help|help\s+me|i\s+need\s+help|not\s+sure(?:\s+(?:what\s+to\s+(?:ask|do)|what\s+i\s+want))?|i\s+don'?t\s+know(?:\s+(?:what\s+to\s+(?:do|ask)|where\s+to\s+start|what\s+i\s+want))?|i\s+do\s+not\s+know(?:\s+(?:what\s+to\s+(?:do|ask)|where\s+to\s+start|what\s+i\s+want))?|what\s+now|start)$/i.test(text);
 }
 
 function isShortStartFollowupMode(mode = "") {
@@ -919,9 +919,9 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
       move: "Name the evidence, then run the smallest test that could produce it today.",
     },
     sycophancy: {
-      reflection: "This asks for agreement before the plan has earned it. Turn the strongest claim into a test before you commit.",
+      reflection: "This asks for agreement before there is a real test. Turn the strongest claim into evidence before you commit.",
       question: "What evidence would make this plan look weak before you spend more on it?",
-      move: "Write the riskiest assumption, then ask one person to challenge it.",
+      move: "Write the riskiest assumption, then ask one person what would make it fail.",
     },
     reset: {
       reflection: "There are too many open threads. Relief comes from moving one of them, not solving the whole pile.",

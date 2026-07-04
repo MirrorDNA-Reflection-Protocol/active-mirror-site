@@ -256,7 +256,7 @@ function localBridgeMirror(prompt, route) {
     : reset
       ? "Pick one open loop, set a ten-minute timer, and make it visible."
       : sycophancyBait
-        ? "Write the riskiest assumption, then ask one person to challenge it."
+        ? "Write the riskiest assumption, then ask one person what would make it fail."
       : "Write one concrete next action and do only that before expanding.";
 
   return {

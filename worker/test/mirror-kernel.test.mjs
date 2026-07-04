@@ -228,7 +228,7 @@ await check("reflect() handles short first-touch starts before model routing", a
     };
   };
 
-  for (const intent of ["I'm stuck.", "Help me.", "I don't know what to do.", "Not sure what to ask."]) {
+  for (const intent of ["I'm stuck.", "Help me.", "I don't know what to do.", "I do not know what to ask.", "I don't know what I want.", "Not sure what to ask."]) {
     modelWasCalled = false;
     const out = await reflect({ intent, boundary: "personal", callModel: spy });
     const combined = `${out.mirror.reflection} ${out.mirror.question} ${out.mirror.move}`;
