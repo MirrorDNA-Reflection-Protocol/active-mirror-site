@@ -84,8 +84,8 @@ const routes = [
       /Public trail/i,
       /SCD Protocol v3\.1/i,
       /SCD Protocol v4/i,
-      /Field proof, without client exposure/i,
-      /Named client claims wait for explicit approval/i,
+      /Real work, safely anonymized/i,
+      /Proof you can open/i,
     ],
   },
   {
