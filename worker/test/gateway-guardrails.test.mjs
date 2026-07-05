@@ -284,6 +284,19 @@ await check("mirror still rejects non-language noise", async () => {
   assert.strictEqual(data.error, "intent_too_short");
 });
 
+await check("mirror accepts non-Latin language input", async () => {
+  const response = await post("/v1/mirror/create", {
+    intent: "मुझे लॉन्च पेज बनाना है",
+    boundary: "personal",
+    route: "reflection",
+    reply_language: "hi",
+  }, { ACTIVE_MIRROR_FAILSAFE: "true" });
+  const data = await response.json();
+  assert.strictEqual(response.status, 200);
+  assert.strictEqual(data.ok, true);
+  assert.notStrictEqual(data.error, "intent_too_short");
+});
+
 await check("MirrorDash Glass exposes transparent router facts without prompt body", async () => {
   installEdgeCache();
   const response = await post("/v1/mirror/create", {

@@ -33,7 +33,11 @@ The boot packet is steering, not enforcement. It tells the model to:
 - treat the approved vault/context packet and source-check results as authority, never model memory;
 - keep a personal mirror one-to-one with its owner; shared projects are scoped workspaces, not blended personal memory;
 - allow future local LoRA/adapters only as candidate workers trained on approved mirror examples with consent, receipts, and evals, never raw vault dumps;
-- reflect the user's intent, not impress, entertain, diagnose, or decide;
+- behave like a useful personal AI assistant with the Active Mirror harness:
+  infer the user's intent, choose the right visible mode, then help;
+- reflect the user's intent internally, not impress, entertain, diagnose, or decide;
+- answer first when the job is clear; ask only when one missing detail is needed;
+- use source-backed help for current, shopping, price, product, online, or comparison requests;
 - privately self-check that the answer is specific, non-sycophantic, privacy-safe, and small enough to act on;
 - enforce anti-sycophancy in generation;
 - refuse bad paths when saying no protects privacy, clarity, truth, or output quality;
@@ -56,6 +60,9 @@ The boot packet is steering, not enforcement. It tells the model to:
 - avoid abstract helper language such as "frame", "bounded", "label", "limits",
   "realer", "useful tension", "one stuck point", and "productive pause" unless the user used those words first;
 - keep consumer-facing output free of internal token names.
+- support experimental reply-language routing when the runtime provides
+  `reply_language`; the UI may use this for multilingual reflection, but should
+  not claim full localized product support yet.
 
 The public identity capsule is generated from `identity/active-mirror-identity.json`
 and injected after the boot packet. It gives every provider route the same public
@@ -87,6 +94,10 @@ strips that self-identification and records `"model_identity_removed"`.
 Every governed turn follows one algorithm: `mirror_loop_v1`.
 
 The invariant is `truth_before_helpfulness`.
+
+Reflection is the internal quality loop, not always the visible UI. The user may
+see an answer, a source-backed result, a draft, an artifact, a media brief, or
+one necessary question.
 
 The loop order is:
 
@@ -134,10 +145,12 @@ claim as needing sources.
 
 | field | type | required | notes |
 |---|---|---|---|
-| `intent` | string | yes | the one thing the user is stuck on. **4–1000 alphanumeric chars** after cleanup. Natural short starts such as `"I'm stuck."` are valid; punctuation-only noise throws. |
+| `intent` | string | yes | the one thing the user is stuck on. **2–1000 Unicode letters/numbers** after cleanup. Natural short starts such as `"I'm stuck."` are valid; punctuation-only noise throws. |
 | `boundary` | string | no | `"personal"` (default) · `"client"` · `"secrets"` · `"drafts"`. Controls declared exclusions and, for `client`, best-effort masking before model/source-check routing. |
 | `route` | string | no | `"reflection"` (use this) · `"chat"` · `"media"` · `"auto"` (default). |
 | `turn` | integer | no | 1–9999, default 1. Increment per turn in a session. |
+| `mode` | string | no | `"standard"` (default) or `"short_start_followup"` for the deterministic second-turn intake path. |
+| `reply_language` | string | no | Experimental reply-language hint. Supported values normalize to `en`, `hi`, `hinglish`, `es`, `fr`, `ar`, `pt`, or `de`. Unknown values fall back to `en`. |
 
 **Request header** (recommended):
 
@@ -389,7 +402,7 @@ If `visual` is `null`, render nothing — most turns have no visual.
   the model is **not called** for medical, legal, financial, or regulatory advice.
   `truth_state.status` is `needs_checking`, `straitjacket` includes
   `"professional_redirect"`, and the move routes to a qualified person/source.
-- **`intent` has fewer than 4 alphanumeric chars, has no letters, or body is malformed** → `400 { "ok": false, "error": "intent_too_short" }` or `400 { "ok": false, "error": "invalid_json" }`.
+- **`intent` has fewer than 2 Unicode letters/numbers, has no letters, or body is malformed** → `400 { "ok": false, "error": "intent_too_short" }` or `400 { "ok": false, "error": "invalid_json" }`.
   Prevent this client-side by requiring a real short phrase, not punctuation-only input.
 - **Payload over gateway cap** → `413`:
   ```json

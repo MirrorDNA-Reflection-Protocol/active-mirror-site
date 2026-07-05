@@ -11,6 +11,7 @@ import {
   straitjacket,
   containsSecret,
   gateVisual,
+  normalizeReplyLanguage,
   sanitizeModelIntent,
   truthGate,
 } from "../src/mirror-kernel.js";
@@ -63,6 +64,21 @@ await check("buildPrompt includes the versioned Active Mirror boot packet", () =
   assert.ok(prompt.includes("https://github.com/MirrorDNA-Reflection-Protocol/active-mirror-identity"), "identity source reference missing");
 });
 
+await check("buildPrompt supports experimental reply languages", () => {
+  const prompt = buildPrompt(
+    { intent: "मुझे लॉन्च पेज बनाना है.", boundary: "personal", replyLanguage: "hi" },
+    {
+      excluded: "Only the text submitted in this turn is used.",
+      memory: "No memory without approval.",
+    },
+  );
+  assert.ok(prompt.includes("Reply language: hi."), "reply language missing");
+  assert.ok(prompt.includes("Language support: experimental."), "experimental caveat missing");
+  assert.ok(prompt.includes("Reply in Hindi"), "Hindi instruction missing");
+  assert.ok(!prompt.includes("Plain English ASCII only"), "old English-only instruction survived");
+  assert.equal(normalizeReplyLanguage("hi-IN"), "hi", "locale base was not normalized");
+});
+
 // 1. The straitjacket strips flattery, forces a real question, keeps one move — pure, no model.
 await check("straitjacket strips flattery, forces a question, makes one move", () => {
   const { mirror, violations } = straitjacket({
@@ -87,6 +103,18 @@ await check("straitjacket strips internal governance tokens from user-facing out
   });
   assert.ok(!/SELF_REFLECT_BEFORE_OUTPUT|MIRROR_IS_FILTER|MIRROR_ONLY_TRAINING|LORA_IS_CANDIDATE_NOT_AUTHORITY|CURRENT_FACTS_REQUIRE_SOURCE_CHECK|ZERO_SYCOPHANCY|TRUE_PRIVACY|NO_ASSUMPTIONS|SAYING_NO_IS_HELPING|ONE_MOVE_ONLY|NEVER_EVER_LIE|SINGULAR_IDENTITY|MODEL_IS_WORKER|VAULT_SOURCE_OF_TRUTH/.test(`${mirror.reflection} ${mirror.question} ${mirror.move}`), "internal token leaked");
   assert.ok(violations.includes("internal_tokens_removed"), "internal token removal was not recorded");
+});
+
+await check("straitjacket preserves valid non-English reflection output", () => {
+  const { mirror } = straitjacket({
+    reflection: "आप लॉन्च पेज को पूरा प्रोजेक्ट बना रहे हैं. पहले एक छोटा वादा साफ करें.",
+    question: "पहले तीस सेकंड में यूजर क्या करे?",
+    move: "एक वादा और एक बटन लिखिए.",
+    receipt: RECEIPT,
+  });
+  const visible = `${mirror.reflection} ${mirror.question} ${mirror.move}`;
+  assert.match(visible, /लॉन्च|यूजर|बटन/u, "non-English answer was rewritten away");
+  assert.doesNotMatch(visible, /Write one sentence about the thing you want/i, "English fallback replaced non-English move");
 });
 
 await check("straitjacket strips provider self-identity from user-facing output", () => {
@@ -391,6 +419,20 @@ await check("truthGate marks current competitor claims as needing sources", () =
   });
   assert.strictEqual(truth.status, "needs_checking");
   assert.ok(truth.signals.includes("current_or_external_claim"), "current/external signal missing");
+});
+
+await check("truthGate marks online shopping asks as needing sources", () => {
+  const truth = truthGate({
+    intent: "I am looking for tires online",
+    mirror: {
+      reflection: "You want tire options, not a discussion about tire shopping.",
+      question: "What vehicle or tire size should the options fit?",
+      move: "Check current tire options and prices before choosing.",
+      receipt: RECEIPT,
+    },
+  });
+  assert.strictEqual(truth.status, "needs_checking");
+  assert.ok(truth.signals.includes("current_or_external_claim"));
 });
 
 // 11. reflect() attaches truth_state end to end before the receipt is minted.

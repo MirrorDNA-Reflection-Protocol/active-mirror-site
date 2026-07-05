@@ -17,6 +17,8 @@ import {
   containsSecret,
   parseProviderMirror,
   receiptHash,
+  normalizeReplyLanguage,
+  replyLanguageInstruction,
   reflect,
   sanitizeModelIntent,
 } from "./mirror-kernel.js";
@@ -336,6 +338,7 @@ export default {
         turn: input.turn,
         capability: route.capability,
         mode: input.mode,
+        replyLanguage: input.reply_language,
         callModel: async (prompt) => {
           lastPromptHash = await receiptHash({
             type: "active_mirror_prompt",
@@ -1330,15 +1333,16 @@ function sanitizeInput(body) {
     route: normalizeRoute(body?.route),
     turn: Number.isFinite(body?.turn) ? Math.max(1, Math.min(9999, Math.trunc(body.turn))) : 1,
     mode: normalizeMirrorMode(body?.mode),
+    reply_language: normalizeReplyLanguage(body?.reply_language || body?.language || ""),
   };
 }
 
 function hasUsableMirrorIntent(intent = "") {
   const normalized = String(intent || "").trim();
   if (!normalized) return false;
-  const lettersAndNumbers = normalized.replace(/[^a-z0-9]/gi, "");
-  if (lettersAndNumbers.length < 4) return false;
-  return /[a-z]/i.test(lettersAndNumbers);
+  const lettersAndNumbers = normalized.match(/[\p{L}\p{N}]/gu) || [];
+  if (lettersAndNumbers.length < 2) return false;
+  return lettersAndNumbers.some((char) => /\p{L}/u.test(char));
 }
 
 function sanitizeSourceCheckInput(body) {
@@ -1353,6 +1357,7 @@ function sanitizeSourceCheckInput(body) {
     question: target,
     move,
     boundary: BOUNDARIES[boundary] ? boundary : "personal",
+    reply_language: normalizeReplyLanguage(body?.reply_language || body?.language || ""),
   };
 }
 
@@ -1372,6 +1377,7 @@ function sanitizeArtifactInput(body) {
     boundary: BOUNDARIES[boundary] ? boundary : "personal",
     kind,
     mirror,
+    reply_language: normalizeReplyLanguage(body?.reply_language || body?.language || ""),
   };
 }
 
@@ -1392,7 +1398,7 @@ function maskSourceCheckInput(input) {
 
 function cleanSourceText(value, maxLength) {
   return String(value || "")
-    .replace(/[^\x09\x0a\x0d\x20-\x7e]/g, "")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, maxLength);
@@ -1576,6 +1582,7 @@ function normalizeArtifactProvider(value) {
 }
 
 function buildArtifactPrompt(input) {
+  const language = replyLanguageInstruction(input.reply_language);
   const kindGuidance = {
     doc: "Create a useful document the user can copy or download now. Include the finished document body, a one-sentence purpose, a short draft, and a concrete ask or next step. If this is for a launch page, homepage, landing page, headline, or button, write exact starter copy with no bracket placeholders, use the label 'Reassurance line', and make the first action obvious. Do not explain how to make the document; make it.",
     code: "Create a small code starter or implementation capsule. If the stack is unclear, use the smallest useful vanilla JavaScript example and clear replaceable defaults. Include code, acceptance checks, and how to run or adapt it. Do not ask for more context unless code would be unsafe.",
@@ -1594,9 +1601,12 @@ function buildArtifactPrompt(input) {
     "If a claim needs sources, make the artifact say where evidence is needed instead of making the claim sound proven.",
     "Use normal words. Keep it clean, human, and immediately usable.",
     "Avoid bracket placeholders in user-facing copy unless private details must be removed.",
+    language.instruction,
+    `Language support: ${language.status}. If the user's message switches language, follow the user's message.`,
     "Return valid JSON only with kind, title, body, checklist.",
-    "Plain ASCII only. No prose outside JSON.",
+    "Plain text only. No prose outside JSON.",
     `Artifact kind: ${input.kind}`,
+    `Reply language: ${language.code}`,
     kindGuidance,
     "",
     `User asked: ${input.intent}`,
@@ -1740,7 +1750,7 @@ function cleanArtifactText(value, fallback, maxLength) {
     .replace(/[“”„″]/g, '"')
     .replace(/[–—−]/g, "-")
     .replace(/…/g, "...")
-    .replace(/[^\x09\x0a\x0d\x20-\x7e]/g, "")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")
     .replace(/\s+/g, " ")
     .trim();
   return (clean || fallback).slice(0, maxLength);
@@ -1752,7 +1762,7 @@ function cleanArtifactBody(value, fallback) {
     .replace(/[“”„″]/g, '"')
     .replace(/[–—−]/g, "-")
     .replace(/…/g, "...")
-    .replace(/[^\x09\x0a\x0d\x20-\x7e]/g, "")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{4,}/g, "\n\n\n")
     .replace(/^Assumptions\s*:/gim, "Still needed:")
@@ -2182,6 +2192,7 @@ async function runSourceCheck(input, env, ctx) {
 
 async function callOpenAISourceCheck(input, env) {
   const model = env.OPENAI_RESEARCH_MODEL || env.OPENAI_FAST_MODEL || env.OPENAI_REFLECTION_MODEL || "gpt-5.4-mini";
+  const language = replyLanguageInstruction(input.reply_language);
   const prompt = [
     "You are Active Mirror's source checker.",
     "Use web search for current or external factual claims. Do not answer from memory.",
@@ -2190,10 +2201,12 @@ async function callOpenAISourceCheck(input, env) {
     "Use supported only when sources directly support the narrow claim.",
     "Use mixed when the evidence is real but ambiguous, incomplete, or split.",
     "Use not_enough when you cannot find enough reliable current evidence.",
-    "answer: one short answer with uncertainty if the evidence is mixed.",
-    "changes: one sentence saying what this changes for the user's next move.",
+    "answer: one useful answer to the user's actual request. For shopping, product availability, price, or option-comparison asks, give current options or the useful buying path with caveats. Do not turn it into a meta source note.",
+    "changes: one sentence saying the best next action for the user.",
     "sources: 2 to 5 web sources you actually used, each with title and url.",
     "Do not include private facts, personal history, or unsupported rankings.",
+    language.instruction,
+    `Language support: ${language.status}. Keep source titles as published.`,
     "",
     `Original user intent: ${input.intent}`,
     `Mirror question to check: ${input.question}`,
@@ -2250,6 +2263,7 @@ async function callGeminiSourceCheck(input, env, ctx) {
   const toolCandidates = sourceToolCandidates("gemini", ["google_search", "google_search_retrieval"]).map(geminiSourceTool);
   const key = env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY;
   const referer = env.GEMINI_ALLOWED_REFERER || "https://activemirror.ai/";
+  const language = replyLanguageInstruction(input.reply_language);
   const prompt = [
     "You are Active Mirror's backup source checker.",
     "Use Google Search grounding for current or external factual claims. Do not answer from memory.",
@@ -2258,10 +2272,12 @@ async function callGeminiSourceCheck(input, env, ctx) {
     "Use supported only when sources directly support the narrow claim.",
     "Use mixed when the evidence is real but ambiguous, incomplete, or split.",
     "Use not_enough when you cannot find enough reliable current evidence.",
-    "answer: one short answer with uncertainty if the evidence is mixed.",
-    "changes: one sentence saying what this changes for the user's next move.",
+    "answer: one useful answer to the user's actual request. For shopping, product availability, price, or option-comparison asks, give current options or the useful buying path with caveats. Do not turn it into a meta source note.",
+    "changes: one sentence saying the best next action for the user.",
     "sources: 2 to 5 web sources you actually used, each with title and url.",
     "Do not include private facts, personal history, or unsupported rankings.",
+    language.instruction,
+    `Language support: ${language.status}. Keep source titles as published.`,
     "",
     `Original user intent: ${input.intent}`,
     `Mirror question to check: ${input.question}`,
@@ -2573,7 +2589,7 @@ function cleanResearchText(value, fallback, maxLength) {
   const clean = String(value || "")
     .replace(/\[([^\]]{1,160})\]\(https?:\/\/[^\s)]+\)/g, "$1")
     .replace(/https?:\/\/\S+/g, "")
-    .replace(/[^\x09\x0a\x0d\x20-\x7e]/g, "")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")
     .replace(/\s+/g, " ")
     .replace(/\s+\)/g, ")")
     .replace(/\(\s*\)/g, "")
@@ -2848,7 +2864,7 @@ function extractAnthropicText(data) {
 
 // --- Public route language (runtime owns route semantics; the kernel just prints what it's handed) ---
 function publicRouteLabel(capability) {
-  return { reflection: "reflection help", chat: "critique help", media: "media help" }[capability] || "approved help";
+  return { reflection: "reflection help", chat: "critique help", media: "media help", source_check: "source-backed help" }[capability] || "approved help";
 }
 
 function publicRouteReceipt(capability) {

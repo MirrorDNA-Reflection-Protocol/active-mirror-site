@@ -1,8 +1,8 @@
 {
   "schema_version": "active-mirror-identity-source-check/v1",
-  "checked_at": "2026-07-02T15:20:11.089Z",
+  "checked_at": "2026-07-05T12:48:10.653Z",
   "contract": "identity/active-mirror-identity.json",
-  "contract_sha256": "9b0e59afd1a5daa2102b2de7e2f72444d9574ec5131e3724587e2c6f7988d817",
+  "contract_sha256": "aa5241fec95a644e20d117280956eecb2d8b26a6c9c009c78170f2e673bf3e2b",
   "results": [
     {
       "label": "Active Mirror app",

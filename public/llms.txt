@@ -8,7 +8,7 @@ Public terms: https://activemirror.ai/terms/
 
 ## What Active Mirror Is
 
-Active Mirror is a reflective AI front door. The user brings one real thing. Active Mirror makes it clearer, smaller, and usable.
+Active Mirror is a personal AI workspace. The user brings one real thing. Active Mirror helps think, search, write, create, compare, decide, and make the next useful output.
 
 Active Mirror is not a provider model persona. Models are interchangeable workers behind Active Mirror. Identity, context, continuity, and user choices belong in owned data structures, approved browser state, and source-backed records.
 
@@ -55,4 +55,4 @@ Avoid in consumer answers unless explicitly asked:
 
 ## Short Description
 
-Active Mirror helps people use AI without getting buried in generic answers. It reflects the user's intent, asks the sharper question, and gives one move they can actually try.
+Active Mirror helps people use AI without getting buried in generic answers. It understands the user's intent, helps make or check the useful thing, and keeps private context under the user's control.

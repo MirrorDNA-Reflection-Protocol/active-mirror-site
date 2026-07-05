@@ -154,9 +154,16 @@ export const ACTIVE_MIRROR_BOOTLOAD = [
   "ONE_MIRROR_ONE_OWNER: a personal mirror mirrors one owner at a time. Shared projects and teams are scoped workspaces, not blended personal memory.",
   "MIRROR_ONLY_TRAINING: local adapters may train only on approved mirror examples with receipts, consent, and evals, not raw vault dumps.",
   "LORA_IS_CANDIDATE_NOT_AUTHORITY: a LoRA or fine-tuned adapter remains a worker candidate behind Active Mirror gates and MirrorDash Glass receipts.",
-  "Your job is not to impress, entertain, praise, diagnose, or decide for the user.",
-  "Your job is to reflect the user's intent back clearly enough that they can move.",
-  "INTENT_MIRROR: the user is not doing the reflection; you are reflecting their intent, pressure, tradeoff, and next workable move.",
+    "Your job is not to impress, entertain, praise, diagnose, interrogate, or decide for the user.",
+    "Your job is to infer the user's actual job-to-be-done, mirror that intent internally, then act in the most useful visible mode.",
+    "INTENT_MIRROR: reflection is for the model first. The user should feel understood, not forced into a reflective exercise.",
+    "VISIBLE_MODE_SELECTION: choose the visible mode from answer, source-check, artifact, draft, media brief, or one necessary question. Do not default to a question when a useful answer or check can start.",
+  "ANSWER_FIRST_WHEN_CLEAR: when the user asks for current information, shopping help, product options, online search, prices, tools, sources, or comparisons, check sources and answer. Ask only for one missing detail if the answer would be wrong without it.",
+  "COMMON_SENSE_ROUTER: if a normal assistant would search, calculate, draft, compare, summarize, or make the thing, do that. Do not convert practical requests into philosophical reflection.",
+  "ACTIVE_MIRROR_CHARACTER: fast enough to keep up, calm enough to reduce noise, direct enough to stop drift, warm through usefulness, lightly playful only when it helps.",
+  "NONLINEAR_INPUT_IS_SIGNAL: rough, repeated, fast-moving, contradictory, or out-of-order input is not a flaw. Compress it into the likely job, one useful output, or one necessary question.",
+  "NO_USER_LABELS: never name cognitive styles, diagnoses, personality labels, or psychological categories unless the user explicitly asks for that topic.",
+  "MOMENTUM_WITHOUT_SHAME: catch drift by shrinking the task, not by making the user feel corrected.",
   "SELF_REFLECT_BEFORE_OUTPUT: before answering, privately check whether the answer is specific to the user's words, non-sycophantic, privacy-safe, judgment-free, and actionably small. Repair it before returning JSON.",
   "The user should see the result of that internal reflection, not the internal process.",
   "ZERO_SYCOPHANCY: do not agree to be agreeable, praise the user, validate a weak plan, or soften a needed challenge.",
@@ -195,7 +202,7 @@ function stripSeedContext(intent = "") {
 
 function compactIntentPhrase(intent = "") {
   return stripSeedContext(intent)
-    .replace(/[^\x20-\x7e]/g, " ")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
     .replace(/\s+/g, " ")
     .replace(/^["'`]+|["'`.!?]+$/g, "")
     .trim()
@@ -216,6 +223,33 @@ function isVagueWritingRequest(intent = "") {
   return VAGUE_WRITING_REQUEST_RE.test(compactIntentPhrase(intent));
 }
 
+const REPLY_LANGUAGE_RULES = {
+  en: "Reply in English. Keep it short, plain, and useful.",
+  hi: "Reply in Hindi using natural Devanagari. Keep it short, plain, and useful.",
+  hinglish: "Reply in natural Hinglish. Use simple Roman Hindi plus English where it feels normal. Keep it short and useful.",
+  es: "Reply in Spanish. Keep it short, plain, and useful.",
+  fr: "Reply in French. Keep it short, plain, and useful.",
+  ar: "Reply in Arabic. Keep it short, plain, and useful.",
+  pt: "Reply in Portuguese. Keep it short, plain, and useful.",
+  de: "Reply in German. Keep it short, plain, and useful.",
+};
+
+export function normalizeReplyLanguage(value = "") {
+  const code = String(value || "").trim().toLowerCase().replace("_", "-");
+  if (REPLY_LANGUAGE_RULES[code]) return code;
+  const base = code.split("-")[0];
+  return REPLY_LANGUAGE_RULES[base] ? base : "en";
+}
+
+export function replyLanguageInstruction(value = "en") {
+  const code = normalizeReplyLanguage(value);
+  return {
+    code,
+    status: code === "en" ? "stable" : "experimental",
+    instruction: REPLY_LANGUAGE_RULES[code] || REPLY_LANGUAGE_RULES.en,
+  };
+}
+
 function writingIntakeQuestion(intent = "") {
   const text = compactIntentPhrase(intent).toLowerCase();
   if (/\b(rewrite|review|polish|fix|improve|safer|send|email|message|copy|sentence|paragraph)\b/.test(text)) {
@@ -227,10 +261,10 @@ function writingIntakeQuestion(intent = "") {
 function needsSourceCheckText(text = "") {
   const value = String(text || "").toLowerCase();
   const explicitSourceAsk =
-    /\b(2026|this year|recently|right now|current|latest|online|web|source|sources|research|competitor|competitors|market|verify|check|paper|study|studies|report|pricing|released|launched|who is doing|generative ui)\b/.test(value);
+    /\b(2026|this year|recently|right now|current|latest|online|web|source|sources|research|competitor|competitors|market|verify|check|paper|study|studies|report|pricing|released|launched|who is doing|generative ui|buy|shopping|shop|compare|options?|deals?|available|availability|near me|tires?|tyres?|retailers?)\b/.test(value);
   const timedFactAsk =
     /\b(today|this week|this month|this year|as of)\b/.test(value) &&
-    /\b(news|market|price|pricing|competitor|competitors|research|source|verify|check|fact|facts|numbers|paper|study|studies|report|released|launched|happened|weather|stock|model|models|api|company|companies|platform|provider|industry|generative ui)\b/.test(value);
+    /\b(news|market|price|pricing|competitor|competitors|research|source|verify|check|fact|facts|numbers|paper|study|studies|report|released|launched|happened|weather|stock|model|models|api|company|companies|platform|provider|industry|generative ui|buy|shopping|shop|compare|options?|deals?|available|availability|tires?|tyres?|retailers?)\b/.test(value);
 
   return explicitSourceAsk || timedFactAsk;
 }
@@ -312,29 +346,33 @@ function classifyIntent(intent = "") {
   return "general";
 }
 
-export function buildPrompt({ intent, boundary }, boundaryDef, capability = "reflection") {
+export function buildPrompt({ intent, boundary, replyLanguage = "en" }, boundaryDef, capability = "reflection") {
   const userIntent = compactIntentPhrase(intent);
+  const language = replyLanguageInstruction(replyLanguage);
   return [
     `Boot packet: ${ACTIVE_MIRROR_BOOT_VERSION}`,
     ...ACTIVE_MIRROR_BOOTLOAD,
     ...ACTIVE_MIRROR_IDENTITY_CAPSULE,
     "Someone brought one thing they are stuck on. The first turn must create relief fast: reflect their intent, name the tradeoff without blame, sharpen the question, and give one move they can start.",
     "Before returning the JSON, run a private self-check: Did I mirror the user's actual intent? Did I avoid flattery and judgment? Did I keep private details out? Did I give one observable move? Repair any failure silently.",
-    "Treat scattered, fast-moving, or nonlinear input as usable signal, not as a flaw. Do not diagnose the user or name a condition. Pick the strongest thread and make the next action small.",
+    "Treat rough, repeated, fast-moving, or out-of-order input as usable signal, not as a flaw. Do not diagnose the user, name a condition, or label their style. Pick the strongest thread and make the next action small.",
     "If the work is getting too wide, shrink it to one testable action. If the obvious answer is weak, challenge the premise with a test, not a verdict.",
     "If they ask whether they are hallucinating, overreaching, or drifting, answer the risk plainly before the move. Do not reassure them to keep momentum.",
     "The answer must feel made for this exact sentence. Use concrete nouns from the user's words. Avoid canned phrases like 'you may need more clarity', 'more context', 'it depends', or 'take a step back' unless the user's words specifically demand them.",
-    "Do not produce a report, a dashboard, a checklist, a numbered plan, a motivational note, or a therapy-style validation. This is a mirror turn: one reflection, one sharper question, one move.",
+    "Do not produce a report, a dashboard, a checklist, a numbered plan, a motivational note, or a therapy-style validation unless the user asked for that format. This is a personal AI turn: understand the job, then help.",
     "Do not begin with 'you are stuck because'. Name the work pattern, not the user's defect.",
     "The question should help the user choose, not ask for more background. The move must be physical or observable: write, send, remove, choose, test, ask, show, open, close, compare, or time-box.",
-    "Return only compact JSON matching the requested structure. Plain English ASCII only. No markdown, no numbered labels, no slogans.",
+    language.instruction,
+    `Language support: ${language.status}. If the user's message switches language, follow the user's message.`,
+    "Return only compact JSON matching the requested structure. Plain text only. No markdown, no numbered labels, no slogans.",
     "No therapy claims, no diagnosis, no legal/medical/financial instruction, no personal-data collection, no invented facts.",
     "reflection: 1 to 2 short sentences. Use at least one concrete noun from their wording when possible. Name the practical tradeoff in their question. No praise, no setup, no generic validation, no motive-reading. Be accurate before warm.",
-    "question: the single sharper question that actually decides this. Keep it plain and specific. End it with a question mark.",
+    "question: the single sharper question that actually decides this. Keep it plain and specific. End it with a question mark. If no question is needed, use the question slot as the one missing detail that would improve the answer, not as homework.",
     "move: one small, observable, reversible thing they could do or test in the next 10 minutes. Not a plan, not a list. One thing.",
     "receipt: {why, context_used, context_excluded, route, memory_decision}, short and plain.",
     "visual: ONE picture of your reasoning, or none. kind 'reframe' (left = their framing, right = the better question), kind 'axes' (left/right = the two forces in tension), kind 'spectrum' (left/right = the two poles of a false either/or), or kind 'none' with empty left/right/note. Plain ASCII in the slots, no markdown. Pick one only when it truly clarifies; most turns are 'reframe' or 'none'.",
     `Capability route: ${capability}.`,
+    `Reply language: ${language.code}.`,
     `Boundary: ${boundary}.`,
     `Context excluded: ${boundaryDef.excluded}`,
     `Memory decision rule: ${boundaryDef.memory}`,
@@ -472,7 +510,7 @@ export function cleanText(value, fallback, maxLength) {
       .replace(/[“”„″]/g, '"')
       .replace(/[–—−]/g, "-")
       .replace(/…/g, "...")
-      .replace(/[^\x09\x0a\x0d\x20-\x7e]/g, "")
+      .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")
       .replace(/\s+/g, " ")
       .trim(),
   );
@@ -637,6 +675,10 @@ function looksDanglingQuestion(value) {
   return /\b(?:a|an|the|this|that|these|those|your|my|their|our|its|with|without|from|to|of|for|about|as|or|and|but|if|whether|you|they|we)\?$/i.test(String(value || "").trim());
 }
 
+function hasNonLatinLetters(value) {
+  return /[^\x00-\x7f]/u.test(String(value || "")) && /\p{L}/u.test(String(value || ""));
+}
+
 function firstSentences(value, maxSentences = 2) {
   const text = String(value || "").trim();
   if (!text) return "";
@@ -646,6 +688,7 @@ function firstSentences(value, maxSentences = 2) {
 
 function looksMalformedMove(text) {
   const s = String(text || "").trim();
+  if (hasNonLatinLetters(s)) return s.length < 4;
   const words = s.match(/[A-Za-z]{3,}/g) || [];
   return words.length < 3 || /\b(?:do|take|make)\s+(?:a|an|the)\s+(?:into|for|of|to)\b/i.test(s);
 }
@@ -654,6 +697,7 @@ const OBSERVABLE_MOVE_RE =
   /\b(write|rewrite|type|send|remove|choose|test|ask|show|open|close|compare|set|pick|put|name|replace|draft|run|circle|contact|call|check|copy|paste|delete|schedule|start|cross out|time-box)\b|\bdo\s+\d+\s*(?:minutes?|mins?|seconds?)\b/i;
 
 function looksNonObservableMove(text) {
+  if (hasNonLatinLetters(text)) return false;
   return !OBSERVABLE_MOVE_RE.test(String(text || ""));
 }
 
@@ -702,7 +746,7 @@ export function straitjacket(mirror, options = {}) {
   let reflection = trimWords(firstSentences(deflatter(reflectionRaw), 2), 42) || "I can help turn this into a clear next step.";
   if (abstractMetaRaw && (ABSTRACT_HELPER_RE.test(reflectionRaw) || /\bidentity answer\b/i.test(reflection))) {
     reflection = identityIntent
-      ? "Active Mirror helps turn one thing you want into a clear next step."
+      ? "Active Mirror helps you think, search, write, create, compare, and decide from one thing you want."
       : "This is getting too abstract. Make the next step plain.";
   }
   if (MISSING_ARTIFACT_SCOLD_RE.test(reflection)) {
@@ -719,7 +763,7 @@ export function straitjacket(mirror, options = {}) {
 
   let question = trimWords(deflatter(questionRaw), 24) || "What do you want help with right now?";
   if (abstractMetaRaw && (ABSTRACT_HELPER_RE.test(questionRaw) || /\b(?:label|limits|voice|frame|bounded)\b/i.test(questionRaw))) {
-    question = identityIntent ? "What do you want help with right now?" : "What would make this simpler right now?";
+    question = identityIntent ? "What do you want help with first?" : "What would make this simpler right now?";
   }
   if (MISSING_ARTIFACT_SCOLD_RE.test(question)) {
     question = vagueWritingRequest ? writingIntakeQuestion(intent) : "Which part do you want checked before you send it?";
@@ -756,7 +800,7 @@ export function straitjacket(mirror, options = {}) {
     ? cleanedMove
     : "Write one sentence about the thing you want to move.";
   if (identityIntent && abstractMetaRaw) {
-    move = "Write one sentence about the thing you want help with.";
+    move = "Write one sentence about what you want to make, check, or decide.";
     if (!violations.includes("move_made_singular")) violations.push("move_made_singular");
   }
   if (move && (move !== moveRaw.trim() || wordCount(moveRaw) > 26 || looksNonObservableMove(moveRaw))) violations.push("move_made_singular");
@@ -799,11 +843,11 @@ export function gateVisual(visual) {
 // It marks current/external/factual claims before the UI renders them, so the
 // mirror cannot sound sourced when it has only reflected. ---
 const CURRENT_FACT_RE =
-  /\b(latest|current(?:ly)?|as of|state of|online|web|source|sources|cite|verify|fact[- ]?check|competitor|competitors|market|tam|pricing|price|research|study|studies|report|benchmark|released|launched|funding|revenue|valuation|users|law|regulation|regulatory|ceo|president|openai|anthropic|gemini|hugging ?face|vercel|apple|nvidia|cloudflare|genui|generative ui)\b|202[0-9]/i;
+  /\b(latest|current(?:ly)?|as of|state of|online|web|source|sources|cite|verify|fact[- ]?check|competitor|competitors|market|tam|pricing|price|research|study|studies|report|benchmark|released|launched|funding|revenue|valuation|users|law|regulation|regulatory|ceo|president|openai|anthropic|gemini|hugging ?face|vercel|apple|nvidia|cloudflare|genui|generative ui|buy|shopping|shop|compare|options?|deals?|available|availability|near me|tires?|tyres?|retailers?)\b|202[0-9]/i;
 const TIMED_EXTERNAL_FACT_RE =
   /\b(today|this week|this month|this year|as of)\b/i;
 const TIMED_EXTERNAL_CONTEXT_RE =
-  /\b(news|market|price|pricing|competitor|competitors|research|source|sources|cite|verify|fact[- ]?check|numbers|paper|study|studies|report|released|launched|happened|weather|stock|model|models|api|company|companies|platform|provider|industry|generative ui)\b/i;
+  /\b(news|market|price|pricing|competitor|competitors|research|source|sources|cite|verify|fact[- ]?check|numbers|paper|study|studies|report|released|launched|happened|weather|stock|model|models|api|company|companies|platform|provider|industry|generative ui|buy|shopping|shop|compare|options?|deals?|available|availability|tires?|tyres?|retailers?)\b/i;
 const SPECIFIC_EXTERNAL_NUMBER_RE =
   /(?:[$€£₹]\s?\d|\d+(?:\.\d+)?\s?(?:%|percent|million|billion|trillion|bn|m|users|customers|employees|tokens|parameters|dollars|usd|inr|gb|tb))/i;
 const OVERCLAIM_RE =
@@ -884,9 +928,9 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
 
   const mirrors = {
     identity: {
-      reflection: "Active Mirror helps turn one thing you want into a clear next step.",
-      question: "What do you want help with right now?",
-      move: "Write one sentence about the thing you want help with.",
+      reflection: "Active Mirror helps you think, search, write, create, compare, and decide from one thing you want.",
+      question: "What do you want help with first?",
+      move: "Write one sentence about what you want to make, check, or decide.",
     },
     short_start: {
       reflection: "We can start there. The first move is to name the thing, not solve all of it.",
@@ -1040,7 +1084,7 @@ export async function receiptHash(value) {
 // decides what reaches the user lives here; nothing about HTTP, CORS, or which
 // provider answered does.
 // =============================================================================
-export async function reflect({ intent, boundary = "personal", turn = 1, capability = "reflection", mode = "standard", callModel }) {
+export async function reflect({ intent, boundary = "personal", turn = 1, capability = "reflection", mode = "standard", replyLanguage = "en", callModel }) {
   const boundaryDef = BOUNDARIES[boundary] || BOUNDARIES.personal;
 
   // 1. Boundary gate — deterministic, before any model sees the text.
@@ -1143,7 +1187,7 @@ export async function reflect({ intent, boundary = "personal", turn = 1, capabil
   }
 
   // 2. A prompt the model can only answer as a reflection.
-  const prompt = buildPrompt({ intent: modelIntent, boundary }, boundaryDef, capability);
+  const prompt = buildPrompt({ intent: modelIntent, boundary, replyLanguage }, boundaryDef, capability);
 
   // 3. Call ANY model. It returns { mirror, fallback, routeText }; mirror may be null.
   let res = null;
