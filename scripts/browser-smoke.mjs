@@ -51,7 +51,14 @@ const routes = [
   {
     name: "enterprise",
     path: "/enterprise",
-    mustSee: [/AI work your team can govern/i, /Pick one workflow/i, /No silent sharing/i],
+    mustSee: [
+      /Private AI for real work/i,
+      /Glass Dashboard/i,
+      /Start workflow sprint/i,
+      /Download brief/i,
+      /Pick one workflow/i,
+      /No silent sharing/i,
+    ],
   },
   {
     name: "device",
