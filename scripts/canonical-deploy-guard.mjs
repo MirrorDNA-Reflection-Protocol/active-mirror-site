@@ -22,8 +22,12 @@ if (cname !== "activemirror.ai") {
 }
 
 const deployWorkflow = read(".github/workflows/deploy-pages.yml");
-if (!/\bcname:\s*activemirror\.ai\b/.test(deployWorkflow)) {
-  failures.push("Deploy workflow must publish with cname: activemirror.ai");
+const legacyCnamePublish = /\bcname:\s*activemirror\.ai\b/.test(deployWorkflow);
+const workflowPagesPublish =
+  /actions\/upload-pages-artifact@/.test(deployWorkflow) &&
+  /actions\/deploy-pages@/.test(deployWorkflow);
+if (!legacyCnamePublish && !workflowPagesPublish) {
+  failures.push("Deploy workflow must publish with cname: activemirror.ai or official Pages artifact deployment.");
 }
 
 requireFile(join("public/app", "index.html"), "/app/index.html shell");
