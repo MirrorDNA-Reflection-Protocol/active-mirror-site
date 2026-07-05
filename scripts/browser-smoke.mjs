@@ -76,6 +76,19 @@ const routes = [
     ],
   },
   {
+    name: "research",
+    path: "/research",
+    mustSee: [
+      /Research & deployment/i,
+      /Published protocols/i,
+      /Public trail/i,
+      /SCD Protocol v3\.1/i,
+      /SCD Protocol v4/i,
+      /Field proof, without client exposure/i,
+      /Named client claims wait for explicit approval/i,
+    ],
+  },
+  {
     name: "device",
     path: "/device",
     mustSee: [
