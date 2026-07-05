@@ -10,6 +10,8 @@ export default defineConfig({
         pricing: resolve(__dirname, 'pricing/index.html'),
         product: resolve(__dirname, 'product/index.html'),
         mirror: resolve(__dirname, 'mirror/index.html'),
+        consulting: resolve(__dirname, 'consulting/index.html'),
+        enterprise: resolve(__dirname, 'enterprise/index.html'),
         privacy: resolve(__dirname, 'privacy/index.html'),
         terms: resolve(__dirname, 'terms/index.html'),
       },

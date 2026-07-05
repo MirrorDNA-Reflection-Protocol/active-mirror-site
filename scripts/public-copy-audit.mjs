@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 
 const htmlFiles = [
   "index.html",
+  "consulting/index.html",
+  "enterprise/index.html",
   "mirror/index.html",
   "product/index.html",
   "trust/index.html",
