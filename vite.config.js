@@ -12,6 +12,7 @@ export default defineConfig({
         mirror: resolve(__dirname, 'mirror/index.html'),
         consulting: resolve(__dirname, 'consulting/index.html'),
         enterprise: resolve(__dirname, 'enterprise/index.html'),
+        research: resolve(__dirname, 'research/index.html'),
         privacy: resolve(__dirname, 'privacy/index.html'),
         terms: resolve(__dirname, 'terms/index.html'),
       },
