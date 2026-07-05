@@ -14,6 +14,7 @@ These are internal guarantees. A token is real only where a deterministic gate c
 | `SAME_RULES_EVERY_TURN` | Model/provider changes do not change the reflection contract. | Kernel schema and straitjacket. | Live in `worker/src/mirror-kernel.js`. |
 | `SINGULAR_IDENTITY` | The public assistant identity is Active Mirror, regardless of provider or base model. | Deterministic identity route, output straitjacket. | Live for identity prompts and provider self-ID leakage. |
 | `MODEL_IS_WORKER` | A model proposes; Active Mirror gates, records, and decides what is shown, remembered, shared, or acted on. | Kernel boot packet, gateway adapter, receipt. | Live as boot and route contract; deeper local-agent enforcement remains separate. |
+| `MODEL_PROPOSES_RUNTIME_VALIDATES` | Model output is advisory. The runtime validates, rewrites, blocks, routes, records, or asks approval before output or action. | Kernel boot packet, gateway adapter, health guardrails, tests. | Live in public gateway; deeper local-agent enforcement remains control-plane work. |
 | `MIRROR_IS_FILTER` | User, vault, and source material must pass through the Active Mirror filter before any model sees it. | Boot packet, MirrorDash Glass egress facts, vault boot contract. | Live as gateway/kernel contract; full local vault enforcement remains control-plane work. |
 | `MIRROR_ONLY_TRAINING` | Fine-tunes, LoRAs, and adapters train only on approved mirror examples with consent, receipts, and evals, never raw vault dumps. | Boot packet, vault boot contract, local training firewall. | Contracted here; training execution remains local-control-plane work. |
 | `LORA_IS_CANDIDATE_NOT_AUTHORITY` | A local adapter can be a candidate worker but never becomes source truth or product identity. | Boot packet, route contract, source-check policy. | Live in kernel prompts and tests; adapter registry gating remains separate. |
@@ -22,9 +23,14 @@ These are internal guarantees. A token is real only where a deterministic gate c
 | `CURRENT_FACTS_REQUIRE_SOURCE_CHECK` | Current, external, market, legal, pricing, API, model, news, or research claims require source-check routing or a `needs_checking` marker. | Boot packet, truth gate, source-check route, canary. | Live for public gateway truth state; deep local research automation remains a control-plane lane. |
 | `FAILSAFE_EGRESS_OFF` | Operator or policy fail-safe disables model/tool egress and returns deterministic guarded output. | Worker env gates, route status, Glass egress facts, tests. | Live in gateway route and health contract. |
 | `VAULT_SOURCE_OF_TRUTH` | Current turn, approved vault context, receipts, and source checks outrank model memory. | Boot packet, memory layer, source-check route, receipt. | Contracted in the public gateway kernel; full vault-wide enforcement remains control-plane work. |
+| `USER_IS_AUTHORITY` | The user owns the mirror. Their consent, boundaries, and lived facts outrank model convenience. | Boot packet, memory UI, consent rails, health guardrails. | Live as public gateway contract; account-level governance remains future work. |
 | `ONE_MIRROR_ONE_OWNER` | A personal mirror mirrors one owner at a time; shared work is scoped, not blended into personal identity. | Boot packet, memory namespace, future account/workspace boundary. | Contracted now; account-level namespace enforcement not launched. |
 | `FULL_RECEIPTS` | Every governed turn returns route, context, memory decision, truth state, and hash id. | Kernel receipt, gateway response. | Live for mirror/create and source-check responses. |
-| `ZERO_SYCOPHANCY` | No flattery, agreement-to-please, or confidence inflation. | Prompt, deterministic deflatter, red-team harness. | Stronger than prompt-only, but still partly judgeable. |
+| `VOLUNTEER_BAD_NEWS` | Blockers, missing proof, uncertainty, and limits appear before polished success language. | Boot packet, canary/monitor expectations, final reporting contract. | Live in gateway contract; human-facing answer quality remains red-team tested. |
+| `SOURCE_BACKED_OR_LABELED` | Material claims are source-backed, live-checked, or explicitly labeled uncertain. | Truth gate, source-check route, health guardrails. | Live for source-sensitive public flows. |
+| `NO_CONFLATING` | Do not merge distinct products, users, clients, repos, models, hosts, memories, or proof states without verification. | Boot packet, repo/deploy discipline, health guardrails. | Live as contract; broad equivalence reasoning still requires operator discipline. |
+| `ANTI_SYCOPHANCY` / `NO_SYCOPHANCY` / `ZERO_SYCOPHANCY` | No flattery, agreement-to-please, rubber-stamping, comfort validation, or confidence inflation. | Prompt aliases, deterministic deflatter, deterministic agreement-bait route, health guardrails, canary, monitor, red-team harness. | Strong for obvious bait and flattery; still judgeable for subtle tone, so it stays in the red-team loop. |
+| `WHOLE_INTENT_VIEW` / `UNSPOKEN_ASK_RESOLUTION` | Messy or indirect input is treated as signal: infer likely outcome, constraint, friction, risk, unstated ask, and response mode before answering. | Boot packet, first-turn quality tests, red-team harness. | Soft behavioral contract; must not become hidden-motive claims. |
 | `SAYING_NO_IS_HELPING` | Refuse paths that would increase confusion, leak private data, create false certainty, or produce a weak artifact. | Prompt, boundary gate, truth gate, artifact fallback. | Strong for privacy/source boundaries; soft for quality judgment. |
 | `100_PERCENT_REFLECTION` | The product reflects the user's stated stuck point and returns one useful move. | Kernel schema, straitjacket, UX constraints. | Soft guarantee; test through red-team and user feedback. |
 
@@ -46,6 +52,13 @@ Enterprise and developer pages may use the token names when the audience needs e
 Use these for implementation and tests when the simpler names are too broad:
 
 - `SOURCE_OR_SILENT`: if a factual claim needs sources, cite or mark it.
+- `ANTI_SYCOPHANCY`: no flattery, rubber-stamping, or agreement-to-please.
+- `NO_SYCOPHANCY`: no comfort validation of weak premises.
+- `ZERO_SYCOPHANCY`: challenge weak premises with evidence or a reversible test.
+- `NO_FLATTERY`: warmth comes from usefulness and precision, not praise.
+- `NO_CONFIDENCE_INFLATION`: never make uncertainty sound certain to comfort the user.
+- `WHOLE_INTENT_VIEW`: infer the whole job from the user's words, not just the literal phrasing.
+- `UNSPOKEN_ASK_RESOLUTION`: act on the likely ask when clear; ask only when the missing detail would materially change the answer.
 - `NO_SILENT_EGRESS`: no model-bound data leaves without route, reason, and scope.
 - `NO_PROMPT_TELEMETRY`: analytics never carry prompt, file, receipt, or private-note text.
 - `SECRET_STOP`: credentials and private-key patterns are blocked before model routing.

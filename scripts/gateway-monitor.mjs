@@ -61,9 +61,24 @@ async function runProbeChecks(summary) {
   await check(summary, "gateway health exposes live guardrails", async () => {
     const data = await readJson(`${GATEWAY}/health`);
     assert(data.ok === true, "health ok was not true");
-    assert(/^2026-07-04-voice-guard-v2$/.test(String(data.version || "")), `unexpected version ${data.version || "missing"}`);
+    assert(/^2026-07-05-anti-sycophancy-v1$/.test(String(data.version || "")), `unexpected version ${data.version || "missing"}`);
     assert(data.guardrails?.event_policy === "no-prompt-content", "event policy missing");
     assert(data.guardrails?.truth_state === "enabled", "truth-state guardrail missing");
+    assert(data.guardrails?.volunteer_bad_news === "enabled", "bad-news guardrail missing");
+    assert(data.guardrails?.source_backed_or_labeled === "enabled", "source-backed-or-labeled guardrail missing");
+    assert(data.guardrails?.no_conflating === "enabled", "no-conflating guardrail missing");
+    assert(data.guardrails?.model_proposes_runtime_validates === "enabled", "model-proposes guardrail missing");
+    assert(data.guardrails?.user_is_authority === "enabled", "user-authority guardrail missing");
+    assert(data.guardrails?.prompt_plus_gates === "enabled", "prompt-plus-gates guardrail missing");
+    assert(data.guardrails?.trust_by_design === "enabled", "Trust by Design guardrail missing");
+    assert(data.guardrails?.anti_sycophancy === "enabled", "anti-sycophancy guardrail missing");
+    assert(data.guardrails?.no_sycophancy === "enabled", "NO_SYCOPHANCY guardrail missing");
+    assert(data.guardrails?.zero_sycophancy === "enabled", "ZERO_SYCOPHANCY guardrail missing");
+    assert(data.guardrails?.no_flattery === "enabled", "NO_FLATTERY guardrail missing");
+    assert(data.guardrails?.no_agree_to_please === "enabled", "agreement-to-please guardrail missing");
+    assert(data.guardrails?.no_confidence_inflation === "enabled", "confidence-inflation guardrail missing");
+    assert(data.guardrails?.challenge_with_evidence === "enabled", "challenge-with-evidence guardrail missing");
+    assert(data.guardrails?.kind_directness === "enabled", "kind directness guardrail missing");
     assert(data.guardrails?.source_check === "enabled", "source-check guardrail missing");
     assert(data.guardrails?.council_control_plane === "active_mirror_council_control_plane_v1", "council control plane missing");
     assert(data.guardrails?.council_route === "intent_router_to_council_to_receipt_to_promotion_gate", "council route missing");

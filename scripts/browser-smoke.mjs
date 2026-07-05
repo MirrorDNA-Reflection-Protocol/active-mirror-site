@@ -153,6 +153,21 @@ async function visibleText(page) {
   return page.locator("body").innerText({ timeout: 10000 });
 }
 
+async function assertHomeLegalLinkShape(page, text) {
+  const privacyCount = (text.match(/\bPrivacy\b/g) || []).length;
+  if (privacyCount !== 1) {
+    fail(`Home route should expose Privacy once, found ${privacyCount}.`, text.slice(0, 1200));
+  }
+
+  const headerText = await page.locator("header").innerText({ timeout: 10000 }).catch(() => "");
+  if (/\bPrivacy\b/.test(headerText)) {
+    fail("Home header duplicated the Privacy link.", headerText);
+  }
+  if (!/\bTerms\b/.test(text)) {
+    fail("Home route lost the footer Terms link.", text.slice(0, 1200));
+  }
+}
+
 async function exerciseFirstInput(page) {
   const input = page.locator("textarea, input[type='text'], [contenteditable='true']").first();
   if ((await input.count()) === 0) {
@@ -180,6 +195,7 @@ async function exerciseFirstInput(page) {
   await page.getByRole("button", { name: /^Save$/ }).waitFor({ timeout: 30000 });
   await page.getByRole("button", { name: /^Save$/ }).click();
   await page.getByRole("button", { name: /^Saved$/ }).waitFor({ timeout: 10000 });
+  await exerciseSavedContext(page);
   await page.getByRole("button", { name: /^(Different angle|Another angle|Make page copy|Test it)$/ }).last().waitFor({ timeout: 10000 });
   const artifactButton = page.getByRole("button", { name: /^(Draft it|Make doc|Make code starter|Make visual brief|Make page copy|Test it)$/ }).first();
   await artifactButton.waitFor({ timeout: 10000 });
@@ -204,6 +220,41 @@ async function exerciseFirstInput(page) {
   }
 
   await exerciseStarterSecondTurns(page);
+}
+
+async function exerciseSavedContext(page) {
+  const savedButton = page.getByRole("button", { name: /^Saved:\s*\d+$/ }).first();
+  await savedButton.waitFor({ timeout: 10000 });
+  await savedButton.click();
+  await page.getByText("Saved by you", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByText("Only on this browser. Delete it anytime.", { exact: true }).waitFor({ timeout: 10000 });
+
+  const savedState = await page.evaluate(() => {
+    try {
+      return JSON.parse(localStorage.getItem("mirrorState_v1") || "{}");
+    } catch {
+      return {};
+    }
+  });
+  if (!Array.isArray(savedState.continuityLedger) || savedState.continuityLedger.length < 1) {
+    fail("Saving a reflection did not create a browser-local saved item.");
+  }
+  if (!savedState.activeDefault?.move) {
+    fail("Saving a reflection did not keep the approved local default.");
+  }
+
+  await page.getByRole("button", { name: /^Clear$/ }).click();
+  const clearedState = await page.evaluate(() => {
+    try {
+      return JSON.parse(localStorage.getItem("mirrorState_v1") || "{}");
+    } catch {
+      return {};
+    }
+  });
+  if (Array.isArray(clearedState.continuityLedger) && clearedState.continuityLedger.length !== 0) {
+    fail("Clearing saved context did not remove browser-local saved items.");
+  }
+  await page.getByRole("button", { name: "Close saved notes" }).last().click();
 }
 
 async function exerciseStarterSecondTurns(page) {
@@ -310,6 +361,10 @@ async function main() {
 
         if (/vite|webpack|internal server error|failed to fetch dynamically imported module/i.test(text)) {
           fail(`${viewport.name}/${route.name} appears to show a framework/runtime error.`, text.slice(0, 1000));
+        }
+
+        if (route.name === "home") {
+          await assertHomeLegalLinkShape(page, text);
         }
 
         if (route.interact) {

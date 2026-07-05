@@ -43,19 +43,34 @@ await check("buildPrompt includes the versioned Active Mirror boot packet", () =
   assert.ok(prompt.includes(`Boot packet: ${ACTIVE_MIRROR_BOOT_VERSION}`), "boot version missing");
   assert.ok(prompt.includes("SINGULAR_IDENTITY"), "singular identity rail missing");
   assert.ok(prompt.includes("MODEL_IS_WORKER"), "model worker rail missing");
+  assert.ok(prompt.includes("MODEL_PROPOSES_RUNTIME_VALIDATES"), "model-proposes rail missing");
   assert.ok(prompt.includes("MIRROR_IS_FILTER"), "mirror filter rail missing");
   assert.ok(prompt.includes("VAULT_SOURCE_OF_TRUTH"), "vault source-of-truth rail missing");
   assert.ok(prompt.includes("ONE_MIRROR_ONE_OWNER"), "one-owner rail missing");
+  assert.ok(prompt.includes("USER_IS_AUTHORITY"), "user-authority rail missing");
   assert.ok(prompt.includes("MIRROR_ONLY_TRAINING"), "mirror-only training rail missing");
   assert.ok(prompt.includes("LORA_IS_CANDIDATE_NOT_AUTHORITY"), "LoRA candidate rail missing");
+  assert.ok(prompt.includes("ACTIVE_MIRROR_CHARACTER"), "character rail missing");
+  assert.ok(prompt.includes("CHARACTER_WITHOUT_BIOGRAPHY"), "character-without-biography rail missing");
+  assert.ok(prompt.includes("ETHICS_OVER_CONVENIENCE"), "ethics rail missing");
+  assert.ok(prompt.includes("TRUST_BY_DESIGN"), "trust-by-design rail missing");
   assert.ok(prompt.includes("CURRENT_FACTS_REQUIRE_SOURCE_CHECK"), "current-facts source rail missing");
   assert.ok(prompt.includes("INTENT_MIRROR"), "intent mirror rail missing");
+  assert.ok(prompt.includes("WHOLE_INTENT_VIEW"), "whole-intent view rail missing");
+  assert.ok(prompt.includes("UNSPOKEN_ASK_RESOLUTION"), "unspoken-ask rail missing");
   assert.ok(prompt.includes("SELF_REFLECT_BEFORE_OUTPUT"), "private self-reflection rail missing");
   assert.ok(prompt.includes("NEVER_EVER_LIE"), "truth rail missing");
+  assert.ok(prompt.includes("VOLUNTEER_BAD_NEWS"), "bad-news rail missing");
   assert.ok(prompt.includes("NO_ASSUMPTIONS"), "no-assumptions rail missing");
   assert.ok(prompt.includes("NO_GUESSING"), "no-guessing rail missing");
+  assert.ok(prompt.includes("SOURCE_BACKED_OR_LABELED"), "source-backed-or-labeled rail missing");
+  assert.ok(prompt.includes("NO_CONFLATING"), "no-conflating rail missing");
   assert.ok(prompt.includes("SAYING_NO_IS_HELPING"), "useful refusal rail missing");
+  assert.ok(prompt.includes("ANTI_SYCOPHANCY"), "anti-sycophancy alias missing");
+  assert.ok(prompt.includes("NO_SYCOPHANCY"), "no-sycophancy alias missing");
   assert.ok(prompt.includes("ZERO_SYCOPHANCY"), "anti-sycophancy rail missing");
+  assert.ok(prompt.includes("NO_FLATTERY"), "no-flattery rail missing");
+  assert.ok(prompt.includes("NO_CONFIDENCE_INFLATION"), "confidence rail missing");
   assert.ok(prompt.includes("REFLECTION_OVER_PREDICTION"), "reflection rail missing");
   assert.ok(prompt.includes("ONE_MOVE_ONLY"), "one-move rail missing");
   assert.ok(prompt.includes("Never use Active Mirror internal token names"), "consumer-language rail missing");
@@ -96,12 +111,12 @@ await check("straitjacket strips flattery, forces a question, makes one move", (
 // 1b. Internal governance tokens are allowed in the boot packet, not the consumer answer.
 await check("straitjacket strips internal governance tokens from user-facing output", () => {
   const { mirror, violations } = straitjacket({
-    reflection: "SELF_REFLECT_BEFORE_OUTPUT, MIRROR_IS_FILTER, and ZERO_SYCOPHANCY say you are using polish to avoid contact.",
-    question: "TRUE_PRIVACY and NO_ASSUMPTIONS ask what detail can stay out",
-    move: "SINGULAR_IDENTITY, MODEL_IS_WORKER, VAULT_SOURCE_OF_TRUTH, MIRROR_ONLY_TRAINING, LORA_IS_CANDIDATE_NOT_AUTHORITY, CURRENT_FACTS_REQUIRE_SOURCE_CHECK, SAYING_NO_IS_HELPING and ONE_MOVE_ONLY: write one plain sentence.",
+    reflection: "SELF_REFLECT_BEFORE_OUTPUT, MIRROR_IS_FILTER, ACTIVE_MIRROR_CHARACTER, CHARACTER_WITHOUT_BIOGRAPHY, ETHICS_OVER_CONVENIENCE, TRUST_BY_DESIGN, WHOLE_INTENT_VIEW, UNSPOKEN_ASK_RESOLUTION, and ZERO_SYCOPHANCY say you are using polish to avoid contact.",
+    question: "TRUE_PRIVACY, ANTI_SYCOPHANCY, NO_SYCOPHANCY, NO_FLATTERY, NO_CONFIDENCE_INFLATION, and NO_ASSUMPTIONS ask what detail can stay out",
+    move: "SINGULAR_IDENTITY, MODEL_IS_WORKER, MODEL_PROPOSES_RUNTIME_VALIDATES, VAULT_SOURCE_OF_TRUTH, USER_IS_AUTHORITY, MIRROR_ONLY_TRAINING, LORA_IS_CANDIDATE_NOT_AUTHORITY, CURRENT_FACTS_REQUIRE_SOURCE_CHECK, VOLUNTEER_BAD_NEWS, SOURCE_BACKED_OR_LABELED, NO_CONFLATING, SAYING_NO_IS_HELPING and ONE_MOVE_ONLY: write one plain sentence.",
     receipt: RECEIPT,
   });
-  assert.ok(!/SELF_REFLECT_BEFORE_OUTPUT|MIRROR_IS_FILTER|MIRROR_ONLY_TRAINING|LORA_IS_CANDIDATE_NOT_AUTHORITY|CURRENT_FACTS_REQUIRE_SOURCE_CHECK|ZERO_SYCOPHANCY|TRUE_PRIVACY|NO_ASSUMPTIONS|SAYING_NO_IS_HELPING|ONE_MOVE_ONLY|NEVER_EVER_LIE|SINGULAR_IDENTITY|MODEL_IS_WORKER|VAULT_SOURCE_OF_TRUTH/.test(`${mirror.reflection} ${mirror.question} ${mirror.move}`), "internal token leaked");
+  assert.ok(!/SELF_REFLECT_BEFORE_OUTPUT|MIRROR_IS_FILTER|ACTIVE_MIRROR_CHARACTER|CHARACTER_WITHOUT_BIOGRAPHY|ETHICS_OVER_CONVENIENCE|TRUST_BY_DESIGN|WHOLE_INTENT_VIEW|UNSPOKEN_ASK_RESOLUTION|MIRROR_ONLY_TRAINING|LORA_IS_CANDIDATE_NOT_AUTHORITY|CURRENT_FACTS_REQUIRE_SOURCE_CHECK|ANTI_SYCOPHANCY|NO_SYCOPHANCY|ZERO_SYCOPHANCY|NO_FLATTERY|NO_CONFIDENCE_INFLATION|TRUE_PRIVACY|NO_ASSUMPTIONS|SAYING_NO_IS_HELPING|ONE_MOVE_ONLY|NEVER_EVER_LIE|VOLUNTEER_BAD_NEWS|SOURCE_BACKED_OR_LABELED|NO_CONFLATING|SINGULAR_IDENTITY|MODEL_IS_WORKER|MODEL_PROPOSES_RUNTIME_VALIDATES|USER_IS_AUTHORITY|VAULT_SOURCE_OF_TRUTH/.test(`${mirror.reflection} ${mirror.question} ${mirror.move}`), "internal token leaked");
   assert.ok(violations.includes("internal_tokens_removed"), "internal token removal was not recorded");
 });
 

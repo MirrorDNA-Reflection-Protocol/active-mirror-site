@@ -45,7 +45,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-07-04-voice-guard-v2";
+const WORKER_VERSION = "2026-07-05-anti-sycophancy-v1";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
@@ -3022,6 +3022,21 @@ function publicGuardrails(env) {
     enterprise_stream_policy: "public-demo-only",
     proof_sprint_policy: "metadata-only-contact",
     truth_state: "enabled",
+    volunteer_bad_news: "enabled",
+    source_backed_or_labeled: "enabled",
+    no_conflating: "enabled",
+    model_proposes_runtime_validates: "enabled",
+    user_is_authority: "enabled",
+    prompt_plus_gates: "enabled",
+    trust_by_design: "enabled",
+    anti_sycophancy: "enabled",
+    no_sycophancy: "enabled",
+    zero_sycophancy: "enabled",
+    no_flattery: "enabled",
+    no_agree_to_please: "enabled",
+    no_confidence_inflation: "enabled",
+    challenge_with_evidence: "enabled",
+    kind_directness: "enabled",
     mirrordash_glass: "enabled",
     router_transparency: "enabled",
     prompt_disclosure: "hash_only",
