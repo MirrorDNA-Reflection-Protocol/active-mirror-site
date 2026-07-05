@@ -7,7 +7,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 concurrency:
   group: active-mirror-site-pages
@@ -38,9 +40,13 @@ jobs:
       - name: Public copy audit
         run: npm run copy:audit
 
-      - name: Publish
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
-          cname: activemirror.ai
+          path: ./dist
+
+      - name: Deploy Pages
+        uses: actions/deploy-pages@v4
