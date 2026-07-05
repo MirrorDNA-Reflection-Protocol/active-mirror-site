@@ -167,6 +167,26 @@ async function exerciseFirstInput(page) {
   if (eventBuffer.includes(testText)) {
     fail("Privacy event buffer leaked prompt text.");
   }
+
+  await exerciseStarterSecondTurns(page);
+}
+
+async function exerciseStarterSecondTurns(page) {
+  await page.goto(routeUrl("/"), { waitUntil: "domcontentloaded", timeout: 20000 });
+  await page.getByRole("button", { name: /^Make$/ }).click();
+  await page.getByText(/Start with the version someone can react to today/i).waitFor({ timeout: 10000 });
+  await page.locator("textarea, input[type='text'], [contenteditable='true']").first().fill("page");
+  await page.getByRole("button", { name: /^Send$/ }).first().click();
+  await page.getByText(/Page is enough\. Make the first screen, not the whole site/i).waitFor({ timeout: 10000 });
+  await page.getByText(/Write one headline and one button label/i).waitFor({ timeout: 10000 });
+
+  await page.goto(routeUrl("/"), { waitUntil: "domcontentloaded", timeout: 20000 });
+  await page.getByRole("button", { name: /^Fix$/ }).click();
+  await page.getByText(/Fix the smallest visible break first/i).waitFor({ timeout: 10000 });
+  await page.locator("textarea, input[type='text'], [contenteditable='true']").first().fill("unclear");
+  await page.getByRole("button", { name: /^Send$/ }).first().click();
+  await page.getByText(/Clarity is the fix/i).waitFor({ timeout: 10000 });
+  await page.getByText(/Rewrite the unclear part as one plain sentence/i).waitFor({ timeout: 10000 });
 }
 
 async function exerciseStartFlow(page) {
