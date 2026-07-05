@@ -17,6 +17,7 @@ const appRoutes = [
   'cast',
   'chetana',
   'confessions',
+  'consulting',
   'dashgen',
   'demo',
   'device',

@@ -54,10 +54,22 @@ const routes = [
     mustSee: [
       /Private AI for real work/i,
       /Glass Dashboard/i,
+      /Private AI deployment/i,
       /Start workflow sprint/i,
       /Download brief/i,
       /Pick one workflow/i,
       /No silent sharing/i,
+    ],
+  },
+  {
+    name: "consulting",
+    path: "/consulting",
+    mustSee: [
+      /Private AI for real work/i,
+      /Private AI deployment/i,
+      /AI workflow discovery/i,
+      /Evaluation and red-team/i,
+      /Team enablement/i,
     ],
   },
   {
