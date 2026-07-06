@@ -1,7 +1,7 @@
 {
   "name": "Active Mirror",
   "short_name": "Active Mirror",
-  "description": "Bring one thing you want to move. Active Mirror helps make the next useful output while keeping private context under your control.",
+  "description": "Bring one thing you want to move. Active Mirror helps make it useful without taking over your private context.",
   "id": "/app/",
   "start_url": "/app/",
   "scope": "/app/",
@@ -11,6 +11,12 @@
   "theme_color": "#050507",
   "categories": ["productivity", "utilities"],
   "icons": [
+    {
+      "src": "/app/assets/active-mirror-icon.png",
+      "sizes": "768x768",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
     {
       "src": "/favicon.svg",
       "sizes": "any",

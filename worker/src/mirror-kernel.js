@@ -962,9 +962,9 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
       move: "Write that one claim, then check one current source before using the answer.",
     },
     private_output: {
-      reflection: "Private details can stay with you. The useful part is the shape of the problem.",
-      question: "What is the same problem with names and secrets replaced by placeholders?",
-      move: "Write one sentence with placeholders for anything private.",
+      reflection: "Leave the exact private details out. I can still help with the useful version.",
+      question: "What should the shareable version help them do?",
+      move: "Replace names, keys, or account details with [name], [secret], or [detail], then send the version you can share.",
     },
     launch_clarity: {
       reflection: "The page is asking the user to understand too much before they feel a reason to act. The first action has to beat the feature list.",
@@ -1051,9 +1051,9 @@ export function deterministicSecondTurnMirror({ intent, boundary }, boundaryDef,
 
   if (kind === "private_output") {
     return {
-      reflection: `For ${topic}, keep private details as placeholders and work on the shape.`,
-      question: "What can be written safely with names and specifics removed?",
-      move: "Write the safe version with [name], [place], and [detail] placeholders.",
+      reflection: `For ${topic}, leave the exact private details out and keep the useful shape.`,
+      question: "What should the shareable version help them do?",
+      move: "Replace names, keys, or account details with [name], [secret], or [detail], then send the version you can share.",
       receipt: commonReceipt,
     };
   }
