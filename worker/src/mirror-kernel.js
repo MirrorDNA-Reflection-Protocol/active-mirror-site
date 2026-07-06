@@ -336,7 +336,7 @@ function classifyIntent(intent = "") {
   if (!/\b(switch|whether|between|decid\w*|should i|should we|do i)\b/.test(text) && /\b(landing page|homepage|site|page)\b/.test(text) && /\b(brainscan|mirrorseed|enterprise|too much|first action|first screen|users?|button|copy|ads?)\b/.test(text)) {
     return "launch_clarity";
   }
-  if (/\b(decide|decision|choice|choos(?:e|ing)|between|whether|worth pursuing|pursue|do not know if|don't know if|should i|should we|should\b.*\bor\b|do i\b.*\bor\b|or switch|commit|quit|stay or leave|leave or stay)\b/.test(text)) {
+  if (/^should\b/.test(text) || /\b(decide|decision|choice|choos(?:e|ing)|between|whether|worth pursuing|pursue|do not know if|don't know if|should i|should we|should\b.*\bor\b|do i\b.*\bor\b|or switch|commit|quit|stay or leave|leave or stay)\b/.test(text)) {
     return "decision";
   }
   if (/\b(leave my browser|leave the browser|personal details|personal history|privacy|private|sensitive|secret\w*|confidential|client|private notes|sensitive notes|send|sendable|shar\w*|expos\w*|reveal\w*|leak\w*|saved|swallow|safe|boundary)\b/.test(text)) {
@@ -966,7 +966,7 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
     },
     private_output: {
       reflection: "Leave the exact private details out. I can still help with the useful version.",
-      question: "What should the shareable version help them do?",
+      question: "What should the public version help the reader do?",
       move: "Replace names, keys, or account details with [name], [secret], or [detail], then send the version you can share.",
     },
     launch_clarity: {
@@ -1055,7 +1055,7 @@ export function deterministicSecondTurnMirror({ intent, boundary }, boundaryDef,
   if (kind === "private_output") {
     return {
       reflection: `For ${topic}, leave the exact private details out and keep the useful shape.`,
-      question: "What should the shareable version help them do?",
+      question: "What should the public version help the reader do?",
       move: "Replace names, keys, or account details with [name], [secret], or [detail], then send the version you can share.",
       receipt: commonReceipt,
     };
