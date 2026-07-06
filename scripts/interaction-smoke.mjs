@@ -81,7 +81,7 @@ async function checkAnswerFirst(browser) {
 async function checkArtifactFirst(browser) {
   return withPage(browser, async (page) => {
     await submitPrompt(page, "Write a short message asking a friend for honest feedback without sounding needy.");
-    await waitForBodyMatch(page, /Making the draft now/i, "artifact-first status");
+    await waitForBodyMatch(page, /draft opens below|Making the draft now/i, "artifact-first status");
     const text = await waitForBodyMatch(page, /Message draft|honest feedback|could I get your honest feedback/i, "artifact output");
 
     if (/FOCUS\s+(Do you want|Would you like|Veux-tu)|Tu veux|Veux-tu|Écris|message court|demande courte/i.test(text)) {
@@ -130,7 +130,7 @@ async function checkDecisionPrompt(browser) {
 }
 
 async function main() {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await launchBrowser();
   try {
     const results = [];
     results.push(await checkAnswerFirst(browser));
@@ -139,6 +139,15 @@ async function main() {
     console.log(JSON.stringify({ ok: true, baseUrl, results }, null, 2));
   } finally {
     await browser.close();
+  }
+}
+
+async function launchBrowser() {
+  try {
+    return await chromium.launch({ headless: true });
+  } catch (error) {
+    if (!/Executable doesn't exist/i.test(String(error?.message || ""))) throw error;
+    return chromium.launch({ headless: true, channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL || "chrome" });
   }
 }
 

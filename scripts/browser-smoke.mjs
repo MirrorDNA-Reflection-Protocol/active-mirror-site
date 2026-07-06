@@ -325,7 +325,7 @@ async function main() {
     await mkdir(screenshotDir, { recursive: true });
   }
 
-  const browser = await chromium.launch({ headless: true });
+  const browser = await launchBrowser();
   const results = [];
 
   try {
@@ -420,6 +420,15 @@ async function main() {
   console.log(JSON.stringify({ ok: true, baseUrl, results }, null, 2));
   if (submitFirstTurn) {
     console.log("First-turn model render checked.");
+  }
+}
+
+async function launchBrowser() {
+  try {
+    return await chromium.launch({ headless: true });
+  } catch (error) {
+    if (!/Executable doesn't exist/i.test(String(error?.message || ""))) throw error;
+    return chromium.launch({ headless: true, channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL || "chrome" });
   }
 }
 

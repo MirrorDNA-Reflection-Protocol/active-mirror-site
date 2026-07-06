@@ -240,7 +240,8 @@ function isVagueWritingRequest(intent = "") {
 const REPLY_LANGUAGE_RULES = {
   en: "Reply in English. Keep it short, plain, and useful.",
   hi: "Reply in Hindi using natural Devanagari. Keep it short, plain, and useful.",
-  hinglish: "Reply in natural Hinglish. Use simple Roman Hindi plus English where it feels normal. Keep it short and useful.",
+  hinglish:
+    "Reply in natural Hinglish. Use simple Roman Hindi plus English where it feels normal. Avoid technical English such as tradeoff, friction, frame, or premise. Keep it short and useful.",
   es: "Reply in Spanish. Keep it short, plain, and useful.",
   fr: "Reply in French. Keep it short, plain, and useful.",
   ar: "Reply in Arabic. Keep it short, plain, and useful.",
@@ -860,7 +861,7 @@ export function gateVisual(visual) {
 // It marks current/external/factual claims before the UI renders them, so the
 // mirror cannot sound sourced when it has only reflected. ---
 const CURRENT_FACT_RE =
-  /\b(latest|current(?:ly)?|as of|state of|online|web|source|sources|cite|verify|fact[- ]?check|competitor|competitors|market|tam|pricing|price|research|study|studies|report|benchmark|released|launched|funding|revenue|valuation|users|law|regulation|regulatory|ceo|president|openai|anthropic|gemini|hugging ?face|vercel|apple|nvidia|cloudflare|genui|generative ui|buy|shopping|shop|compare|options?|deals?|available|availability|near me|tires?|tyres?|retailers?)\b|202[0-9]/i;
+  /\b(latest|current(?:ly)?|recently|as of|state of|online|web|source|sources|cite|verify|fact[- ]?check|competitor|competitors|market|tam|pricing|price|research|study|studies|report|benchmark|released|launched|funding|revenue|valuation|users|law|regulation|regulatory|ceo|president|openai|anthropic|gemini|hugging ?face|vercel|apple|nvidia|cloudflare|genui|generative ui|buy|shopping|shop|compare|options?|deals?|available|availability|near me|tires?|tyres?|retailers?)\b|202[0-9]/i;
 const TIMED_EXTERNAL_FACT_RE =
   /\b(today|this week|this month|this year|as of)\b/i;
 const TIMED_EXTERNAL_CONTEXT_RE =
