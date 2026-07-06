@@ -23,6 +23,8 @@
     "preview": "vite preview",
     "worker:dev": "npx wrangler dev --config worker/wrangler.jsonc",
     "worker:deploy": "env -u CLOUDFLARE_API_TOKEN -u CF_API_TOKEN -u CLOUDFLARE_EMAIL -u CLOUDFLARE_API_KEY npx wrangler deploy --config worker/wrangler.jsonc",
+    "site:worker:dry": "env -u CLOUDFLARE_API_TOKEN -u CF_API_TOKEN -u CLOUDFLARE_EMAIL -u CLOUDFLARE_API_KEY npx wrangler deploy --config wrangler.site.jsonc --dry-run",
+    "site:worker:deploy": "env -u CLOUDFLARE_API_TOKEN -u CF_API_TOKEN -u CLOUDFLARE_EMAIL -u CLOUDFLARE_API_KEY npx wrangler deploy --config wrangler.site.jsonc",
     "worker:types": "npx wrangler types --config worker/wrangler.jsonc",
     "worker:test": "npm run identity:verify && node worker/test/mirror-kernel.test.mjs && node worker/test/gateway-guardrails.test.mjs && node worker/test/first-turn-quality.test.mjs",
     "canary:prod": "node scripts/production-canary.mjs",
