@@ -39,9 +39,11 @@ npm run guard:canonical
 npm run audit:repos
 npm run build
 npm run app:package
+npm run deploy:preflight
 npm run worker:dev
 npm run worker:deploy
-npm run redteam:prod-smoke
+npm run site:worker:deploy
+npm run deploy:verify
 ```
 
 ## Runtime Routing Policy
@@ -78,7 +80,26 @@ Use it before changing the public product story or browser workspace loop.
 
 ## Deployment
 
-The GitHub Actions workflow builds the Vite site and publishes `dist` to `gh-pages`.
-`public/CNAME` and the deploy workflow `cname` setting pin the intended
-production domain. This is the only Active Mirror repo that should claim
-`activemirror.ai`.
+Build product changes in `/Users/mirror-pro/repos/activemirror-journey`, then
+package the built app here with `npm run app:package`.
+
+Before publishing static assets, run:
+
+```sh
+npm run deploy:preflight
+```
+
+After publishing static assets or Worker changes, run:
+
+```sh
+npm run deploy:verify
+```
+
+`deploy:verify` includes live route smoke, production canary, bounded gateway
+red-team, and `qa:user-prompts`. The prompt QA is intentionally live and should
+stay post-deploy so normal builds do not spend source/search/model calls.
+
+The GitHub Actions workflow builds the Vite site and publishes `dist` to
+`gh-pages`. `public/CNAME` and the deploy workflow `cname` setting pin the
+intended production domain. This is the only Active Mirror repo that should
+claim `activemirror.ai`.

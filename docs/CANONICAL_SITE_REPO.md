@@ -50,10 +50,15 @@ https://activemirror.ai/app/start/
 
 ## Cutover Checklist
 
-- Build locally with `npm run build`.
+- Build source changes in `/Users/mirror-pro/repos/activemirror-journey` with
+  `npm run build:deploy`.
 - Confirm which repo owns the next deploy before publishing.
-- If deploying from this repo, push `main` and confirm GitHub Actions publishes `dist` to `gh-pages`.
-- Move the production custom domain only after the new Pages deployment is healthy.
+- Package the built app into this repo with `npm run app:package`.
+- Run `npm run deploy:preflight` before publishing.
+- If static assets changed, publish with `npm run site:worker:deploy`.
+- If gateway code changed, publish with `npm run worker:deploy`.
+- After either publish path, run `npm run deploy:verify`; this includes
+  `qa:user-prompts` for live user-style prompt behavior.
 - Keep the old `activemirror-pages` repo as rollback history until the new repo has proven stable.
 
 For the current repo map and local CNAME audit, see:

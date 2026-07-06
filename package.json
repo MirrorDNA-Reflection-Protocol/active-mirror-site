@@ -13,6 +13,8 @@
     "guard:canonical": "node scripts/canonical-deploy-guard.mjs",
     "audit:repos": "node scripts/local-repo-canonical-audit.mjs",
     "copy:audit": "node scripts/public-copy-audit.mjs",
+    "deploy:preflight": "npm run guard:canonical && npm run copy:audit && npm run build && npm run site:worker:dry",
+    "deploy:verify": "npm run smoke:interaction && npm run smoke:browser && npm run canary:prod && npm run redteam:prod-smoke && npm run qa:user-prompts",
     "amos:demo": "node scripts/amos-campaign-approval-demo.mjs",
     "amos:guard": "node scripts/amos-demo-guard.mjs && node scripts/amos-approval-console-smoke.mjs",
     "amos:approval-smoke": "node scripts/amos-approval-console-smoke.mjs",

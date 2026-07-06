@@ -208,7 +208,6 @@ async function exerciseFirstInput(page) {
   await page.getByRole("button", { name: /^Save$/ }).waitFor({ timeout: 30000 });
   await page.getByRole("button", { name: /^Save$/ }).click();
   await page.getByRole("button", { name: /^Saved$/ }).waitFor({ timeout: 10000 });
-  await exerciseSavedContext(page);
   await page.getByRole("button", { name: /^(Different angle|Another angle|Make page copy|Test it)$/ }).last().waitFor({ timeout: 10000 });
   const artifactButton = page.getByRole("button", { name: /^(Draft it|Make doc|Make code starter|Make visual brief|Make page copy|Test it)$/ }).first();
   await artifactButton.waitFor({ timeout: 10000 });
@@ -232,13 +231,15 @@ async function exerciseFirstInput(page) {
     fail("Privacy event buffer leaked prompt text.");
   }
 
+  await exerciseSavedContext(page);
   await exerciseStarterSecondTurns(page);
 }
 
 async function exerciseSavedContext(page) {
-  const savedButton = page.getByRole("button", { name: /^Saved:\s*\d+$/ }).first();
-  await savedButton.waitFor({ timeout: 10000 });
-  await savedButton.click();
+  await page.goto(routeUrl("/"), { waitUntil: "domcontentloaded", timeout: 20000 });
+  await page.getByText("Pick up where you left off", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: /^Continue$/ }).first().waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: /^Saved$/ }).first().click();
   await page.getByText("Saved by you", { exact: true }).waitFor({ timeout: 10000 });
   await page.getByText("Only on this browser. Delete it anytime.", { exact: true }).waitFor({ timeout: 10000 });
 

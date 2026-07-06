@@ -62,8 +62,13 @@ npm run build:deploy
 
 cd /Users/mirror-pro/repos/active-mirror-site
 npm run app:package
-npm run guard:canonical
+npm run deploy:preflight
 npm run audit:repos
-npm run build
-npm run copy:audit
+npm run site:worker:deploy
+npm run deploy:verify
 ```
+
+`deploy:verify` is the current post-deploy truth gate. It includes the browser
+route smoke, interaction smoke, production canary, bounded gateway red-team,
+and `qa:user-prompts` so practical user prompts do not regress into internal
+language or reflective-only answers.
