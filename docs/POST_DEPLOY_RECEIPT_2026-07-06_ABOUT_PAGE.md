@@ -14,6 +14,7 @@ Added a small `/app/about/` page to the canonical Active Mirror app source and d
 - Public language guard now scans About.
 - Truth manifest now includes About.
 - Browser smoke now checks `/app/about/`.
+- Root `/about/` now redirects to `/app/about/`.
 - Deploy repo packaged the new `/public/app` bundle.
 
 ## Verification
@@ -26,14 +27,16 @@ Added a small `/app/about/` page to the canonical Active Mirror app source and d
   - `/tmp/active-mirror-about-mobile.png`
   - `/tmp/active-mirror-about-desktop.png`
 - Cloudflare static Worker deploy succeeded.
-- Worker version: `2cb6b5e4-da17-44a4-bc41-1a81bfb27fbb`.
+- Worker version for About route: `2cb6b5e4-da17-44a4-bc41-1a81bfb27fbb`.
+- Worker version for root About alias: `fee7b78e-724b-4f82-a429-9c39fa4c83c7`.
 - Production browser smoke against `https://activemirror.ai/app` passed for mobile and desktop, including About.
-- Production canary passed `16/16`.
+- Production browser check confirmed `https://activemirror.ai/about/` resolves to `https://activemirror.ai/app/about/`.
+- Production canary passed `17/17`.
 
 ## Bad News / Limits
 
 - The truth gate is scoped verification. It does not prove whole-repo, whole-computer, or external certification truth.
-- Direct HTML curl only proves the React shell and asset hashes because About text is lazy-loaded client-side.
+- Direct HTML curl for `/app/about/` only proves the React shell and asset hashes because About text is lazy-loaded client-side.
 - The internal enterprise endpoint path still contains `proof-sprint` for compatibility. Public visible copy now uses workflow language.
 
 ## Remaining Risk

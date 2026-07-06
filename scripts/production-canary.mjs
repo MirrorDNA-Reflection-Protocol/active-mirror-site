@@ -40,6 +40,13 @@ async function main() {
     assert(/assets\/index-[A-Za-z0-9_-]+\.js/.test(text), "app index does not reference a hashed bundle");
   });
 
+  await check("about root points to app about", async () => {
+    const response = await fetchWithTimeout(`${SITE}/about/`);
+    const text = await response.text();
+    assert(response.ok, `about root status ${response.status}`);
+    assert(text.includes("/app/about/"), "about root did not point to app about");
+  });
+
   await check("app shell is browser-hardened", async () => {
     const response = await fetchWithTimeout(`${SITE}/app/index.html`);
     const text = await response.text();
