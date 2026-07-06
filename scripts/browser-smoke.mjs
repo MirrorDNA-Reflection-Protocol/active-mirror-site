@@ -53,7 +53,7 @@ const routes = [
     path: "/enterprise",
     mustSee: [
       /Private AI for real work/i,
-      /Live workflow console/i,
+      /Workflow preview/i,
       /Private AI deployment/i,
       /Start workflow sprint/i,
       /Download brief/i,
