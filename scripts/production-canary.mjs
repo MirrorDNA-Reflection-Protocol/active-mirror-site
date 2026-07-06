@@ -50,6 +50,50 @@ async function main() {
     }
   });
 
+  await check("stale public aliases point to current app routes", async () => {
+    const routes = [
+      ["product", "/app/"],
+      ["mirror", "/app/"],
+      ["pricing", "/app/enterprise/"],
+      ["trust", "/app/privacy/"],
+    ];
+    for (const [route, target] of routes) {
+      const response = await fetchWithTimeout(`${SITE}/${route}/`);
+      const text = await response.text();
+      assert(response.ok, `${route} alias status ${response.status}`);
+      assert(text.includes(`url=${target}`) || text.includes(`href="${target}"`), `${route} alias did not point to ${target}`);
+      assert(!text.includes("A private AI workspace for important decisions."), `${route} alias leaked old product copy`);
+      assert(!text.includes("Reflect with the full workspace."), `${route} alias leaked old mirror copy`);
+      assert(!text.includes("Trust by Design starts with approved memory."), `${route} alias leaked old trust copy`);
+      assert(!text.includes("$19/mo"), `${route} alias leaked old pricing copy`);
+    }
+  });
+
+  await check("public metadata routes are real assets", async () => {
+    const manifestResponse = await fetchWithTimeout(`${SITE}/manifest.json`);
+    const manifestText = await manifestResponse.text();
+    assert(manifestResponse.ok, `manifest status ${manifestResponse.status}`);
+    assert(!/text\/html/i.test(manifestResponse.headers.get("content-type") || ""), "manifest served as HTML fallback");
+    assert(manifestText.includes('"start_url": "/app/"'), "manifest start_url missing");
+    assert(manifestText.includes('"scope": "/app/"'), "manifest scope missing");
+    assert(manifestText.includes('"display": "standalone"'), "manifest display missing");
+
+    const robotsResponse = await fetchWithTimeout(`${SITE}/robots.txt`);
+    const robotsText = await robotsResponse.text();
+    assert(robotsResponse.ok, `robots status ${robotsResponse.status}`);
+    assert(!/text\/html/i.test(robotsResponse.headers.get("content-type") || ""), "robots served as HTML fallback");
+    assert(robotsText.includes("User-agent: *"), "robots user-agent missing");
+    assert(robotsText.includes(`Sitemap: ${SITE}/sitemap.xml`), "robots sitemap missing");
+
+    const sitemapResponse = await fetchWithTimeout(`${SITE}/sitemap.xml`);
+    const sitemapText = await sitemapResponse.text();
+    assert(sitemapResponse.ok, `sitemap status ${sitemapResponse.status}`);
+    assert(!/text\/html/i.test(sitemapResponse.headers.get("content-type") || ""), "sitemap served as HTML fallback");
+    assert(sitemapText.includes("<urlset"), "sitemap urlset missing");
+    assert(sitemapText.includes(`${SITE}/app/`), "sitemap app route missing");
+    assert(sitemapText.includes(`${SITE}/app/enterprise/`), "sitemap enterprise route missing");
+  });
+
   await check("app about shell is present", async () => {
     const response = await fetchWithTimeout(`${SITE}/app/about/`);
     const text = await response.text();
