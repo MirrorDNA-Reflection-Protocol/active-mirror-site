@@ -31,7 +31,7 @@ Added a small `/app/about/` page to the canonical Active Mirror app source and d
 - Worker version for root About alias: `fee7b78e-724b-4f82-a429-9c39fa4c83c7`.
 - Production browser smoke against `https://activemirror.ai/app` passed for mobile and desktop, including About.
 - Production browser check confirmed `https://activemirror.ai/about/` resolves to `https://activemirror.ai/app/about/`.
-- Production canary passed `17/17`.
+- Production canary passed `18/18` after route-alias coverage was expanded for About, Privacy, Terms, Enterprise, Consulting, and Research.
 
 ## Bad News / Limits
 

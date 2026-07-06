@@ -40,11 +40,21 @@ async function main() {
     assert(/assets\/index-[A-Za-z0-9_-]+\.js/.test(text), "app index does not reference a hashed bundle");
   });
 
-  await check("about root points to app about", async () => {
-    const response = await fetchWithTimeout(`${SITE}/about/`);
+  await check("root utility routes point to app routes", async () => {
+    const routes = ["about", "privacy", "terms", "enterprise", "consulting", "research"];
+    for (const route of routes) {
+      const response = await fetchWithTimeout(`${SITE}/${route}/`);
+      const text = await response.text();
+      assert(response.ok, `${route} root status ${response.status}`);
+      assert(new RegExp(`/app/${route}/?`).test(text), `${route} root did not point to app ${route}`);
+    }
+  });
+
+  await check("app about shell is present", async () => {
+    const response = await fetchWithTimeout(`${SITE}/app/about/`);
     const text = await response.text();
-    assert(response.ok, `about root status ${response.status}`);
-    assert(text.includes("/app/about/"), "about root did not point to app about");
+    assert(response.ok, `app about status ${response.status}`);
+    assert(/assets\/index-[A-Za-z0-9_-]+\.js/.test(text), "app about did not serve the React shell");
   });
 
   await check("app shell is browser-hardened", async () => {
