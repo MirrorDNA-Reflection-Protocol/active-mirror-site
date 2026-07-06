@@ -30,6 +30,7 @@
     "canary:prod": "node scripts/production-canary.mjs",
     "monitor:gateway": "node scripts/gateway-monitor.mjs",
     "smoke:browser": "node scripts/browser-smoke.mjs",
+    "smoke:interaction": "node scripts/interaction-smoke.mjs",
     "redteam:gateway": "node scripts/red-team-gateway.mjs",
     "redteam:local": "ACTIVE_MIRROR_GATEWAY=local-worker ACTIVE_MIRROR_RED_TEAM_DELAY_MS=0 node scripts/red-team-gateway.mjs",
     "redteam:live-local": "ACTIVE_MIRROR_GATEWAY=live-local ACTIVE_MIRROR_RED_TEAM_DELAY_MS=0 node scripts/red-team-gateway.mjs",

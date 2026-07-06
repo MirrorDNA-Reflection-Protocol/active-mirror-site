@@ -251,6 +251,8 @@ const WEAK_ARTIFACT_RE =
   /\b(?:i can help|i can create|i can draft|here'?s how|here is how|you could|you should|you may want to|consider (?:writing|adding|including)|steps? to create|template for)\b/i;
 const ARTIFACT_INTERNAL_RE =
   /\b(?:provider|gateway|model route|internal token|policy|receipt id|hash chain)\b/i;
+const ENGLISH_ARTIFACT_WRONG_LANGUAGE_RE =
+  /\b(?:salut|bonjour|merci|avis honnête|tu as|j'aurais|j'aimerais|message court|demande courte|franchement|mensaje|hola|gracias|ehrliches|nachricht|bitte|danke)\b/i;
 
 export default {
   async fetch(request, env, ctx) {
@@ -1704,10 +1706,11 @@ function normalizeArtifactResult(text, input) {
     ? payload.checklist.map((item) => cleanArtifactText(item, "", 140)).filter(Boolean).slice(0, 4)
     : [];
 
-  if (!body || body.length < 20 || artifactNeedsFallback(body, input)) {
+  const wrongLanguage = artifactLanguageMismatch(`${title}\n${body}`, input);
+  if (!body || body.length < 20 || wrongLanguage || artifactNeedsFallback(body, input)) {
     return {
       fallback: true,
-      publicReason: "the live artifact needed a cleaner backup",
+      publicReason: wrongLanguage ? "the live artifact used the wrong language" : "the live artifact needed a cleaner backup",
       artifact: fallbackArtifact({ ...input, kind }, "thin"),
     };
   }
@@ -1731,6 +1734,12 @@ function artifactNeedsFallback(body, input = {}) {
     if (!hasLaunchStarter) return true;
   }
   return WEAK_ARTIFACT_RE.test(text) || ARTIFACT_INTERNAL_RE.test(text);
+}
+
+function artifactLanguageMismatch(text, input = {}) {
+  const language = normalizeReplyLanguage(input.reply_language || "");
+  if (language === "en") return ENGLISH_ARTIFACT_WRONG_LANGUAGE_RE.test(String(text || ""));
+  return false;
 }
 
 function parseArtifactPayload(text) {
@@ -1838,6 +1847,15 @@ function launchArtifact(input, intent, question, move) {
 }
 
 function messageArtifact(intent, question, move) {
+  if (/\b(?:friend|feedback|honest|needy|sound(?:ing)? needy|reaction)\b/i.test(intent)) {
+    return {
+      kind: "draft",
+      title: "Honest feedback ask",
+      body: "Hey - could I get your honest feedback on something? No need to soften it; I would rather know what works and what does not. If you have a minute, I would appreciate it.",
+      checklist: ["Send it to one person.", "Keep the context short."],
+    };
+  }
+
   return {
     kind: "draft",
     title: "Sendable message",
@@ -1894,6 +1912,8 @@ function fallbackArtifact(input, reason = "provider") {
       checklist: ["Keep the goal lawful and defensive.", "Do not include credentials, targets, or evasion steps."],
     };
   }
+
+  if (isMessageArtifactInput(input)) return messageArtifact(intent, question, move);
 
   if (kind === "code") {
     return {

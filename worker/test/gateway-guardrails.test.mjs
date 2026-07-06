@@ -170,6 +170,17 @@ function openAIWeakArtifactResponse() {
   };
 }
 
+function openAINonEnglishArtifactResponse() {
+  return {
+    output_text: JSON.stringify({
+      kind: "draft",
+      title: "Message court pour demander un retour franc",
+      body: "Salut, j'aurais besoin de ton avis honnête sur un truc. Si tu as 2 minutes, dis-moi franchement ce qui marche et ce qui ne marche pas. Merci.",
+      checklist: ["Ton amical et direct.", "Demande de retour honnête."],
+    }),
+  };
+}
+
 function openAISourceCheckResponse() {
   return {
     output_text: JSON.stringify({
@@ -1091,6 +1102,53 @@ await check("artifact route replaces weak provider prose with a finished fallbac
     assert.strictEqual(data.artifact.title, "Working doc");
     assert.match(data.artifact.body, /Title|Purpose|Next move/i);
     assert.doesNotMatch(data.artifact.body, /\b(I can help|you could|consider adding|here is how)\b/i, "weak provider phrasing survived");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+await check("artifact route replaces wrong-language provider prose with English fallback", async () => {
+  installEdgeCache();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("api.openai.com")) {
+      const body = JSON.parse(init?.body || "{}");
+      assert.strictEqual(body.store, false, "artifact route must not store provider output");
+      return Response.json(openAINonEnglishArtifactResponse());
+    }
+    return originalFetch(url, init);
+  };
+
+  try {
+    const response = await post(
+      "/v1/mirror/artifact",
+      {
+        intent: "Write a short message asking a friend for honest feedback without sounding needy.",
+        artifactKind: "draft",
+        boundary: "personal",
+        reply_language: "en",
+        mirror: {
+          reflection: "Making the draft now.",
+          question: "",
+          move: "Copy it if it works. Ask for a sharper version if it does not.",
+        },
+      },
+      {
+        MIRROR_BRIDGE_URL: "",
+        MIRROR_BRIDGE_TOKEN: "",
+        OPENAI_API_KEY: "test-openai-key",
+      },
+    );
+    const data = await response.json();
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(data.ok, true);
+    assert.strictEqual(data.fallback, true);
+    assert.strictEqual(data.artifact.kind, "draft");
+    assert.strictEqual(data.artifact.title, "Honest feedback ask");
+    assert.match(data.artifact.body, /Hey - could I get your honest feedback/i);
+    assert.doesNotMatch(data.artifact.body, /Salut|avis honnête|merci/i);
+    assert.match(data.route.fallback || "", /wrong language/i);
   } finally {
     globalThis.fetch = originalFetch;
   }
