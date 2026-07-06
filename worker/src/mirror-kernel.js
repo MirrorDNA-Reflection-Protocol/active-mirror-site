@@ -342,11 +342,14 @@ function classifyIntent(intent = "") {
   if (/\b(leave my browser|leave the browser|personal details|personal history|privacy|private|sensitive|secret\w*|confidential|client|private notes|sensitive notes|send|sendable|shar\w*|expos\w*|reveal\w*|leak\w*|saved|swallow|safe|boundary)\b/.test(text)) {
     return "private_output";
   }
-  if (/\b(hallucinat\w*|overthink\w*|overwhelmed|scattered|spiral\w*|circles|too much|lost|losing the thread|too many ideas|cannot pick|can't pick|what else|lock\w* the next thing|less clear|feels urgent|feels obvious|adding tools|anxious|panic|tired|drift|drifting|fast-moving|nonlinear)\b/.test(text) || /\b(thoughts?|mind)\b.*\b(moving fast|too fast|racing|all over)\b/.test(text) || /\b(i feel|i am|i'm|we are|we're)\b.*\b(confused|stuck|lost)\b/.test(text)) {
+  if (/\b(hallucinat\w*|overreach\w*|overthink\w*|drift\w*)\b/.test(text)) {
     return "reset";
   }
-  if (/\b(site|page|product|homepage|copy|marketing|sales|sell|ads?|positioning|offer|user|customer|demo|public|proof|reflection|receipts?|systems?)\b/.test(text)) {
+  if (/\b(site|page|product|homepage|copy|marketing|sales|sell|ads?|positioning|offer|user|customer|demo|public|proof|reflection|receipts?|systems?|first use|first-use|ritual|onboarding)\b/.test(text)) {
     return "launch_clarity";
+  }
+  if (/\b(hallucinat\w*|overthink\w*|overwhelmed|scattered|spiral\w*|circles|too much|lost|losing the thread|too many ideas|cannot pick|can't pick|what else|lock\w* the next thing|less clear|feels urgent|feels obvious|adding tools|anxious|panic|tired|drift|drifting|fast-moving|nonlinear)\b/.test(text) || /\b(thoughts?|mind)\b.*\b(moving fast|too fast|racing|all over)\b/.test(text) || /\b(i feel|i am|i'm|we are|we're)\b.*\b(confused|stuck|lost)\b/.test(text)) {
+    return "reset";
   }
   if (/\b(overwhelmed|scattered|confused|lost|losing the thread|too many ideas|cannot pick|can't pick|what else|lock\w* the next thing|less clear|feels urgent|feels obvious|adding tools|stuck|spiral\w*|circles|loop|too much|drift|drifting|anxious|panic|tired|fast-moving|nonlinear)\b/.test(text) || /\b(thoughts?|mind)\b.*\b(moving fast|too fast|racing|all over)\b/.test(text)) {
     return "reset";
@@ -952,14 +955,14 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
       move: "Write one plain sentence that starts with: I want help with.",
     },
     needs_detail: {
-      reflection: "I can start, but I need one direction so I do not guess.",
+      reflection: "Give me one direction and I can start.",
       question: "What do you want first: make, decide, fix, or understand?",
-      move: "Pick one word: make, decide, fix, or understand. Then add one sentence.",
+      move: "Pick one word, then add one sentence about the thing.",
     },
     source_check: {
-      reflection: "This needs a source before it becomes a direction. A fresh-sounding answer is not enough to build on.",
-      question: "Which claim would change what you do if it turned out to be false?",
-      move: "Write that one claim, then check one current source before using the answer.",
+      reflection: "This needs checking before it shapes your next move.",
+      question: "Which claim would change what you do if it were wrong?",
+      move: "Check one current source, then use only what changed.",
     },
     private_output: {
       reflection: "Leave the exact private details out. I can still help with the useful version.",
@@ -972,19 +975,19 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
       move: "Write one promise and one button label, then hide anything that competes with them.",
     },
     decision: {
-      reflection: "This should not be solved by preference yet. You need evidence that makes one option clearly better.",
-      question: "What evidence would make one option clearly better?",
-      move: "Name the evidence, then run the smallest test that could produce it today.",
+      reflection: "Another opinion will not help as much as one real signal.",
+      question: "What signal would make one option easier to choose?",
+      move: "Name the signal, then run the smallest test you can run today.",
     },
     sycophancy: {
-      reflection: "This asks for agreement before there is a real test. Turn the strongest claim into evidence before you commit.",
-      question: "What evidence would make this plan look weak before you spend more on it?",
-      move: "Write the riskiest assumption, then ask one person what would make it fail.",
+      reflection: "Agreement would be cheap here. Test the strongest claim before you commit more to it.",
+      question: "What would make this plan fail in the real world?",
+      move: "Write the riskiest assumption, then ask one honest person to challenge it.",
     },
     reset: {
-      reflection: "There are too many open threads. Relief comes from moving one of them, not solving the whole pile.",
-      question: "Which one loop would make the rest easier if it moved a little?",
-      move: "Pick that loop, set a ten-minute timer, and write only the next visible action.",
+      reflection: "There are too many things open. Make one of them lighter first.",
+      question: "Which one would make today easier if it moved a little?",
+      move: "Pick that one, set a ten-minute timer, and do the smallest visible step.",
     },
     artifact: isVagueWritingRequest(userIntent)
       ? {
@@ -998,9 +1001,9 @@ export function deterministicMirror({ intent, boundary }, boundaryDef, routeText
           move: "Draft the smallest usable version with a title, three bullets, and one ask.",
     },
     general: {
-      reflection: "The thought is still wide. Make it small enough to test in the real world today.",
-      question: "What is the smallest version of this that could be tested today?",
-      move: "Write the testable version in one sentence, then show it to one person.",
+      reflection: "This is wide enough to get heavy. Make the first version small.",
+      question: "What would make today feel a little easier?",
+      move: "Write one sentence that names the result you want by tonight.",
     },
   };
 

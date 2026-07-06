@@ -102,7 +102,7 @@ const routes = [
     name: "device",
     path: "/device",
     mustSee: [
-      /What is one thing you are stuck on\?|Best on this device/i,
+      /Start with one thing you want help with\.|A simple mirror for the moment you need a next move\.|Best on this device/i,
       /ONE MOVE|Make it sendable|Open full mirror/i,
       /Private by default|Saving stays your choice/i,
     ],

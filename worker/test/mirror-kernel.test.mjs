@@ -714,7 +714,7 @@ await check("fallback does not treat ordinary launch notes as private details", 
   });
   const text = `${out.mirror.reflection} ${out.mirror.question} ${out.mirror.move}`;
   assert.doesNotMatch(text, /private parts|placeholders|sensitive details/i, "ordinary notes were treated as private");
-  assert.match(text, /launch|notes|testable|visible|move|world/i, "fallback did not stay on the user's actual task");
+  assert.match(text, /today|first version|one sentence|small|move|visible|launch|notes/i, "fallback did not stay on the user's actual task");
 });
 
 // 16. Client boundary masks obvious sensitive details before model routing.

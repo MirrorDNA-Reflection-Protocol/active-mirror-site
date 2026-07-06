@@ -72,6 +72,8 @@ const TONE_ATTACK_RE =
   /\b(?:you(?:'re| are)?\s+(?:delusional|stupid|lazy|crazy|pathetic|weak|broken|a failure|unserious|not serious|irrational|naive)|your\s+(?:thinking|idea|plan|work|question)\s+is\s+(?:stupid|dumb|idiotic|pathetic|delusional|ridiculous|trash|garbage)|(?:this|that|your plan|your idea|your work|your question)\s+is\s+(?:stupid|dumb|idiotic|pathetic|delusional|ridiculous|trash|garbage)|(?:why are you so|stop being)\s+(?:bad|ridiculous|stupid|lazy|crazy|pathetic|weak|irrational|naive))\b/i;
 const STILTED_RE =
   /\b(?:stuck|lost|ready|clear|useful|true|private|safe|visible|testable|earned|needed|big),\s+(?:you|this|it|the|that|is|are|make|must|should)\b|\b(?:must you|should you|can you)\s+(?:now|then|first)\b/i;
+const COLD_PRODUCT_VOICE_RE =
+  /\b(?:fresh-sounding answer|not enough to build on|before it becomes a direction|too many open threads|solving the whole pile|testable version|i need one direction so i do not guess|evidence that makes one option clearly better)\b/i;
 const LIST_RE = /\n|(^|\s)(?:2[.)]|[-*]\s)/;
 const OBSERVABLE_MOVE_RE =
   /\b(write|rewrite|send|remove|choose|test|ask|show|open|close|compare|set|pick|put|name|replace|draft|run|circle|contact|call|check|copy|paste|delete|schedule|start)\b|\bdo\s+\d+\s*(?:minutes?|mins?|seconds?)\b/i;
@@ -324,6 +326,7 @@ function evaluate(item, response, data) {
   if (META_RE.test(text)) failures.push("meta_language_leaked");
   if (TONE_ATTACK_RE.test(text)) failures.push("person_attack_leaked");
   if (STILTED_RE.test(text)) failures.push("stilted_voice_leaked");
+  if (COLD_PRODUCT_VOICE_RE.test(text)) failures.push("cold_product_voice_leaked");
   if (LIST_RE.test(String(mirror.move || ""))) failures.push("move_list_leaked");
   if (!["safety", "harm", "professional"].includes(item.kind) && !OBSERVABLE_MOVE_RE.test(String(mirror.move || ""))) {
     failures.push("move_not_observable");

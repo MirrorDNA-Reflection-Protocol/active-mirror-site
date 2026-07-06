@@ -84,7 +84,7 @@ const categories = [
       "I am spiraling between consumer and enterprise.",
       "Everything feels urgent but nothing feels obvious.",
       "I need to stop overthinking the product.",
-      "I feel confused by my own site.",
+      "I feel confused by everything.",
       "I want this to help humanity and it is making me drift.",
       "I am stuck because I want it to be perfect.",
       "I keep adding tools instead of using one.",
@@ -173,6 +173,8 @@ const blameyMotive =
   /\b(?:you\s+keep\s+[^.!?]{0,100}|you\s+(?:are\s+using|use|seem\s+to|may\s+be|might\s+be)\s+[^.!?]{0,100}\b(?:avoid|avoiding|delay|delaying|procrastinat|hiding|dodging)\b|you\s+are\s+using\s+[^.!?]{0,80}\b(?:to avoid|to delay|as a way to avoid|as a way to delay)\b|what[^?]{0,100}\bare\s+you\s+(?:avoid|avoiding|delaying|dodging|hiding))\b/i;
 const inputScold =
   /\b(?:too\s+(?:blank|thin|vague|empty|generic|broad)\s+to\s+(?:work\s+(?:with|from)|aim\s+at|act\s+on|answer|use)|(?:nothing|not enough|too little)\s+to\s+work\s+(?:with|from)|you\s+(?:gave|provided|sent|submitted)\s+(?:almost\s+)?(?:nothing|not enough|too little))\b/i;
+const coldProductVoice =
+  /\b(?:fresh-sounding answer|not enough to build on|before it becomes a direction|too many open threads|solving the whole pile|testable version|i need one direction so i do not guess|evidence that makes one option clearly better)\b/i;
 
 function allPrompts() {
   return categories.flatMap((category) => category.prompts.map((prompt) => ({ ...category, prompt })));
@@ -193,6 +195,7 @@ function assertFirstTurnQuality({ prompt, expect, requiresSource }, data) {
   assert.ok(!abstractHelper.test(combined), `abstract helper language leaked for ${prompt}: ${combined}`);
   assert.ok(!blameyMotive.test(combined), `blamey motive-reading leaked for ${prompt}: ${combined}`);
   assert.ok(!inputScold.test(combined), `vague-input scolding leaked for ${prompt}: ${combined}`);
+  assert.ok(!coldProductVoice.test(combined), `cold product voice leaked for ${prompt}: ${combined}`);
   const promptText = prompt.toLowerCase();
   const decisionHandled =
     /\b(whether|between|do not know if|don't know if|should i|should we|should\b.*\bor\b|do i\b.*\bor\b|choos(?:e|ing)|decision)\b/.test(promptText)
@@ -205,7 +208,7 @@ function assertFirstTurnQuality({ prompt, expect, requiresSource }, data) {
   assert.ok(wordCount(mirror.question) >= 7 && wordCount(mirror.question) <= 24, `question wrong size for ${prompt}: ${mirror.question}`);
   assert.ok(wordCount(mirror.move) >= 8 && wordCount(mirror.move) <= 26, `move wrong size for ${prompt}: ${mirror.move}`);
   assert.ok(!/\n|^\s*(?:\d+[.)]|[-*])\s/m.test(mirror.move), `move became a list for ${prompt}: ${mirror.move}`);
-  assert.ok(/\b(write|send|remove|choose|test|ask|show|set|pick|name|replace|draft|run)\b/i.test(mirror.move), `move is not observable for ${prompt}: ${mirror.move}`);
+  assert.ok(/\b(write|send|remove|choose|test|ask|show|set|pick|name|replace|draft|run|check|compare)\b/i.test(mirror.move), `move is not observable for ${prompt}: ${mirror.move}`);
 
   assert.ok(mirror.receipt?.context_used, `missing context_used for ${prompt}`);
   assert.ok(mirror.receipt?.context_excluded, `missing context_excluded for ${prompt}`);
