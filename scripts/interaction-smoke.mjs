@@ -99,12 +99,43 @@ async function checkArtifactFirst(browser) {
   });
 }
 
+async function checkDecisionPrompt(browser) {
+  return withPage(browser, async (page) => {
+    await submitPrompt(page, "Should the glass dashboard be enterprise only?");
+    const text = await waitForBodyMatch(
+      page,
+      /FOCUS|Another opinion|Write one sentence|Name the signal|smallest test|enterprise-only|dashboard/i,
+      "decision-specific reflection",
+    );
+
+    if (/Finding the useful move/i.test(text)) {
+      fail("Decision prompt stayed on the loading state.", text);
+    }
+    if (/This is wide enough to get heavy|What would make today feel a little easier/i.test(text)) {
+      fail("Decision prompt regressed to the vague fallback.", text);
+    }
+    if (/\b(?:Le vrai choix|Tu veux|Écris|partagé|garder|ouvrir)\b/i.test(text)) {
+      fail("Decision prompt answered in the browser locale instead of the prompt language.", text);
+    }
+    if (!/(signal|test|control|reach|enterprise-only|write one sentence|name the signal|smallest test)/i.test(text)) {
+      fail("Decision prompt did not produce a useful choice frame.", text);
+    }
+
+    return {
+      flow: "decision_specific",
+      status: "pass",
+      sample: compact(text, 260),
+    };
+  });
+}
+
 async function main() {
   const browser = await chromium.launch({ headless: true });
   try {
     const results = [];
     results.push(await checkAnswerFirst(browser));
     results.push(await checkArtifactFirst(browser));
+    results.push(await checkDecisionPrompt(browser));
     console.log(JSON.stringify({ ok: true, baseUrl, results }, null, 2));
   } finally {
     await browser.close();

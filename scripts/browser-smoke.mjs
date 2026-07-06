@@ -60,7 +60,7 @@ const routes = [
       /Start small\. Grow only if it works/i,
       /Anonymized case study/i,
       /Pick one workflow/i,
-      /Architecture choices/i,
+      /Deployment choices/i,
     ],
   },
   {
