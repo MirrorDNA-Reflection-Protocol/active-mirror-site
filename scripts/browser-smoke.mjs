@@ -64,6 +64,17 @@ const routes = [
     ],
   },
   {
+    name: "about",
+    path: "/about",
+    mustSee: [
+      /Built for people who want AI to help, not overwhelm/i,
+      /What it is for/i,
+      /What it should not do/i,
+      /The privacy line/i,
+      /Start with one thing/i,
+    ],
+  },
+  {
     name: "consulting",
     path: "/consulting",
     mustSee: [

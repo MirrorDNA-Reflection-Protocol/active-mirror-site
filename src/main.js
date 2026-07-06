@@ -121,7 +121,7 @@ const scenarios = {
       "The next step is a portfolio proof, not a generic resume rewrite.",
       "Active Mirror should keep your story precise and receipt-backed.",
     ],
-    tags: ["Portfolio", "Offers", "Pattern extraction", "Proof sprint"],
+    tags: ["Portfolio", "Offers", "Pattern extraction", "Workflow test"],
     route: [
       "Extract repeatable strengths from past projects.",
       "Map strengths to three marketable offers.",
@@ -215,17 +215,17 @@ const approvedHelpUsed = document.querySelector("#approved-help-used");
 const approvedHelpExcluded = document.querySelector("#approved-help-excluded");
 const approvedHelpApprove = document.querySelector("#approved-help-approve");
 const approvedHelpCancel = document.querySelector("#approved-help-cancel");
-const proofSprintOpen = document.querySelector("#proof-sprint-open");
-const proofSprintModal = document.querySelector("#proof-sprint-modal");
-const proofSprintClose = document.querySelector("#proof-sprint-close");
-const proofSprintForm = document.querySelector("#proof-sprint-form");
+const proofSprintOpen = document.querySelector("#workflow-sprint-open");
+const proofSprintModal = document.querySelector("#workflow-sprint-modal");
+const proofSprintClose = document.querySelector("#workflow-sprint-close");
+const proofSprintForm = document.querySelector("#workflow-sprint-form");
 const proofWorkflow = document.querySelector("#proof-workflow");
 const proofSuccess = document.querySelector("#proof-success");
 const proofBoundary = document.querySelector("#proof-boundary");
 const proofEmail = document.querySelector("#proof-email");
-const proofSprintOutput = document.querySelector("#proof-sprint-output");
-const proofSprintSummary = document.querySelector("#proof-sprint-summary");
-const proofSprintMail = document.querySelector("#proof-sprint-mail");
+const proofSprintOutput = document.querySelector("#workflow-sprint-output");
+const proofSprintSummary = document.querySelector("#workflow-sprint-summary");
+const proofSprintMail = document.querySelector("#workflow-sprint-mail");
 
 let currentHomeLane = "decision";
 let homeRemotePayload = null;
@@ -318,9 +318,9 @@ const ritualModes = {
   },
   career: {
     goals: ["Find repeatable strengths", "Package marketable offers", "Ship portfolio proof"],
-    blockers: ["Story is too broad", "Past work is under-leveraged", "No proof sprint selected"],
+    blockers: ["Story is too broad", "Past work is under-leveraged", "No workflow test selected"],
     moves: ["Extract patterns from prior work", "Name three offers", "Build one proof artifact", "Track response signals"],
-    artifact: ["Offer proof map", "Strength, evidence, offer, proof sprint."],
+    artifact: ["Offer test map", "Strength, evidence, offer, workflow test."],
     why: "The user needs a bridge from lived work to visible proof and commercial motion.",
   },
 };
@@ -702,7 +702,7 @@ function followupOptions(modeKey, laneKey, surfaceKey) {
   if (modeKey === "career") {
     return ["Package this as an offer", "Find the proof", "What is the next outreach?"];
   }
-  return ["What should I do first?", "What should I leave out?", "Make this a proof sprint"];
+  return ["What should I do first?", "What should I leave out?", "Make this testable"];
 }
 
 function renderHomeConversation({ intent, mode, boundary, laneKey, surfaceKey }) {
@@ -1209,7 +1209,7 @@ function applyLandingVariant() {
     copy.textContent =
       "Get a next move. See the receipt first.";
   }
-  if (bottomCopy) bottomCopy.textContent = "Use one real workflow. If the receipt is useful, start a proof sprint.";
+  if (bottomCopy) bottomCopy.textContent = "Use one real workflow. If the result is useful, start a workflow sprint.";
   if (ritualIntent) {
     ritualIntent.value =
       "I want to test Active Mirror with one important workflow and see the receipt before I share or save anything.";
@@ -1222,7 +1222,7 @@ function proofSprintBody() {
   const boundary = proofBoundary?.value || ritualBoundary?.selectedOptions?.[0]?.textContent || "No personal context";
   const email = (proofEmail?.value || "").replace(/\s+/g, " ").trim();
   return [
-    "Active Mirror proof sprint request",
+    "Active Mirror workflow sprint request",
     "",
     `Workflow: ${workflow}`,
     `Success: ${success}`,
@@ -1264,7 +1264,7 @@ function closeProofSprint() {
 function prepareProofSprint(event) {
   event.preventDefault();
   const body = proofSprintBody();
-  const subject = "Active Mirror proof sprint";
+  const subject = "Active Mirror workflow sprint";
   const workflow = (proofWorkflow?.value || ritualIntent?.value || ritualInitialIntent).replace(/\s+/g, " ").trim();
   if (proofSprintSummary) {
     proofSprintSummary.textContent = `Prepared locally: ${shortIntent(workflow)} Boundary: ${

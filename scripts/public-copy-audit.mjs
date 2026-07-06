@@ -37,6 +37,7 @@ const patterns = [
   { label: "demo framing", regex: /\bdemo\b/i },
   { label: "paternal promise", regex: /need to hear|want to hear/i },
   { label: "wordy honesty phrasing", regex: /honest next move/i },
+  { label: "internal proof-sprint phrasing", regex: /proof sprint|proof-sprint/i },
   { label: "internal setup copy", regex: /Getting honest pushback|How should I push back|Push back/i },
   { label: "diagnostic audience language", regex: /\bADHD\b|neurodivergent|neuroD/i },
 ];
@@ -45,6 +46,7 @@ const runtimePatterns = [
   { label: "public runtime status", regex: /Preview context packet|Packet ready|Route target|trust mode|demo packet/i },
   { label: "public runtime internals", regex: /local-webgpu|deterministic .*fallback|gateway route|provider fallback/i },
   { label: "public runtime route copy", regex: /Generated workspace route|Route Airlock|Sovereign/i },
+  { label: "public runtime proof-sprint phrasing", regex: /proof sprint|proof-sprint/i },
 ];
 
 function visibleText(html) {
