@@ -68,7 +68,7 @@ const routes = [
     path: "/consulting",
     mustSee: [
       /Private AI deployment/i,
-      /workflow and governance layer/i,
+      /practical controls/i,
       /One workflow first/i,
       /Start small\. Grow only if it works/i,
       /Anonymized case study/i,
@@ -79,13 +79,12 @@ const routes = [
     name: "research",
     path: "/research",
     mustSee: [
-      /Research & deployment/i,
-      /Published protocols/i,
-      /Public trail/i,
+      /How we build it/i,
+      /Open materials/i,
       /SCD Protocol v3\.1/i,
       /SCD Protocol v4/i,
-      /Real work, safely anonymized/i,
-      /Proof you can open/i,
+      /Field story, anonymized/i,
+      /Open references/i,
     ],
   },
   {
