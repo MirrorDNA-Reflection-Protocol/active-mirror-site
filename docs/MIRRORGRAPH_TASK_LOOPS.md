@@ -5,6 +5,14 @@ rediscovering tools, repos, gates, and blockers every session.
 
 This is internal operator memory. Do not copy this language to the public site.
 
+Executable helper:
+
+```bash
+npm run loops
+npm run loops:match -- "R2 poster image storage"
+node scripts/task-loop.mjs cloudflare_r2_media_storage
+```
+
 ## Loop Contract
 
 Every loop should define:

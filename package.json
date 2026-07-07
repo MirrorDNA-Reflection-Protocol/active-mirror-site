@@ -26,6 +26,8 @@
     "cf:whoami": "node scripts/cloudflare-wrangler.mjs whoami",
     "cf:r2:list": "node scripts/cloudflare-wrangler.mjs r2 bucket list --config worker/wrangler.jsonc",
     "cf:r2:create:media": "node scripts/cloudflare-wrangler.mjs r2 bucket create active-mirror-media --config worker/wrangler.jsonc",
+    "loops": "node scripts/task-loop.mjs list",
+    "loops:match": "node scripts/task-loop.mjs match",
     "worker:dev": "node scripts/cloudflare-wrangler.mjs dev --config worker/wrangler.jsonc",
     "worker:deploy": "node scripts/cloudflare-wrangler.mjs deploy --config worker/wrangler.jsonc",
     "site:worker:dry": "node scripts/cloudflare-wrangler.mjs deploy --config wrangler.site.jsonc --dry-run",
