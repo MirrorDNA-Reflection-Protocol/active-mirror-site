@@ -45,7 +45,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-07-07-media-edge-cache-v1";
+const WORKER_VERSION = "2026-07-07-media-kv-fallback-v1";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
@@ -1903,7 +1903,7 @@ async function handleMediaGet(request, env, corsHeaders) {
     return json({ ok: false, error: "media_url_invalid" }, 403, corsHeaders);
   }
 
-  if (!hasMediaBucket(env)) {
+  if (!hasMediaBucket(env) && !hasMediaKv(env)) {
     const cached = await caches.default.match(request);
     if (!cached) {
       return json(
@@ -1926,6 +1926,24 @@ async function handleMediaGet(request, env, corsHeaders) {
       "X-Active-Mirror-Media-Storage": "edge_cache_ephemeral",
     };
     return new Response(cached.body, { status: 200, headers });
+  }
+
+  if (!hasMediaBucket(env)) {
+    const entry = await env.MIRROR_MEDIA_KV.getWithMetadata(key, "arrayBuffer");
+    if (!entry?.value) {
+      return json({ ok: false, error: "media_not_found" }, 404, corsHeaders);
+    }
+    const metadata = entry.metadata || {};
+    const contentType = metadata.mime_type || "application/octet-stream";
+    const headers = {
+      ...corsHeaders,
+      "Content-Type": contentType,
+      "Cache-Control": "public, max-age=86400",
+      "Content-Disposition": `inline; filename="${safeMediaFilename(key)}"`,
+      "X-Content-Type-Options": "nosniff",
+      "X-Active-Mirror-Media-Storage": "kv_durable_free_tier",
+    };
+    return new Response(entry.value, { status: 200, headers });
   }
 
   const object = await env.MIRROR_MEDIA_BUCKET.get(key);
@@ -1951,6 +1969,9 @@ async function storeGeneratedMedia({ base64, mimeType, input, env, ctx }) {
     const bytes = base64ToUint8Array(base64);
     if (!bytes.length) return null;
     if (!hasMediaBucket(env)) {
+      if (hasMediaKv(env)) {
+        return storeGeneratedMediaInKv({ bytes, mimeType, input, env, ctx });
+      }
       return storeGeneratedMediaInEdgeCache({ bytes, mimeType, input, env, ctx });
     }
     const key = await mediaObjectKey(bytes, mimeType);
@@ -1988,6 +2009,43 @@ async function storeGeneratedMedia({ base64, mimeType, input, env, ctx }) {
     });
     return null;
   }
+}
+
+async function storeGeneratedMediaInKv({ bytes, mimeType, input, env, ctx }) {
+  const key = await mediaObjectKey(bytes, mimeType);
+  const expiresAt = Math.floor(Date.now() / 1000) + mediaUrlTtlSeconds(env);
+  const signature = await mediaUrlSignature(key, expiresAt, env);
+  const url = `${mediaPublicBaseUrl(env)}/${encodeURIComponent(key)}?exp=${expiresAt}&sig=${signature}`;
+
+  await env.MIRROR_MEDIA_KV.put(key, bytes, {
+    expirationTtl: mediaUrlTtlSeconds(env),
+    metadata: {
+      kind: "image",
+      source: "gemini_image",
+      mime_type: mimeType,
+      prompt_hash: await receiptHash({
+        type: "active_mirror_media_prompt",
+        intent: cleanArtifactText(input.intent, "", 700),
+        move: cleanArtifactText(input.mirror?.move, "", 180),
+      }),
+      created_at: new Date().toISOString(),
+    },
+  });
+
+  logSafe(ctx, {
+    type: "active_mirror_media_kv_written",
+    storage: "kv_durable_free_tier",
+    key,
+    mime_type: mimeType,
+    expires_at: new Date(expiresAt * 1000).toISOString(),
+  });
+
+  return {
+    storage: "kv_durable_free_tier",
+    key,
+    url,
+    expires_at: new Date(expiresAt * 1000).toISOString(),
+  };
 }
 
 async function storeGeneratedMediaInEdgeCache({ bytes, mimeType, input, env, ctx }) {
@@ -3479,7 +3537,7 @@ function publicGuardrails(env) {
     image_session_daily_limit: String(imageSessionDailyLimit(env)),
     image_network_daily_limit: String(imageNetworkDailyLimit(env)),
     media_storage: mediaStorageStatus(env),
-    media_url_policy: hasMediaBucket(env) ? "signed_gateway_url" : "ephemeral_signed_gateway_url",
+    media_url_policy: hasMediaBucket(env) || hasMediaKv(env) ? "signed_gateway_url" : "ephemeral_signed_gateway_url",
     media_signing: mediaSigningStatus(env),
     media_url_ttl_seconds: String(activeMediaUrlTtlSeconds(env)),
     event_policy: "no-prompt-content",
@@ -3533,11 +3591,17 @@ function publicGuardrails(env) {
 }
 
 function mediaStorageStatus(env) {
-  return hasMediaBucket(env) ? "r2_configured" : "edge_cache_ephemeral";
+  if (hasMediaBucket(env)) return "r2_configured";
+  if (hasMediaKv(env)) return "kv_durable_free_tier";
+  return "edge_cache_ephemeral";
 }
 
 function hasMediaBucket(env) {
   return Boolean(env.MIRROR_MEDIA_BUCKET?.put && env.MIRROR_MEDIA_BUCKET?.get);
+}
+
+function hasMediaKv(env) {
+  return Boolean(env.MIRROR_MEDIA_KV?.put && env.MIRROR_MEDIA_KV?.getWithMetadata);
 }
 
 function mediaSigningStatus(env) {
@@ -3553,7 +3617,7 @@ function edgeMediaUrlTtlSeconds(env) {
 }
 
 function activeMediaUrlTtlSeconds(env) {
-  return hasMediaBucket(env) ? mediaUrlTtlSeconds(env) : edgeMediaUrlTtlSeconds(env);
+  return hasMediaBucket(env) || hasMediaKv(env) ? mediaUrlTtlSeconds(env) : edgeMediaUrlTtlSeconds(env);
 }
 
 function mediaPublicBaseUrl(env) {

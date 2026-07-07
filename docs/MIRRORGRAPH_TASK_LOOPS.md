@@ -33,7 +33,7 @@ Intent triggers:
 - image/poster artifacts fail in browser
 - media URL storage needs hardening
 - `media_storage=edge_cache_ephemeral`
-- R2 bucket, media bucket, signed media URL, Cloudflare access
+- R2 bucket, KV fallback, media bucket, signed media URL, Cloudflare access
 
 Active repo:
 
@@ -51,6 +51,7 @@ First checks:
 ```bash
 npm run cf:whoami
 npm run cf:r2:list
+npm run cf:kv:list
 curl -fsS https://gateway.activemirror.ai/health
 ```
 
@@ -60,6 +61,8 @@ Rules:
 - do not commit API tokens
 - do not claim R2 is configured unless `cf:r2:list` works and health reports R2
 - if R2 returns `10042`, the next action is dashboard entitlement, not code
+- if no card is available for R2, use `MIRROR_MEDIA_KV` as the free-tier
+  durable fallback and keep R2 as the future production target
 
 Success gates:
 
@@ -77,6 +80,13 @@ Current blocker:
 ```text
 Cloudflare R2 account entitlement is missing:
 Please enable R2 through the Cloudflare Dashboard. [code: 10042]
+```
+
+Current no-card route:
+
+```text
+MIRROR_MEDIA_KV is live as the durable small-media fallback.
+R2 remains the preferred production object store once billing is available.
 ```
 
 ## `public_site_ship_loop`

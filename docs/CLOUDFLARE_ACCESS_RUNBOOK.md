@@ -10,6 +10,7 @@ Use the repo wrapper:
 ```bash
 npm run cf:whoami
 npm run cf:r2:list
+npm run cf:kv:list
 npm run worker:deploy
 npm run site:worker:deploy
 ```
@@ -66,3 +67,23 @@ bucket: active-mirror-media
 binding: MIRROR_MEDIA_BUCKET
 secret: MIRROR_MEDIA_SIGNING_SECRET
 ```
+
+## No-Card Media Fallback
+
+If R2 cannot be enabled because the account has no payment card, use Workers KV
+as the durable free-tier fallback for small generated images.
+
+```text
+namespace: active-mirror-media
+binding: MIRROR_MEDIA_KV
+id: 2c46cd5ffaa44e06b7e25a6f1d5cb154
+```
+
+Storage priority:
+
+```text
+R2 private bucket -> Workers KV -> short-lived edge cache
+```
+
+KV is a practical fallback, not a full R2 replacement. Keep generated images
+small and keep the signed URL TTL bounded.

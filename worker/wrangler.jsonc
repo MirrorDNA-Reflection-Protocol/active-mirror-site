@@ -14,6 +14,12 @@
   "observability": {
     "enabled": true
   },
+  "kv_namespaces": [
+    {
+      "binding": "MIRROR_MEDIA_KV",
+      "id": "2c46cd5ffaa44e06b7e25a6f1d5cb154"
+    }
+  ],
   "ratelimits": [
     {
       "name": "MIRROR_SESSION_RATE_LIMITER",

@@ -214,6 +214,34 @@ function fakeR2Bucket() {
   };
 }
 
+function fakeKvNamespace() {
+  const store = new Map();
+  return {
+    store,
+    async put(key, value, options = {}) {
+      store.set(key, {
+        value,
+        metadata: options.metadata || {},
+      });
+    },
+    async getWithMetadata(key, type = "text") {
+      const entry = store.get(key);
+      if (!entry) return { value: null, metadata: null };
+      if (type === "arrayBuffer") {
+        const bytes = entry.value instanceof Uint8Array ? entry.value : new Uint8Array(entry.value);
+        return {
+          value: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+          metadata: entry.metadata,
+        };
+      }
+      return {
+        value: entry.value,
+        metadata: entry.metadata,
+      };
+    },
+  };
+}
+
 function openAISourceCheckResponse() {
   return {
     output_text: JSON.stringify({
@@ -1228,6 +1256,67 @@ await check("artifact image route stores media in R2 when a bucket binding exist
     assert.strictEqual(storedResponse.headers.get("content-type"), "image/jpeg");
     assert.strictEqual(storedResponse.headers.get("x-active-mirror-media-storage"), "r2_private_bucket");
     assert(bytes.byteLength > 0, "stored media response was empty");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+await check("artifact image route stores media in KV when R2 is not available", async () => {
+  installEdgeCache();
+  const kv = fakeKvNamespace();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("generativelanguage.googleapis.com/v1beta/interactions")) {
+      return Response.json(geminiImageInteractionResponse());
+    }
+    return originalFetch(url, init);
+  };
+
+  try {
+    const envWithKv = {
+      MIRROR_BRIDGE_URL: "",
+      MIRROR_BRIDGE_TOKEN: "",
+      OPENAI_API_KEY: "",
+      ANTHROPIC_API_KEY: "",
+      GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER: "test-gemini-key",
+      MIRROR_MEDIA_KV: kv,
+      MIRROR_MEDIA_SIGNING_SECRET: "test-media-secret",
+      MIRROR_MEDIA_PUBLIC_BASE_URL: "https://gateway.activemirror.ai/v1/media",
+    };
+    const response = await post(
+      "/v1/mirror/artifact",
+      {
+        intent: "Create a poster for a community reflection night.",
+        artifactKind: "image",
+        boundary: "personal",
+        mirror: {
+          reflection: "The request needs a finished visual, not advice.",
+          question: "What should the poster make people feel?",
+          move: "Generate one poster image that feels warm and clear.",
+        },
+      },
+      envWithKv,
+    );
+    const data = await response.json();
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(data.artifact.media?.storage, "kv_durable_free_tier");
+    assert.strictEqual(data.artifact.media?.transport, "signed_url");
+    assert.match(data.artifact.media?.url || "", /^https:\/\/gateway\.activemirror\.ai\/v1\/media\/active-mirror-/);
+    assert.strictEqual(Boolean(data.artifact.media?.data_url), false, "KV media should not return inline data_url");
+    assert.strictEqual(kv.store.size, 1);
+    assert.strictEqual(JSON.stringify(data).includes("test-media-secret"), false, "media signing secret leaked into response");
+
+    const storedResponse = await worker.fetch(
+      new Request(data.artifact.media.url, { method: "GET" }),
+      env(envWithKv),
+      ctx(),
+    );
+    const bytes = await storedResponse.arrayBuffer();
+    assert.strictEqual(storedResponse.status, 200);
+    assert.strictEqual(storedResponse.headers.get("content-type"), "image/jpeg");
+    assert.strictEqual(storedResponse.headers.get("x-active-mirror-media-storage"), "kv_durable_free_tier");
+    assert(bytes.byteLength > 0, "KV media response was empty");
   } finally {
     globalThis.fetch = originalFetch;
   }
