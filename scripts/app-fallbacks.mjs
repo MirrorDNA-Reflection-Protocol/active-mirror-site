@@ -28,6 +28,7 @@ const appRoutes = [
   'docs/self-hosting',
   'ecosystem',
   'features',
+  'feedback',
   'hub',
   'id',
   'lab',

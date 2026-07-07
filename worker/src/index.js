@@ -45,7 +45,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-07-05-anti-sycophancy-v1";
+const WORKER_VERSION = "2026-07-07-media-edge-cache-v1";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
@@ -58,6 +58,8 @@ const DEFAULT_IMAGE_SESSION_WINDOW_LIMIT = 2;
 const DEFAULT_IMAGE_NETWORK_WINDOW_LIMIT = 12;
 const DEFAULT_IMAGE_SESSION_DAILY_LIMIT = 5;
 const DEFAULT_IMAGE_NETWORK_DAILY_LIMIT = 80;
+const DEFAULT_MEDIA_URL_TTL_SECONDS = 7 * 24 * 60 * 60;
+const DEFAULT_EDGE_MEDIA_URL_TTL_SECONDS = 15 * 60;
 const DEFAULT_EVENT_WINDOW_SECONDS = 60;
 const DEFAULT_EVENT_SESSION_WINDOW_LIMIT = 90;
 const DEFAULT_EVENT_NETWORK_WINDOW_LIMIT = 240;
@@ -286,6 +288,10 @@ export default {
 
     if (request.method === "GET" && url.pathname === "/v1/routes") {
       return json({ ok: true, routes: publicRoutes(env) }, 200, corsHeaders);
+    }
+
+    if (request.method === "GET" && url.pathname.startsWith("/v1/media/")) {
+      return handleMediaGet(request, env, corsHeaders);
     }
 
     if (request.method === "GET" && url.pathname === "/v1/mirror/enterprise-stream") {
@@ -1621,7 +1627,7 @@ async function runArtifactRoute(input, env, ctx) {
         : provider === "anthropic"
           ? await callAnthropicArtifact(prompt, input, env)
           : provider === "gemini"
-            ? await callGeminiArtifact(prompt, input, env)
+            ? await callGeminiArtifact(prompt, input, env, ctx)
             : null;
       if (!result) continue;
       if (providerFailed && !result.fallback) {
@@ -1765,8 +1771,8 @@ async function callAnthropicArtifact(prompt, input, env) {
   return normalizeArtifactResult(extractAnthropicText(data), input);
 }
 
-async function callGeminiArtifact(prompt, input, env) {
-  if (input.kind === "image") return callGeminiImageArtifact(input, env);
+async function callGeminiArtifact(prompt, input, env, ctx) {
+  if (input.kind === "image") return callGeminiImageArtifact(input, env, ctx);
 
   const model = input.kind === "image"
     ? env.GEMINI_ARTIFACT_MODEL || env.GEMINI_MEDIA_MODEL || "gemini-2.5-flash"
@@ -1797,7 +1803,7 @@ async function callGeminiArtifact(prompt, input, env) {
   return normalizeArtifactResult(text, input);
 }
 
-async function callGeminiImageArtifact(input, env) {
+async function callGeminiImageArtifact(input, env, ctx) {
   const model = env.GEMINI_IMAGE_MODEL || env.GEMINI_ARTIFACT_MODEL || env.GEMINI_MEDIA_MODEL || "gemini-3.1-flash-image";
   const key = env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY;
   const referer = env.GEMINI_ALLOWED_REFERER || "https://activemirror.ai/";
@@ -1834,6 +1840,13 @@ async function callGeminiImageArtifact(input, env) {
   const outputText = cleanArtifactBody(extractGeminiInteractionText(data), "").trim();
   const promptText = buildVisualBriefBody(input);
   const imageMime = normalizeImageMime(image.mime_type || image.mimeType || mimeType);
+  const storedMedia = await storeGeneratedMedia({
+    base64: image.data,
+    mimeType: imageMime,
+    input,
+    env,
+    ctx,
+  });
 
   return {
     fallback: false,
@@ -1845,7 +1858,19 @@ async function callGeminiImageArtifact(input, env) {
         "Download the poster before closing this page.",
         "Regenerate with clearer audience, text, or style if needed.",
       ],
-      media: {
+      media: storedMedia
+        ? {
+          kind: "image",
+          mime_type: imageMime,
+          url: storedMedia.url,
+          key: storedMedia.key,
+          alt: cleanArtifactText(input.intent, "Generated poster", 160),
+          source: "gemini_image",
+          transport: "signed_url",
+          storage: storedMedia.storage,
+          expires_at: storedMedia.expires_at,
+        }
+        : {
         kind: "image",
         mime_type: imageMime,
         data: image.data,
@@ -1856,6 +1881,149 @@ async function callGeminiImageArtifact(input, env) {
         storage: mediaStorageStatus(env),
       },
     },
+  };
+}
+
+async function handleMediaGet(request, env, corsHeaders) {
+  const url = new URL(request.url);
+  const encodedKey = url.pathname.slice("/v1/media/".length);
+  const key = decodeURIComponent(encodedKey || "");
+  const expiresAt = Number(url.searchParams.get("exp") || 0);
+  const signature = String(url.searchParams.get("sig") || "");
+
+  if (!isSafeMediaKey(key) || !expiresAt || !signature) {
+    return json({ ok: false, error: "media_url_invalid" }, 403, corsHeaders);
+  }
+  if (Date.now() > expiresAt * 1000) {
+    return json({ ok: false, error: "media_url_expired" }, 403, corsHeaders);
+  }
+
+  const expected = await mediaUrlSignature(key, expiresAt, env);
+  if (signature !== expected) {
+    return json({ ok: false, error: "media_url_invalid" }, 403, corsHeaders);
+  }
+
+  if (!hasMediaBucket(env)) {
+    const cached = await caches.default.match(request);
+    if (!cached) {
+      return json(
+        {
+          ok: false,
+          error: "media_not_found",
+          message: "This temporary image link is no longer available.",
+        },
+        404,
+        corsHeaders,
+      );
+    }
+    const contentType = cached.headers.get("Content-Type") || "application/octet-stream";
+    const headers = {
+      ...corsHeaders,
+      "Content-Type": contentType,
+      "Cache-Control": cached.headers.get("Cache-Control") || "public, max-age=300",
+      "Content-Disposition": `inline; filename="${safeMediaFilename(key)}"`,
+      "X-Content-Type-Options": "nosniff",
+      "X-Active-Mirror-Media-Storage": "edge_cache_ephemeral",
+    };
+    return new Response(cached.body, { status: 200, headers });
+  }
+
+  const object = await env.MIRROR_MEDIA_BUCKET.get(key);
+  if (!object) {
+    return json({ ok: false, error: "media_not_found" }, 404, corsHeaders);
+  }
+
+  const contentType = object.httpMetadata?.contentType || object.customMetadata?.mime_type || "application/octet-stream";
+  const headers = {
+    ...corsHeaders,
+    "Content-Type": contentType,
+    "Cache-Control": object.httpMetadata?.cacheControl || "public, max-age=86400",
+    "Content-Disposition": `inline; filename="${safeMediaFilename(key)}"`,
+    "X-Content-Type-Options": "nosniff",
+    "X-Active-Mirror-Media-Storage": "r2_private_bucket",
+  };
+
+  return new Response(object.body, { status: 200, headers });
+}
+
+async function storeGeneratedMedia({ base64, mimeType, input, env, ctx }) {
+  try {
+    const bytes = base64ToUint8Array(base64);
+    if (!bytes.length) return null;
+    if (!hasMediaBucket(env)) {
+      return storeGeneratedMediaInEdgeCache({ bytes, mimeType, input, env, ctx });
+    }
+    const key = await mediaObjectKey(bytes, mimeType);
+    const expiresAt = Math.floor(Date.now() / 1000) + mediaUrlTtlSeconds(env);
+    const signature = await mediaUrlSignature(key, expiresAt, env);
+
+    await env.MIRROR_MEDIA_BUCKET.put(key, bytes, {
+      httpMetadata: {
+        contentType: mimeType,
+        cacheControl: "public, max-age=86400",
+      },
+      customMetadata: {
+        kind: "image",
+        source: "gemini_image",
+        mime_type: mimeType,
+        prompt_hash: await receiptHash({
+          type: "active_mirror_media_prompt",
+          intent: cleanArtifactText(input.intent, "", 700),
+          move: cleanArtifactText(input.mirror?.move, "", 180),
+        }),
+        created_at: new Date().toISOString(),
+      },
+    });
+
+    return {
+      storage: "r2_private_bucket",
+      key,
+      url: `${mediaPublicBaseUrl(env)}/${encodeURIComponent(key)}?exp=${expiresAt}&sig=${signature}`,
+      expires_at: new Date(expiresAt * 1000).toISOString(),
+    };
+  } catch (error) {
+    logSafe(ctx, {
+      type: "active_mirror_media_storage_fallback",
+      reason: cleanProviderCode(safeError(error)),
+    });
+    return null;
+  }
+}
+
+async function storeGeneratedMediaInEdgeCache({ bytes, mimeType, input, env, ctx }) {
+  const key = await mediaObjectKey(bytes, mimeType);
+  const expiresAt = Math.floor(Date.now() / 1000) + edgeMediaUrlTtlSeconds(env);
+  const signature = await mediaUrlSignature(key, expiresAt, env);
+  const url = `${mediaPublicBaseUrl(env)}/${encodeURIComponent(key)}?exp=${expiresAt}&sig=${signature}`;
+  const cacheHeaders = {
+    "Content-Type": mimeType,
+    "Cache-Control": `public, max-age=${edgeMediaUrlTtlSeconds(env)}`,
+    "Content-Disposition": `inline; filename="${safeMediaFilename(key)}"`,
+    "X-Content-Type-Options": "nosniff",
+    "X-Active-Mirror-Media-Storage": "edge_cache_ephemeral",
+  };
+  const cacheRequest = new Request(url, { method: "GET" });
+  const cacheResponse = new Response(bytes, { status: 200, headers: cacheHeaders });
+  await caches.default.put(cacheRequest, cacheResponse);
+
+  logSafe(ctx, {
+    type: "active_mirror_media_edge_cache_written",
+    storage: "edge_cache_ephemeral",
+    key,
+    mime_type: mimeType,
+    expires_at: new Date(expiresAt * 1000).toISOString(),
+    prompt_hash: await receiptHash({
+      type: "active_mirror_media_prompt",
+      intent: cleanArtifactText(input.intent, "", 700),
+      move: cleanArtifactText(input.mirror?.move, "", 180),
+    }),
+  });
+
+  return {
+    storage: "edge_cache_ephemeral",
+    key,
+    url,
+    expires_at: new Date(expiresAt * 1000).toISOString(),
   };
 }
 
@@ -3311,6 +3479,9 @@ function publicGuardrails(env) {
     image_session_daily_limit: String(imageSessionDailyLimit(env)),
     image_network_daily_limit: String(imageNetworkDailyLimit(env)),
     media_storage: mediaStorageStatus(env),
+    media_url_policy: hasMediaBucket(env) ? "signed_gateway_url" : "ephemeral_signed_gateway_url",
+    media_signing: mediaSigningStatus(env),
+    media_url_ttl_seconds: String(activeMediaUrlTtlSeconds(env)),
     event_policy: "no-prompt-content",
     enterprise_stream_policy: "public-demo-only",
     proof_sprint_policy: "metadata-only-contact",
@@ -3362,7 +3533,82 @@ function publicGuardrails(env) {
 }
 
 function mediaStorageStatus(env) {
-  return env.MIRROR_MEDIA_BUCKET?.put ? "r2_configured" : "inline_fallback";
+  return hasMediaBucket(env) ? "r2_configured" : "edge_cache_ephemeral";
+}
+
+function hasMediaBucket(env) {
+  return Boolean(env.MIRROR_MEDIA_BUCKET?.put && env.MIRROR_MEDIA_BUCKET?.get);
+}
+
+function mediaSigningStatus(env) {
+  return env.MIRROR_MEDIA_SIGNING_SECRET ? "secret_hmac" : "receipt_hash_fallback";
+}
+
+function mediaUrlTtlSeconds(env) {
+  return clampNumber(env.MIRROR_MEDIA_URL_TTL_SECONDS, 60, 30 * 24 * 60 * 60, DEFAULT_MEDIA_URL_TTL_SECONDS);
+}
+
+function edgeMediaUrlTtlSeconds(env) {
+  return clampNumber(env.MIRROR_EDGE_MEDIA_URL_TTL_SECONDS, 60, 60 * 60, DEFAULT_EDGE_MEDIA_URL_TTL_SECONDS);
+}
+
+function activeMediaUrlTtlSeconds(env) {
+  return hasMediaBucket(env) ? mediaUrlTtlSeconds(env) : edgeMediaUrlTtlSeconds(env);
+}
+
+function mediaPublicBaseUrl(env) {
+  return String(env.MIRROR_MEDIA_PUBLIC_BASE_URL || "https://gateway.activemirror.ai/v1/media").replace(/\/+$/, "");
+}
+
+function imageExtension(mimeType) {
+  const type = String(mimeType || "").toLowerCase();
+  if (type.includes("jpeg") || type.includes("jpg")) return "jpg";
+  if (type.includes("webp")) return "webp";
+  return "png";
+}
+
+function isSafeMediaKey(key) {
+  return /^active-mirror-\d{4}-\d{2}-\d{2}-[a-f0-9]{32}\.(?:jpg|jpeg|png|webp)$/.test(String(key || ""));
+}
+
+function safeMediaFilename(key) {
+  return String(key || "active-mirror-image")
+    .replace(/[^a-zA-Z0-9_.-]/g, "-")
+    .slice(0, 96);
+}
+
+function base64ToUint8Array(base64) {
+  const clean = String(base64 || "").replace(/^data:[^;]+;base64,/, "").replace(/\s+/g, "");
+  if (!clean) return new Uint8Array();
+  const binary = atob(clean);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+}
+
+async function mediaObjectKey(bytes, mimeType) {
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const hash = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 32);
+  return `active-mirror-${utcDateKey()}-${hash}.${imageExtension(mimeType)}`;
+}
+
+async function mediaUrlSignature(key, expiresAt, env) {
+  const payload = `${key}.${expiresAt}`;
+  const secret = String(env.MIRROR_MEDIA_SIGNING_SECRET || "").trim();
+  if (!secret) {
+    return receiptHash({ type: "active_mirror_media_url", key, expiresAt, signer: "receipt_hash_fallback" });
+  }
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", cryptoKey, new TextEncoder().encode(payload));
+  return [...new Uint8Array(signature)].map((byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 32);
 }
 
 function publicIdentityCapsule() {

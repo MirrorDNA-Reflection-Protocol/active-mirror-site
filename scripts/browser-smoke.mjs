@@ -111,6 +111,18 @@ const routes = [
     ],
   },
   {
+    name: "feedback",
+    path: "/feedback",
+    mustSee: [
+      /Operator pulse/i,
+      /Is the mirror helping\?/i,
+      /Image storage/i,
+      /Image daily cap/i,
+      /Image links/i,
+      /This browser/i,
+    ],
+  },
+  {
     name: "privacy",
     path: "/privacy",
     mustSee: [/Privacy/i, /Safety limits/i, /What telemetry excludes/i],

@@ -191,6 +191,29 @@ function geminiImageInteractionResponse() {
   };
 }
 
+function fakeR2Bucket() {
+  const store = new Map();
+  return {
+    store,
+    async put(key, value, options = {}) {
+      store.set(key, {
+        value,
+        httpMetadata: options.httpMetadata || {},
+        customMetadata: options.customMetadata || {},
+      });
+    },
+    async get(key) {
+      const entry = store.get(key);
+      if (!entry) return null;
+      return {
+        body: entry.value,
+        httpMetadata: entry.httpMetadata,
+        customMetadata: entry.customMetadata,
+      };
+    },
+  };
+}
+
 function openAISourceCheckResponse() {
   return {
     output_text: JSON.stringify({
@@ -488,7 +511,10 @@ await check("health exposes enabled daily budget limits", async () => {
   assert.strictEqual(data.guardrails.image_network_window_limit, "12");
   assert.strictEqual(data.guardrails.image_session_daily_limit, "5");
   assert.strictEqual(data.guardrails.image_network_daily_limit, "80");
-  assert.strictEqual(data.guardrails.media_storage, "inline_fallback");
+  assert.strictEqual(data.guardrails.media_storage, "edge_cache_ephemeral");
+  assert.strictEqual(data.guardrails.media_url_policy, "ephemeral_signed_gateway_url");
+  assert.strictEqual(data.guardrails.media_signing, "receipt_hash_fallback");
+  assert.strictEqual(data.guardrails.media_url_ttl_seconds, "900");
   assert.strictEqual(data.guardrails.volunteer_bad_news, "enabled");
   assert.strictEqual(data.guardrails.source_backed_or_labeled, "enabled");
   assert.strictEqual(data.guardrails.no_conflating, "enabled");
@@ -1124,11 +1150,84 @@ await check("artifact route creates a Gemini-backed poster image", async () => {
     assert.strictEqual(data.fallback, false);
     assert.strictEqual(data.artifact.kind, "image");
     assert.strictEqual(data.artifact.title, "Poster");
-    assert.match(data.artifact.media?.data_url || "", /^data:image\/jpeg;base64,/);
+    assert.match(data.artifact.media?.url || "", /^https:\/\/gateway\.activemirror\.ai\/v1\/media\/active-mirror-/);
+    assert.strictEqual(Boolean(data.artifact.media?.data_url), false, "edge-cache media should not return inline data_url");
     assert.strictEqual(data.artifact.media?.source, "gemini_image");
-    assert.strictEqual(data.artifact.media?.transport, "inline");
-    assert.strictEqual(data.artifact.media?.storage, "inline_fallback");
+    assert.strictEqual(data.artifact.media?.transport, "signed_url");
+    assert.strictEqual(data.artifact.media?.storage, "edge_cache_ephemeral");
     assert.strictEqual(JSON.stringify(data).includes("test-gemini-key"), false, "secret leaked into response");
+
+    const mediaResponse = await worker.fetch(
+      new Request(data.artifact.media.url, { method: "GET" }),
+      env(),
+      ctx(),
+    );
+    const bytes = await mediaResponse.arrayBuffer();
+    assert.strictEqual(mediaResponse.status, 200);
+    assert.strictEqual(mediaResponse.headers.get("content-type"), "image/jpeg");
+    assert.strictEqual(mediaResponse.headers.get("x-active-mirror-media-storage"), "edge_cache_ephemeral");
+    assert(bytes.byteLength > 0, "edge-cache media response was empty");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+await check("artifact image route stores media in R2 when a bucket binding exists", async () => {
+  installEdgeCache();
+  const bucket = fakeR2Bucket();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("generativelanguage.googleapis.com/v1beta/interactions")) {
+      return Response.json(geminiImageInteractionResponse());
+    }
+    return originalFetch(url, init);
+  };
+
+  try {
+    const envWithBucket = {
+      MIRROR_BRIDGE_URL: "",
+      MIRROR_BRIDGE_TOKEN: "",
+      OPENAI_API_KEY: "",
+      ANTHROPIC_API_KEY: "",
+      GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER: "test-gemini-key",
+      MIRROR_MEDIA_BUCKET: bucket,
+      MIRROR_MEDIA_SIGNING_SECRET: "test-media-secret",
+      MIRROR_MEDIA_PUBLIC_BASE_URL: "https://gateway.activemirror.ai/v1/media",
+    };
+    const response = await post(
+      "/v1/mirror/artifact",
+      {
+        intent: "Create a poster for a community reflection night.",
+        artifactKind: "image",
+        boundary: "personal",
+        mirror: {
+          reflection: "The request needs a finished visual, not advice.",
+          question: "What should the poster make people feel?",
+          move: "Generate one poster image that feels warm and clear.",
+        },
+      },
+      envWithBucket,
+    );
+    const data = await response.json();
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(data.artifact.media?.storage, "r2_private_bucket");
+    assert.strictEqual(data.artifact.media?.transport, "signed_url");
+    assert.match(data.artifact.media?.url || "", /^https:\/\/gateway\.activemirror\.ai\/v1\/media\/active-mirror-/);
+    assert.strictEqual(Boolean(data.artifact.media?.data_url), false, "stored media should not return inline data_url");
+    assert.strictEqual(bucket.store.size, 1);
+    assert.strictEqual(JSON.stringify(data).includes("test-media-secret"), false, "media signing secret leaked into response");
+
+    const storedResponse = await worker.fetch(
+      new Request(data.artifact.media.url, { method: "GET" }),
+      env(envWithBucket),
+      ctx(),
+    );
+    const bytes = await storedResponse.arrayBuffer();
+    assert.strictEqual(storedResponse.status, 200);
+    assert.strictEqual(storedResponse.headers.get("content-type"), "image/jpeg");
+    assert.strictEqual(storedResponse.headers.get("x-active-mirror-media-storage"), "r2_private_bucket");
+    assert(bytes.byteLength > 0, "stored media response was empty");
   } finally {
     globalThis.fetch = originalFetch;
   }

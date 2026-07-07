@@ -126,7 +126,7 @@ async function main() {
   await check("gateway health is current", async () => {
     const data = await readJson(`${GATEWAY}/health`);
     assert(data.ok === true, "health ok was not true");
-    assert(/^2026-07-05-anti-sycophancy-v1$/.test(String(data.version || "")), "unexpected gateway version");
+    assert(/^2026-07-07-media-edge-cache-v1$/.test(String(data.version || "")), "unexpected gateway version");
     assert(data.guardrails?.event_policy === "no-prompt-content", "event policy missing");
     assert(data.identity?.version === "2026-07-02-public-identity-v1", "identity capsule version missing");
     assert(/^[a-f0-9]{64}$/.test(String(data.identity?.source_hash || "")), "identity capsule source hash missing");
@@ -178,6 +178,12 @@ async function main() {
     assert(data.guardrails?.mirror_rate_limit === "enabled", "mirror rate limit not enabled");
     assert(data.guardrails?.event_rate_limit === "enabled", "event rate limit not enabled");
     assert(data.guardrails?.daily_budget === "enabled", "daily budget not enabled");
+    assert(data.guardrails?.image_budget === "enabled", "image budget not enabled");
+    assert(Number(data.guardrails?.image_session_daily_limit || 0) > 0, "image session daily limit missing");
+    assert(Number(data.guardrails?.image_network_daily_limit || 0) > 0, "image network daily limit missing");
+    assert(data.guardrails?.media_storage, "media storage status missing");
+    assert(data.guardrails?.media_url_policy, "media URL policy missing");
+    assert(data.guardrails?.media_signing, "media signing status missing");
     assert(data.guardrails?.proof_sprint_policy === "metadata-only-contact", "proof sprint policy missing");
     assert(Number(data.guardrails?.daily_session_limit || 0) > 0, "daily session limit missing");
     assert(Number(data.guardrails?.daily_network_limit || 0) > 0, "daily network limit missing");

@@ -61,7 +61,7 @@ async function runProbeChecks(summary) {
   await check(summary, "gateway health exposes live guardrails", async () => {
     const data = await readJson(`${GATEWAY}/health`);
     assert(data.ok === true, "health ok was not true");
-    assert(/^2026-07-05-anti-sycophancy-v1$/.test(String(data.version || "")), `unexpected version ${data.version || "missing"}`);
+    assert(/^2026-07-07-media-edge-cache-v1$/.test(String(data.version || "")), `unexpected version ${data.version || "missing"}`);
     assert(data.guardrails?.event_policy === "no-prompt-content", "event policy missing");
     assert(data.guardrails?.truth_state === "enabled", "truth-state guardrail missing");
     assert(data.guardrails?.volunteer_bad_news === "enabled", "bad-news guardrail missing");
@@ -86,6 +86,9 @@ async function runProbeChecks(summary) {
     assert(data.guardrails?.mirror_rate_limit === "enabled", "mirror rate limit missing");
     assert(data.guardrails?.event_rate_limit === "enabled", "event rate limit missing");
     assert(data.guardrails?.daily_budget === "enabled", "daily budget missing");
+    assert(data.guardrails?.image_budget === "enabled", "image budget missing");
+    assert(data.guardrails?.media_storage, "media storage status missing");
+    assert(data.guardrails?.media_url_policy, "media URL policy missing");
     assert(Number(data.guardrails?.daily_session_limit || 0) > 0, "daily session limit missing");
     assert(Number(data.guardrails?.daily_network_limit || 0) > 0, "daily network limit missing");
     return { version: data.version };
