@@ -483,6 +483,12 @@ await check("health exposes enabled daily budget limits", async () => {
   assert.strictEqual(data.guardrails.daily_budget, "enabled");
   assert.strictEqual(data.guardrails.daily_session_limit, "100");
   assert.strictEqual(data.guardrails.daily_network_limit, "100");
+  assert.strictEqual(data.guardrails.image_budget, "enabled");
+  assert.strictEqual(data.guardrails.image_session_window_limit, "2");
+  assert.strictEqual(data.guardrails.image_network_window_limit, "12");
+  assert.strictEqual(data.guardrails.image_session_daily_limit, "5");
+  assert.strictEqual(data.guardrails.image_network_daily_limit, "80");
+  assert.strictEqual(data.guardrails.media_storage, "inline_fallback");
   assert.strictEqual(data.guardrails.volunteer_bad_news, "enabled");
   assert.strictEqual(data.guardrails.source_backed_or_labeled, "enabled");
   assert.strictEqual(data.guardrails.no_conflating, "enabled");
@@ -1120,7 +1126,72 @@ await check("artifact route creates a Gemini-backed poster image", async () => {
     assert.strictEqual(data.artifact.title, "Poster");
     assert.match(data.artifact.media?.data_url || "", /^data:image\/jpeg;base64,/);
     assert.strictEqual(data.artifact.media?.source, "gemini_image");
+    assert.strictEqual(data.artifact.media?.transport, "inline");
+    assert.strictEqual(data.artifact.media?.storage, "inline_fallback");
     assert.strictEqual(JSON.stringify(data).includes("test-gemini-key"), false, "secret leaked into response");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+await check("image artifact route has a stricter media budget", async () => {
+  installEdgeCache();
+  let providerCalls = 0;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("generativelanguage.googleapis.com/v1beta/interactions")) {
+      providerCalls++;
+      return Response.json(geminiImageInteractionResponse());
+    }
+    return originalFetch(url, init);
+  };
+
+  const body = {
+    intent: "Create a poster for a community reflection night.",
+    artifactKind: "image",
+    boundary: "personal",
+    mirror: {
+      reflection: "The request needs a finished visual, not advice.",
+      question: "What should the poster make people feel?",
+      move: "Generate one poster image that feels warm and clear.",
+    },
+  };
+
+  try {
+    const first = await post(
+      "/v1/mirror/artifact",
+      body,
+      {
+        MIRROR_BRIDGE_URL: "",
+        MIRROR_BRIDGE_TOKEN: "",
+        OPENAI_API_KEY: "",
+        ANTHROPIC_API_KEY: "",
+        GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER: "test-gemini-key",
+        MIRROR_IMAGE_SESSION_DAILY_LIMIT: "1",
+        MIRROR_IMAGE_NETWORK_DAILY_LIMIT: "100",
+      },
+    );
+    const second = await post(
+      "/v1/mirror/artifact",
+      body,
+      {
+        MIRROR_BRIDGE_URL: "",
+        MIRROR_BRIDGE_TOKEN: "",
+        OPENAI_API_KEY: "",
+        ANTHROPIC_API_KEY: "",
+        GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER: "test-gemini-key",
+        MIRROR_IMAGE_SESSION_DAILY_LIMIT: "1",
+        MIRROR_IMAGE_NETWORK_DAILY_LIMIT: "100",
+      },
+    );
+    const secondData = await second.json();
+
+    assert.strictEqual(first.status, 200);
+    assert.strictEqual(second.status, 429);
+    assert.strictEqual(secondData.error, "rate_limited");
+    assert.strictEqual(secondData.scope, "image_session_daily");
+    assert.match(secondData.message, /Image generation is cooling down/i);
+    assert.strictEqual(providerCalls, 1, "provider was called after image budget tripped");
   } finally {
     globalThis.fetch = originalFetch;
   }

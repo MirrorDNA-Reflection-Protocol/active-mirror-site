@@ -54,6 +54,10 @@ const DEFAULT_SESSION_WINDOW_LIMIT = 12;
 const DEFAULT_NETWORK_WINDOW_LIMIT = 36;
 const DEFAULT_MIRROR_SESSION_DAILY_LIMIT = 80;
 const DEFAULT_MIRROR_NETWORK_DAILY_LIMIT = 500;
+const DEFAULT_IMAGE_SESSION_WINDOW_LIMIT = 2;
+const DEFAULT_IMAGE_NETWORK_WINDOW_LIMIT = 12;
+const DEFAULT_IMAGE_SESSION_DAILY_LIMIT = 5;
+const DEFAULT_IMAGE_NETWORK_DAILY_LIMIT = 80;
 const DEFAULT_EVENT_WINDOW_SECONDS = 60;
 const DEFAULT_EVENT_SESSION_WINDOW_LIMIT = 90;
 const DEFAULT_EVENT_NETWORK_WINDOW_LIMIT = 240;
@@ -700,6 +704,13 @@ async function handleArtifact(request, env, ctx, corsHeaders) {
       );
     }
 
+    if (input.kind === "image") {
+      const imageBudget = await enforceImageBudget(request, env, ctx);
+      if (!imageBudget.allowed) {
+        return rateLimitedResponse(imageBudget, corsHeaders);
+      }
+    }
+
     const routedInput = input.boundary === "client"
       ? {
           ...input,
@@ -939,7 +950,7 @@ function rateLimitedResponse(limit, headers) {
       error: "rate_limited",
       scope: limit.scope,
       retry_after: limit.retryAfter,
-      message: "The mirror route is cooling down. Try again in a moment.",
+      message: limit.message || "The mirror route is cooling down. Try again in a moment.",
     },
     429,
     { ...headers, "Retry-After": String(limit.retryAfter) },
@@ -1197,6 +1208,73 @@ async function enforceMirrorBudget(request, env, ctx, route) {
     if (!outcome.allowed) {
       logSafe(ctx, { type: "active_mirror_rate_limited", scope: check.scope, capability, window: "daily_budget" });
       return { allowed: false, scope: check.scope, retryAfter: outcome.retryAfter || check.retryAfter };
+    }
+  }
+
+  return { allowed: true };
+}
+
+async function enforceImageBudget(request, env, ctx) {
+  const actor = requestActor(request);
+  const windowSeconds = rateWindowSeconds(env);
+  const capability = "artifact_image";
+  const minuteChecks = [
+    {
+      scope: "image_session",
+      key: `edge:image:session:${actor.session}`,
+      limit: imageSessionWindowLimit(env),
+      retryAfter: windowSeconds,
+    },
+    {
+      scope: "image_network",
+      key: `edge:image:network:${actor.network}`,
+      limit: imageNetworkWindowLimit(env),
+      retryAfter: windowSeconds,
+    },
+  ];
+
+  for (const check of minuteChecks) {
+    const outcome = await safeEdgeWindowLimit(check.key, check.limit, windowSeconds, check.scope, ctx, capability, rateLimitFailClosed(env));
+    if (!outcome.allowed) {
+      logSafe(ctx, { type: "active_mirror_rate_limited", scope: check.scope, capability, window: "image_minute" });
+      return {
+        allowed: false,
+        capability,
+        scope: check.scope,
+        retryAfter: outcome.retryAfter || check.retryAfter,
+        message: "Image generation is cooling down. Try again in a moment.",
+      };
+    }
+  }
+
+  const dailyWindowSeconds = secondsUntilUtcMidnight();
+  const dailyKey = utcDateKey();
+  const dailyChecks = [
+    {
+      scope: "image_session_daily",
+      key: `daily:${dailyKey}:image:session:${actor.session}`,
+      limit: imageSessionDailyLimit(env),
+      retryAfter: dailyWindowSeconds,
+    },
+    {
+      scope: "image_network_daily",
+      key: `daily:${dailyKey}:image:network:${actor.network}`,
+      limit: imageNetworkDailyLimit(env),
+      retryAfter: dailyWindowSeconds,
+    },
+  ];
+
+  for (const check of dailyChecks) {
+    const outcome = await safeEdgeWindowLimit(check.key, check.limit, dailyWindowSeconds, check.scope, ctx, capability, rateLimitFailClosed(env));
+    if (!outcome.allowed) {
+      logSafe(ctx, { type: "active_mirror_rate_limited", scope: check.scope, capability, window: "image_daily_budget" });
+      return {
+        allowed: false,
+        capability,
+        scope: check.scope,
+        retryAfter: outcome.retryAfter || check.retryAfter,
+        message: "Image generation is cooling down for this session. You can still use the prompt or try again later.",
+      };
     }
   }
 
@@ -1608,7 +1686,7 @@ function buildArtifactPrompt(input) {
   const kindGuidance = {
     doc: "Create a useful document the user can copy or download now. Include the finished document body, a one-sentence purpose, a short draft, and a concrete ask or next step. If this is for a launch page, homepage, landing page, headline, or button, write exact starter copy with no bracket placeholders, use the label 'Reassurance line', and make the first action obvious. Do not explain how to make the document; make it.",
     code: "Create a small code starter or implementation capsule. If the stack is unclear, use the smallest useful vanilla JavaScript example and clear replaceable defaults. Include code, acceptance checks, and how to run or adapt it. Do not ask for more context unless code would be unsafe.",
-    image: "Create a visual generation brief. It must be directly usable as an image/video prompt and include scene, composition, feeling, constraints, and what to avoid.",
+    image: "Create a directly usable image prompt with scene, composition, feeling, constraints, and what to avoid.",
     draft: "Create the smallest sendable draft or working note. It should be useful even if rough, with placeholders where needed.",
   }[input.kind];
 
@@ -1774,6 +1852,8 @@ async function callGeminiImageArtifact(input, env) {
         data_url: `data:${imageMime};base64,${image.data}`,
         alt: cleanArtifactText(input.intent, "Generated poster", 160),
         source: "gemini_image",
+        transport: "inline",
+        storage: mediaStorageStatus(env),
       },
     },
   };
@@ -1957,14 +2037,14 @@ function defaultArtifactTitle(kind) {
   return {
     doc: "Working doc",
     code: "Code starter",
-    image: "Visual brief",
+    image: "Image prompt",
     draft: "Message draft",
   }[kind] || "Working draft";
 }
 
 function defaultArtifactChecklist(kind) {
   if (kind === "code") return ["Test the smallest path first.", "Keep private inputs out of logs."];
-  if (kind === "image") return ["Remove private details before media generation.", "Use the brief as the creative prompt."];
+  if (kind === "image") return ["Remove private details before media generation.", "Use the prompt or try image generation again."];
   return ["Remove private details before sharing.", "Keep the first version small enough to use."];
 }
 
@@ -2118,7 +2198,7 @@ function fallbackArtifact(input, reason = "provider") {
   if (kind === "image") {
     return {
       kind,
-      title: "Visual brief",
+      title: "Image prompt",
       body: [
         "Prompt",
         "",
@@ -3006,6 +3086,22 @@ function networkDailyLimit(env) {
   return clampNumber(env.MIRROR_NETWORK_DAILY_LIMIT, 1, 100000, DEFAULT_MIRROR_NETWORK_DAILY_LIMIT);
 }
 
+function imageSessionWindowLimit(env) {
+  return clampNumber(env.MIRROR_IMAGE_SESSION_WINDOW_LIMIT, 1, 50, DEFAULT_IMAGE_SESSION_WINDOW_LIMIT);
+}
+
+function imageNetworkWindowLimit(env) {
+  return clampNumber(env.MIRROR_IMAGE_NETWORK_WINDOW_LIMIT, 1, 500, DEFAULT_IMAGE_NETWORK_WINDOW_LIMIT);
+}
+
+function imageSessionDailyLimit(env) {
+  return clampNumber(env.MIRROR_IMAGE_SESSION_DAILY_LIMIT, 1, 1000, DEFAULT_IMAGE_SESSION_DAILY_LIMIT);
+}
+
+function imageNetworkDailyLimit(env) {
+  return clampNumber(env.MIRROR_IMAGE_NETWORK_DAILY_LIMIT, 1, 10000, DEFAULT_IMAGE_NETWORK_DAILY_LIMIT);
+}
+
 function utcDateKey(now = new Date()) {
   return now.toISOString().slice(0, 10);
 }
@@ -3179,7 +3275,7 @@ function publicRoutes(env) {
     artifact: {
       label: "artifact help",
       status: modelRouteStatus(hasArtifactRoute(env) ? "available" : "browser fallback"),
-      purpose: "documents, code starters, drafts, and visual briefs created from a reflection",
+      purpose: "documents, code starters, drafts, image prompts, and generated images created from a reflection",
     },
     source_check: {
       label: "source check",
@@ -3209,6 +3305,12 @@ function publicGuardrails(env) {
     daily_budget: "enabled",
     daily_session_limit: String(sessionDailyLimit(env)),
     daily_network_limit: String(networkDailyLimit(env)),
+    image_budget: "enabled",
+    image_session_window_limit: String(imageSessionWindowLimit(env)),
+    image_network_window_limit: String(imageNetworkWindowLimit(env)),
+    image_session_daily_limit: String(imageSessionDailyLimit(env)),
+    image_network_daily_limit: String(imageNetworkDailyLimit(env)),
+    media_storage: mediaStorageStatus(env),
     event_policy: "no-prompt-content",
     enterprise_stream_policy: "public-demo-only",
     proof_sprint_policy: "metadata-only-contact",
@@ -3257,6 +3359,10 @@ function publicGuardrails(env) {
     source_check: hasSourceCheckRoute(env) ? "enabled" : "not_configured",
     artifact: "enabled",
   };
+}
+
+function mediaStorageStatus(env) {
+  return env.MIRROR_MEDIA_BUCKET?.put ? "r2_configured" : "inline_fallback";
 }
 
 function publicIdentityCapsule() {
