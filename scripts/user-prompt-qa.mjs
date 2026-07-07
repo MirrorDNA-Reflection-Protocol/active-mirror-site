@@ -136,6 +136,15 @@ const cases = [
     mustNot: [/inner child|hold space|journey|therapist/i],
   },
   {
+    id: "poster_image",
+    viewport: "desktop",
+    kind: "artifact",
+    requiresImage: true,
+    prompt: "Make me a poster for a community reflection night. Warm, simple, inviting.",
+    must: [/poster|Poster ready|Download image|visual/i],
+    mustNot: [/steps to create|template for|I can help|you could/i],
+  },
+  {
     id: "practical_room",
     viewport: "mobile",
     kind: "reflection",
@@ -262,7 +271,8 @@ function caseLooksReady(testCase, text, network) {
   const mustPatterns = testCase.must || [];
   const mustPatternsPresent = mustPatterns.every((pattern) => pattern.test(visible));
   if (!mustPatternsPresent) return false;
-  const hasFinalMarker = /What I found|Draft Ready|Ready to copy|Save|Helpful\?|Current public sources/i.test(visible);
+  const hasFinalMarker =
+    /What I found|Draft Ready|Ready to copy|Poster ready|Download image|Helpful\?|Current public sources/i.test(visible);
   if (outputStillLoading(visible) && !hasFinalMarker) return false;
   if (testCase.kind === "source") {
     return network.some((entry) => /source-check/i.test(entry.url) && entry.status >= 200 && entry.status < 300);
@@ -367,6 +377,9 @@ function evaluateText(testCase, text, network, consoleErrors) {
   if (testCase.kind === "artifact") {
     const madeDraft = /draft|ready|copy it|message|homepage line|note/i.test(visible);
     if (!madeDraft) failures.push("artifact_prompt_did_not_render_draft");
+    if (testCase.requiresImage && !/Poster ready|Download image/i.test(visible)) {
+      failures.push("image_artifact_did_not_render_media");
+    }
   }
   if (testCase.kind === "identity" && /\b(ChatGPT|Claude|Gemini|Copilot|OpenAI|Anthropic|Google|language model)\b/i.test(visible)) {
     failures.push("provider_identity_leaked");

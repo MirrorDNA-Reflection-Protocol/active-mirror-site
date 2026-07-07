@@ -181,6 +181,16 @@ function openAINonEnglishArtifactResponse() {
   };
 }
 
+function geminiImageInteractionResponse() {
+  return {
+    output_text: "Finished poster image.",
+    output_image: {
+      data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+      mime_type: "image/jpeg",
+    },
+  };
+}
+
 function openAISourceCheckResponse() {
   return {
     output_text: JSON.stringify({
@@ -1057,6 +1067,60 @@ await check("artifact route creates a provider-backed document", async () => {
     assert.doesNotMatch(data.artifact.body, /\b(I can help|you could|consider adding|here is how)\b/i, "weak artifact phrasing leaked");
     assert.strictEqual(data.route.label, "artifact help");
     assert.strictEqual(JSON.stringify(data).includes("test-openai-key"), false, "secret leaked into response");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+await check("artifact route creates a Gemini-backed poster image", async () => {
+  installEdgeCache();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("generativelanguage.googleapis.com/v1beta/interactions")) {
+      assert.strictEqual(init?.headers?.["x-goog-api-key"], "test-gemini-key", "gemini token missing");
+      const body = JSON.parse(init?.body || "{}");
+      assert.strictEqual(body.model, "gemini-3.1-flash-image", "gemini image model not used");
+      assert.strictEqual(body.store, false, "gemini interaction must be stateless");
+      assert.strictEqual(body.response_format?.type, "image", "gemini image response format missing");
+      assert.strictEqual(body.response_format?.aspect_ratio, "4:5", "poster aspect ratio missing");
+      assert.match(JSON.stringify(body.input), /poster/i, "poster prompt missing");
+      return Response.json(geminiImageInteractionResponse());
+    }
+    return originalFetch(url, init);
+  };
+
+  try {
+    const response = await post(
+      "/v1/mirror/artifact",
+      {
+        intent: "Create a poster for a community reflection night.",
+        artifactKind: "image",
+        boundary: "personal",
+        mirror: {
+          reflection: "The request needs a finished visual, not advice.",
+          question: "What should the poster make people feel?",
+          move: "Generate one poster image that feels warm and clear.",
+        },
+      },
+      {
+        MIRROR_BRIDGE_URL: "",
+        MIRROR_BRIDGE_TOKEN: "",
+        OPENAI_API_KEY: "",
+        ANTHROPIC_API_KEY: "",
+        GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER: "test-gemini-key",
+        GEMINI_IMAGE_MODEL: "gemini-3.1-flash-image",
+      },
+    );
+    const data = await response.json();
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(data.ok, true);
+    assert.strictEqual(data.fallback, false);
+    assert.strictEqual(data.artifact.kind, "image");
+    assert.strictEqual(data.artifact.title, "Poster");
+    assert.match(data.artifact.media?.data_url || "", /^data:image\/jpeg;base64,/);
+    assert.strictEqual(data.artifact.media?.source, "gemini_image");
+    assert.strictEqual(JSON.stringify(data).includes("test-gemini-key"), false, "secret leaked into response");
   } finally {
     globalThis.fetch = originalFetch;
   }

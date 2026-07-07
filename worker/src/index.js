@@ -749,6 +749,7 @@ async function handleArtifact(request, env, ctx, corsHeaders) {
           label: "artifact help",
           fallback: result.fallback ? result.publicReason || "the artifact route used a backup" : null,
         },
+        ...(wantsGatewayDebug(request) && result.debug ? { debug: result.debug } : {}),
       },
       200,
       corsHeaders,
@@ -1533,19 +1534,29 @@ async function runArtifactRoute(input, env, ctx) {
   const prompt = buildArtifactPrompt(input);
   const providers = artifactProviderOrder(input.kind, env);
   let lastReason = "no_provider_secret_configured";
+  let providerFailed = false;
 
   for (const provider of providers) {
     try {
-      if (provider === "openai") {
-        return await callOpenAIArtifact(prompt, input, env);
+      const result = provider === "openai"
+        ? await callOpenAIArtifact(prompt, input, env)
+        : provider === "anthropic"
+          ? await callAnthropicArtifact(prompt, input, env)
+          : provider === "gemini"
+            ? await callGeminiArtifact(prompt, input, env)
+            : null;
+      if (!result) continue;
+      if (providerFailed && !result.fallback) {
+        return {
+          ...result,
+          fallback: true,
+          publicReason: publicFallbackReason(lastReason),
+          debug: { provider_failure: cleanProviderCode(lastReason), provider_failure_detail: cleanDebugDetail(lastReason) },
+        };
       }
-      if (provider === "anthropic") {
-        return await callAnthropicArtifact(prompt, input, env);
-      }
-      if (provider === "gemini") {
-        return await callGeminiArtifact(prompt, input, env);
-      }
+      return result;
     } catch (error) {
+      providerFailed = true;
       lastReason = providerFailureReason(provider, error);
       logSafe(ctx, {
         type: "active_mirror_artifact_provider_failed",
@@ -1560,7 +1571,16 @@ async function runArtifactRoute(input, env, ctx) {
     fallback: true,
     publicReason: publicFallbackReason(lastReason),
     artifact: fallbackArtifact(input, "provider"),
+    debug: { provider_failure: cleanProviderCode(lastReason), provider_failure_detail: cleanDebugDetail(lastReason) },
   };
+}
+
+function cleanDebugDetail(value) {
+  return String(value || "")
+    .replace(/[^a-zA-Z0-9_.,:;()\\/[\\] -]/g, "_")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 240);
 }
 
 function artifactProviderOrder(kind, env) {
@@ -1668,6 +1688,8 @@ async function callAnthropicArtifact(prompt, input, env) {
 }
 
 async function callGeminiArtifact(prompt, input, env) {
+  if (input.kind === "image") return callGeminiImageArtifact(input, env);
+
   const model = input.kind === "image"
     ? env.GEMINI_ARTIFACT_MODEL || env.GEMINI_MEDIA_MODEL || "gemini-2.5-flash"
     : env.GEMINI_ARTIFACT_MODEL || env.GEMINI_SOURCE_MODEL || env.GEMINI_MEDIA_MODEL || "gemini-2.5-flash";
@@ -1695,6 +1717,155 @@ async function callGeminiArtifact(prompt, input, env) {
   const data = await readProviderResponse(response, "gemini");
   const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("") || "";
   return normalizeArtifactResult(text, input);
+}
+
+async function callGeminiImageArtifact(input, env) {
+  const model = env.GEMINI_IMAGE_MODEL || env.GEMINI_ARTIFACT_MODEL || env.GEMINI_MEDIA_MODEL || "gemini-3.1-flash-image";
+  const key = env.GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER || env.GEMINI_API_KEY;
+  const referer = env.GEMINI_ALLOWED_REFERER || "https://activemirror.ai/";
+  const mimeType = normalizeImageMime(env.GEMINI_IMAGE_MIME_TYPE || "image/jpeg");
+  const response = await fetchWithTimeout(
+    "https://generativelanguage.googleapis.com/v1beta/interactions",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": key,
+        Referer: referer,
+        Origin: new URL(referer).origin,
+      },
+      body: JSON.stringify({
+        model,
+        store: false,
+        input: buildImageGenerationPrompt(input),
+        response_format: {
+          type: "image",
+          mime_type: mimeType,
+          aspect_ratio: normalizeImageAspect(env.GEMINI_IMAGE_ASPECT_RATIO || "4:5"),
+          image_size: normalizeImageSize(env.GEMINI_IMAGE_SIZE || "1K"),
+        },
+      }),
+    },
+    "gemini",
+    env,
+  );
+  const data = await readProviderResponse(response, "gemini");
+  const image = extractGeminiInteractionImage(data);
+  if (!image?.data) throw new Error("gemini_image_missing_output");
+
+  const outputText = cleanArtifactBody(extractGeminiInteractionText(data), "").trim();
+  const promptText = buildVisualBriefBody(input);
+  const imageMime = normalizeImageMime(image.mime_type || image.mimeType || mimeType);
+
+  return {
+    fallback: false,
+    artifact: {
+      kind: "image",
+      title: inferImageArtifactTitle(input),
+      body: outputText || promptText,
+      checklist: [
+        "Download the poster before closing this page.",
+        "Regenerate with clearer audience, text, or style if needed.",
+      ],
+      media: {
+        kind: "image",
+        mime_type: imageMime,
+        data: image.data,
+        data_url: `data:${imageMime};base64,${image.data}`,
+        alt: cleanArtifactText(input.intent, "Generated poster", 160),
+        source: "gemini_image",
+      },
+    },
+  };
+}
+
+function buildImageGenerationPrompt(input = {}) {
+  const intent = cleanArtifactText(input.intent, "Create one useful poster.", 700);
+  const question = cleanArtifactText(input.mirror?.question, "", 180);
+  const move = cleanArtifactText(input.mirror?.move, "", 180);
+
+  return [
+    "Create one finished poster image from this request.",
+    "",
+    `Request: ${intent}`,
+    question ? `Context: ${question}` : "",
+    move ? `Useful outcome: ${move}` : "",
+    "",
+    "Poster direction:",
+    "- One clear focal point.",
+    "- Minimal, polished, emotionally warm composition.",
+    "- High contrast and readable layout.",
+    "- No private details, model names, provider logos, watermarks, or fake claims.",
+    "- If text is needed, keep it very short and legible.",
+    "- Make it feel like a finished poster, not a wireframe or instruction sheet.",
+  ].filter(Boolean).join("\n");
+}
+
+function buildVisualBriefBody(input = {}) {
+  const fallback = fallbackArtifact({ ...input, kind: "image" }, "provider");
+  return fallback.body;
+}
+
+function inferImageArtifactTitle(input = {}) {
+  if (/\bposter\b/i.test(input.intent || "")) return "Poster";
+  if (/\bthumbnail\b/i.test(input.intent || "")) return "Thumbnail";
+  if (/\bad\b|\bad creative\b/i.test(input.intent || "")) return "Ad creative";
+  return "Generated visual";
+}
+
+function normalizeImageMime(value) {
+  const mime = String(value || "").trim().toLowerCase();
+  return ["image/png", "image/jpeg", "image/webp"].includes(mime) ? mime : "image/png";
+}
+
+function normalizeImageAspect(value) {
+  const aspect = String(value || "").trim();
+  return ["1:1", "3:2", "2:3", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"].includes(aspect) ? aspect : "4:5";
+}
+
+function normalizeImageSize(value) {
+  const size = String(value || "").trim().toUpperCase();
+  return ["0.5K", "1K", "2K", "4K"].includes(size) ? size : "1K";
+}
+
+function extractGeminiInteractionImage(data) {
+  const direct = data?.output_image || data?.outputImage || data?.output?.image || data?.image;
+  if (direct?.data) return direct;
+
+  const stack = [data];
+  const seen = new Set();
+  while (stack.length) {
+    const item = stack.pop();
+    if (!item || typeof item !== "object" || seen.has(item)) continue;
+    seen.add(item);
+    if ((item.type === "image" || item.mime_type || item.mimeType) && item.data) return item;
+    if (item.inlineData?.data) return { data: item.inlineData.data, mime_type: item.inlineData.mimeType || item.inlineData.mime_type };
+    if (item.inline_data?.data) return { data: item.inline_data.data, mime_type: item.inline_data.mime_type || item.inline_data.mimeType };
+    for (const value of Object.values(item)) {
+      if (Array.isArray(value)) stack.push(...value);
+      else if (value && typeof value === "object") stack.push(value);
+    }
+  }
+  return null;
+}
+
+function extractGeminiInteractionText(data) {
+  if (typeof data?.output_text === "string") return data.output_text;
+  if (typeof data?.outputText === "string") return data.outputText;
+  const parts = [];
+  const stack = [data];
+  const seen = new Set();
+  while (stack.length) {
+    const item = stack.pop();
+    if (!item || typeof item !== "object" || seen.has(item)) continue;
+    seen.add(item);
+    if (typeof item.text === "string") parts.push(item.text);
+    for (const value of Object.values(item)) {
+      if (Array.isArray(value)) stack.push(...value);
+      else if (value && typeof value === "object") stack.push(value);
+    }
+  }
+  return parts.join("\n").trim();
 }
 
 function normalizeArtifactResult(text, input) {
