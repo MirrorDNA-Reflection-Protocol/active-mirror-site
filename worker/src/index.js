@@ -1508,7 +1508,7 @@ function selectRoute(intent, selected = "auto", env = {}) {
   if (selected === "reflection") return reflectionRoute(env);
 
   const value = intent.toLowerCase();
-  if (/\b(image|visual|video|poster|screenshot|render|asset|thumbnail|media)\b/.test(value)) {
+  if (/\b(image|visual|video|poster|flyer|screenshot|render|asset|thumbnail|media)\b/.test(value)) {
     return mediaRoute(env);
   }
   if (/\b(chat|rewrite|tone|copy|critique|review|polish)\b/.test(value)) {
@@ -1854,17 +1854,14 @@ async function callGeminiImageArtifact(input, env, ctx) {
       kind: "image",
       title: inferImageArtifactTitle(input),
       body: outputText || promptText,
-      checklist: [
-        "Download the poster before closing this page.",
-        "Regenerate with clearer audience, text, or style if needed.",
-      ],
+      checklist: imageArtifactChecklist(input),
       media: storedMedia
         ? {
           kind: "image",
           mime_type: imageMime,
           url: storedMedia.url,
           key: storedMedia.key,
-          alt: cleanArtifactText(input.intent, "Generated poster", 160),
+          alt: cleanArtifactText(input.intent, inferImageArtifactTitle(input), 160),
           source: "gemini_image",
           transport: "signed_url",
           storage: storedMedia.storage,
@@ -1875,7 +1872,7 @@ async function callGeminiImageArtifact(input, env, ctx) {
         mime_type: imageMime,
         data: image.data,
         data_url: `data:${imageMime};base64,${image.data}`,
-        alt: cleanArtifactText(input.intent, "Generated poster", 160),
+        alt: cleanArtifactText(input.intent, inferImageArtifactTitle(input), 160),
         source: "gemini_image",
         transport: "inline",
         storage: mediaStorageStatus(env),
@@ -2114,9 +2111,23 @@ function buildVisualBriefBody(input = {}) {
 
 function inferImageArtifactTitle(input = {}) {
   if (/\bposter\b/i.test(input.intent || "")) return "Poster";
+  if (/\bflyer\b/i.test(input.intent || "")) return "Flyer";
   if (/\bthumbnail\b/i.test(input.intent || "")) return "Thumbnail";
   if (/\bad\b|\bad creative\b/i.test(input.intent || "")) return "Ad creative";
   return "Generated visual";
+}
+
+function imageArtifactChecklist(input = {}) {
+  const title = inferImageArtifactTitle(input);
+  const noun = {
+    Poster: "poster",
+    Flyer: "flyer",
+    Thumbnail: "thumbnail",
+  }[title] || "visual";
+  return [
+    `Download the ${noun} before closing this page.`,
+    "Try again with a clearer audience, text, or style if needed.",
+  ];
 }
 
 function normalizeImageMime(value) {

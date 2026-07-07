@@ -1200,6 +1200,59 @@ await check("artifact route creates a Gemini-backed poster image", async () => {
   }
 });
 
+await check("artifact route keeps flyer copy out of the poster path", async () => {
+  installEdgeCache();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("generativelanguage.googleapis.com/v1beta/interactions")) {
+      const body = JSON.parse(init?.body || "{}");
+      assert.strictEqual(body.response_format?.type, "image", "gemini image response format missing");
+      assert.match(JSON.stringify(body.input), /flyer/i, "flyer prompt missing");
+      return Response.json(geminiImageInteractionResponse());
+    }
+    return originalFetch(url, init);
+  };
+
+  try {
+    const response = await post(
+      "/v1/mirror/artifact",
+      {
+        intent: "Create a flyer for a community reflection night.",
+        artifactKind: "image",
+        boundary: "personal",
+        mirror: {
+          reflection: "The request needs a finished visual, not advice.",
+          question: "What should the flyer make people feel?",
+          move: "Generate one flyer image that feels warm and clear.",
+        },
+      },
+      {
+        MIRROR_BRIDGE_URL: "",
+        MIRROR_BRIDGE_TOKEN: "",
+        OPENAI_API_KEY: "",
+        ANTHROPIC_API_KEY: "",
+        GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER: "test-gemini-key",
+        GEMINI_IMAGE_MODEL: "gemini-3.1-flash-image",
+      },
+    );
+    const data = await response.json();
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(data.ok, true);
+    assert.strictEqual(data.fallback, false);
+    assert.strictEqual(data.artifact.kind, "image");
+    assert.strictEqual(data.artifact.title, "Flyer");
+    assert.deepStrictEqual(data.artifact.checklist, [
+      "Download the flyer before closing this page.",
+      "Try again with a clearer audience, text, or style if needed.",
+    ]);
+    assert.doesNotMatch(JSON.stringify(data.artifact.checklist), /\bposter\b/i, "poster copy leaked into flyer checklist");
+    assert.match(data.artifact.media?.alt || "", /flyer/i, "flyer alt text missing");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 await check("artifact image route stores media in R2 when a bucket binding exists", async () => {
   installEdgeCache();
   const bucket = fakeR2Bucket();
