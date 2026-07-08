@@ -256,6 +256,20 @@ function openAISourceCheckResponse() {
   };
 }
 
+function openAIMalformedSourceCheckResponse() {
+  return {
+    output_text: JSON.stringify({
+      verdict: "supported",
+      answer: "The June 2026 update is rolling out to Plus and Pro users first, with expansion to Free, Go, and more ქვეყნies over the following weeks.",
+      changes: "Check Settings > Memory before relying on availability in your ქვეყნies.",
+      sources: [
+        { title: "ChatGPT release notes", url: "https://help.openai.com/en/articles/6825453-chatgpt-release-notes" },
+        { title: "Memory FAQ", url: "https://help.openai.com/en/articles/8590148-memory-faq" },
+      ],
+    }),
+  };
+}
+
 installEdgeCache();
 const restoreFetch = installBridgeFetch();
 
@@ -759,6 +773,43 @@ await check("source domain allowlist blocks unapproved citations", async () => {
     assert.strictEqual(data.resolution.auto_fixable, true);
     assert.match(data.resolution.fix_path, /allowlist/);
     assert.strictEqual(data.glass.resolution.status, "search_deeper");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+await check("source check repairs malformed mixed-script answer tokens", async () => {
+  installEdgeCache();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("api.openai.com")) {
+      return Response.json(openAIMalformedSourceCheckResponse());
+    }
+    return originalFetch(url, init);
+  };
+
+  try {
+    const response = await post(
+      "/v1/mirror/source-check",
+      {
+        intent: "What changed in ChatGPT memory recently?",
+        question: "What changed in ChatGPT memory recently?",
+        move: "Check current sources before relying on this claim.",
+        boundary: "personal",
+      },
+      {
+        MIRROR_BRIDGE_URL: "",
+        MIRROR_BRIDGE_TOKEN: "",
+        OPENAI_API_KEY: "test-openai-key",
+      },
+    );
+    const data = await response.json();
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(data.ok, true);
+    assert.doesNotMatch(`${data.research.answer} ${data.research.changes}`, /[\p{Script=Georgian}]/u);
+    assert.match(data.research.answer, /countries over the following weeks/i);
+    assert.match(data.research.changes, /your countries/i);
   } finally {
     globalThis.fetch = originalFetch;
   }

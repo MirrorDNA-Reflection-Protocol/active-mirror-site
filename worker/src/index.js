@@ -2713,6 +2713,7 @@ async function callOpenAISourceCheck(input, env) {
     "answer: one useful answer to the user's actual request. For shopping, product availability, price, or option-comparison asks, give current options or the useful buying path with caveats. Do not turn it into a meta source note.",
     "changes: one sentence saying the best next action for the user.",
     "sources: 2 to 5 web sources you actually used, each with title and url.",
+    "If the user writes in English, answer in plain English and never blend scripts inside one word.",
     "Do not include private facts, personal history, or unsupported rankings.",
     language.instruction,
     `Language support: ${language.status}. Keep source titles as published.`,
@@ -2784,6 +2785,7 @@ async function callGeminiSourceCheck(input, env, ctx) {
     "answer: one useful answer to the user's actual request. For shopping, product availability, price, or option-comparison asks, give current options or the useful buying path with caveats. Do not turn it into a meta source note.",
     "changes: one sentence saying the best next action for the user.",
     "sources: 2 to 5 web sources you actually used, each with title and url.",
+    "If the user writes in English, answer in plain English and never blend scripts inside one word.",
     "Do not include private facts, personal history, or unsupported rankings.",
     language.instruction,
     `Language support: ${language.status}. Keep source titles as published.`,
@@ -3102,8 +3104,18 @@ function cleanResearchText(value, fallback, maxLength) {
     .replace(/\s+/g, " ")
     .replace(/\s+\)/g, ")")
     .replace(/\(\s*\)/g, "")
+    .replace(MIXED_SCRIPT_WORD_RE, repairMixedScriptWord)
     .trim();
   return (clean || fallback).slice(0, maxLength);
+}
+
+const MIXED_SCRIPT_WORD_RE = /(?:[A-Za-z]*[\p{Script=Georgian}\p{Script=Cyrillic}\p{Script=Greek}\p{Script=Hebrew}\p{Script=Arabic}\p{Script=Devanagari}]+[A-Za-z]+|[A-Za-z]+[\p{Script=Georgian}\p{Script=Cyrillic}\p{Script=Greek}\p{Script=Hebrew}\p{Script=Arabic}\p{Script=Devanagari}]+[A-Za-z]*)/gu;
+
+function repairMixedScriptWord(value) {
+  const token = String(value || "");
+  if (/ies\b/i.test(token)) return "countries";
+  if (/s\b/i.test(token)) return "items";
+  return "details";
 }
 
 function extractSourceAnnotations(data) {
