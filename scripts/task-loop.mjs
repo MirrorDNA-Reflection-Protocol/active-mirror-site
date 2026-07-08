@@ -48,6 +48,7 @@ const loops = [
       "npm run site:worker:deploy",
       "npm run canary:prod",
       "npm run smoke:browser",
+      "npm run qa:live-user",
     ],
     blocker: "Preserve unrelated dirty files and keep consumer copy free of internal jargon.",
   },
@@ -71,7 +72,7 @@ const loops = [
       "npm run guard:language",
       "ACTIVE_MIRROR_USER_QA_CASES=3 npm run qa:user-prompts",
     ],
-    gates: ["npm run build:deploy", "npm run qa:user-prompts", "npm run smoke:browser"],
+    gates: ["npm run build:deploy", "npm run qa:user-prompts", "npm run smoke:browser", "npm run qa:live-user"],
     blocker:
       "Chat stays primary; canvas/artifacts appear only when useful and should produce the thing, not instructions.",
   },
