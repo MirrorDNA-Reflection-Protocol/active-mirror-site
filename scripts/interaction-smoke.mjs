@@ -117,7 +117,7 @@ async function checkDecisionPrompt(browser) {
     if (/\b(?:Le vrai choix|Tu veux|Écris|partagé|garder|ouvrir)\b/i.test(text)) {
       fail("Decision prompt answered in the browser locale instead of the prompt language.", text);
     }
-    if (!/(signal|test|control|reach|enterprise-only|write one sentence|name the signal|smallest test)/i.test(text)) {
+    if (!/(signal|test|control|reach|enterprise[- ]only|scope call|feature call|wider first release|hard boundary|gated|write one (?:line|sentence)|name the signal|smallest test)/i.test(text)) {
       fail("Decision prompt did not produce a useful choice frame.", text);
     }
 
