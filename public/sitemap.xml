@@ -2,42 +2,97 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://activemirror.ai/</loc>
-    <lastmod>2026-07-06</lastmod>
+    <lastmod>2026-07-08</lastmod>
     <changefreq>weekly</changefreq>
   </url>
   <url>
     <loc>https://activemirror.ai/app/</loc>
-    <lastmod>2026-07-06</lastmod>
+    <lastmod>2026-07-08</lastmod>
     <changefreq>weekly</changefreq>
   </url>
   <url>
     <loc>https://activemirror.ai/app/id/</loc>
-    <lastmod>2026-07-06</lastmod>
+    <lastmod>2026-07-08</lastmod>
     <changefreq>weekly</changefreq>
   </url>
   <url>
-    <loc>https://activemirror.ai/app/about/</loc>
-    <lastmod>2026-07-06</lastmod>
-    <changefreq>monthly</changefreq>
+    <loc>https://activemirror.ai/app/start/</loc>
+    <lastmod>2026-07-08</lastmod>
+    <changefreq>weekly</changefreq>
   </url>
   <url>
     <loc>https://activemirror.ai/app/enterprise/</loc>
-    <lastmod>2026-07-06</lastmod>
+    <lastmod>2026-07-08</lastmod>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://activemirror.ai/app/about/</loc>
+    <lastmod>2026-07-08</lastmod>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://activemirror.ai/app/consulting/</loc>
+    <lastmod>2026-07-08</lastmod>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://activemirror.ai/app/research/</loc>
-    <lastmod>2026-07-06</lastmod>
+    <lastmod>2026-07-08</lastmod>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://activemirror.ai/app/device/</loc>
+    <lastmod>2026-07-08</lastmod>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://activemirror.ai/app/feedback/</loc>
+    <lastmod>2026-07-08</lastmod>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://activemirror.ai/app/privacy/</loc>
-    <lastmod>2026-07-06</lastmod>
+    <lastmod>2026-07-08</lastmod>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://activemirror.ai/app/terms/</loc>
-    <lastmod>2026-07-06</lastmod>
+    <lastmod>2026-07-08</lastmod>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://activemirror.ai/mirror/</loc>
+    <lastmod>2026-07-08</lastmod>
+    <changefreq>weekly</changefreq>
+  </url>
+  <url>
+    <loc>https://activemirror.ai/product/</loc>
+    <lastmod>2026-07-08</lastmod>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://activemirror.ai/pricing/</loc>
+    <lastmod>2026-07-08</lastmod>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://activemirror.ai/trust/</loc>
+    <lastmod>2026-07-08</lastmod>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://activemirror.ai/privacy/</loc>
+    <lastmod>2026-07-08</lastmod>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://activemirror.ai/terms/</loc>
+    <lastmod>2026-07-08</lastmod>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://activemirror.ai/mirrorprod-india/</loc>
+    <lastmod>2026-07-08</lastmod>
     <changefreq>monthly</changefreq>
   </url>
 </urlset>
