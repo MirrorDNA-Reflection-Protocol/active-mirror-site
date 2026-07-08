@@ -246,8 +246,8 @@ function openAISourceCheckResponse() {
   return {
     output_text: JSON.stringify({
       verdict: "supported",
-      answer: "The narrow claim is supported by the official source.",
-      changes: "Use the official source as proof and treat secondary commentary as context.",
+      answer: "Great question. You're right. The narrow claim is supported by the official source.",
+      changes: "Excellent. Use the official source as proof and treat secondary commentary as context.",
       sources: [
         { title: "OpenAI web search guide", url: "https://platform.openai.com/docs/guides/tools-web-search" },
         { title: "Commentary", url: "https://medium.com/example/commentary" },
@@ -706,6 +706,7 @@ await check("source check uses only whitelisted web tools and ranks sources", as
     assert.strictEqual(data.ok, true);
     assert.strictEqual(data.truth_state.status, "checked");
     assert.strictEqual(data.research.verdict, "supported");
+    assert.doesNotMatch(`${data.research.answer} ${data.research.changes}`, /great question|you're right|excellent/i);
     assert.strictEqual(data.research.sources[0].quality, "primary_docs");
     assert.strictEqual(data.research.source_quality.best_score, 95);
     assert.strictEqual(data.research.source_quality.domain_allowlist, "not_configured");

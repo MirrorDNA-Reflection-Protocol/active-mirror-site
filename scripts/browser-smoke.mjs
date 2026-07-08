@@ -313,7 +313,7 @@ async function exerciseStartFlow(page) {
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: /Keep a copy/i }).click();
   const download = await downloadPromise;
-  if (download.suggestedFilename() !== "active-mirror-settings.json") {
+  if (download.suggestedFilename() !== "active-mirror-id.json") {
     fail(`Setup settings download used unexpected filename: ${download.suggestedFilename()}`);
   }
 

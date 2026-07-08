@@ -15,6 +15,7 @@ import {
   MIRROR_SCHEMA,
   PROVIDER_MIRROR_SCHEMA,
   containsSecret,
+  deflatter,
   parseProviderMirror,
   receiptHash,
   normalizeReplyLanguage,
@@ -3019,11 +3020,11 @@ function normalizeSourceCheck(payload, annotations = [], env = {}) {
   const domainAllowlist = sourceDomainAllowlist(env);
   const rankedSources = rankSourcesByQuality(uniqueSources([...payloadSources, ...annotations]));
   const sources = rankedSources.filter((source) => sourceAllowedByDomain(source, domainAllowlist)).slice(0, 5);
-  const answer = cleanResearchText(payload?.answer, "The evidence needs a narrower check before relying on the claim.", 520);
+  const answer = cleanResearchText(deflatter(payload?.answer), "The evidence needs a narrower check before relying on the claim.", 520);
   const changes = cleanResearchText(
     domainAllowlist.length && !sources.length
       ? "The source route returned no sources inside the configured source domain allowlist."
-      : payload?.changes,
+      : deflatter(payload?.changes),
     "Use this as a check on the next move, not as a final answer.",
     260,
   );
