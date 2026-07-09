@@ -6,6 +6,13 @@ const GATEWAY = process.env.ACTIVE_MIRROR_GATEWAY || "https://gateway.activemirr
 const BRIDGE = process.env.ACTIVE_MIRROR_BRIDGE || "https://bridge.activemirror.ai";
 const RUN_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 const TIMEOUT_MS = Number(process.env.ACTIVE_MIRROR_CANARY_TIMEOUT_MS || 30000);
+const EXPECTED_GATEWAY_VERSION =
+  process.env.ACTIVE_MIRROR_EXPECTED_GATEWAY_VERSION || "2026-07-08-source-tone-hardening-v1";
+const EXPECTED_REFLECTION_PRIMARY = process.env.ACTIVE_MIRROR_EXPECTED_REFLECTION_PRIMARY || "bridge";
+const EXPECTED_REFLECTION_PROVIDER = process.env.ACTIVE_MIRROR_EXPECTED_REFLECTION_PROVIDER || EXPECTED_REFLECTION_PRIMARY;
+const EXPECTED_REFLECTION_UPSTREAM_HOST =
+  process.env.ACTIVE_MIRROR_EXPECTED_REFLECTION_UPSTREAM_HOST ||
+  (EXPECTED_REFLECTION_PROVIDER === "bridge" ? new URL(BRIDGE).hostname : "");
 const FORBIDDEN_PUBLIC_COPY = [
   "BrainScan",
   "Mirror ID",
@@ -134,7 +141,7 @@ async function main() {
   await check("gateway health is current", async () => {
     const data = await readJson(`${GATEWAY}/health`);
     assert(data.ok === true, "health ok was not true");
-    assert(/^2026-07-08-source-tone-hardening-v1$/.test(String(data.version || "")), "unexpected gateway version");
+    assert(String(data.version || "") === EXPECTED_GATEWAY_VERSION, "unexpected gateway version");
     assert(data.guardrails?.event_policy === "no-prompt-content", "event policy missing");
     assert(data.identity?.version === "2026-07-02-public-identity-v1", "identity capsule version missing");
     assert(/^[a-f0-9]{64}$/.test(String(data.identity?.source_hash || "")), "identity capsule source hash missing");
@@ -324,10 +331,12 @@ async function main() {
     assert(response.ok, `mirror status ${response.status} ${data.error || ""}`.trim());
     assert(data.ok === true, "mirror ok was not true");
     assert(data.fallback === false, `mirror used fallback ${data.route?.fallback || "unknown"}`);
-    assert(data.route?.primary === "bridge", `mirror primary was ${data.route?.primary || "missing"}`);
-    assert(data.route?.provider === "bridge", `mirror provider was ${data.route?.provider || "missing"}`);
+    assert(data.route?.primary === EXPECTED_REFLECTION_PRIMARY, `mirror primary was ${data.route?.primary || "missing"}`);
+    assert(data.route?.provider === EXPECTED_REFLECTION_PROVIDER, `mirror provider was ${data.route?.provider || "missing"}`);
     assert(typeof data.route?.model === "string" && data.route.model.length > 0, "mirror model was missing");
-    assert(data.route?.upstream_host === new URL(BRIDGE).hostname, `mirror upstream host was ${data.route?.upstream_host || "missing"}`);
+    if (EXPECTED_REFLECTION_UPSTREAM_HOST) {
+      assert(data.route?.upstream_host === EXPECTED_REFLECTION_UPSTREAM_HOST, `mirror upstream host was ${data.route?.upstream_host || "missing"}`);
+    }
     assert(/^[a-f0-9]{24}$/.test(String(data.receipt_id || "")), "receipt id missing");
     assert(data.glass?.surface === "MirrorDash Glass", "MirrorDash Glass surface missing");
     assert(data.glass?.identity?.capsule?.version === "2026-07-02-public-identity-v1", "Glass identity capsule version missing");
