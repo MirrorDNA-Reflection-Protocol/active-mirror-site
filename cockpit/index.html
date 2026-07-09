@@ -57,6 +57,7 @@
                     <option value="reflection">Reflection</option>
                     <option value="chat">Critique</option>
                     <option value="artifact">Artifact</option>
+                    <option value="local">Local control</option>
                   </select>
                 </label>
                 <label>
@@ -107,6 +108,22 @@
               <div><dt>Receipt</dt><dd id="glass-receipt">pending</dd></div>
             </dl>
             <div class="capability-stack">
+              <section id="local-bridge-card">
+                <span class="status-dot warn" id="local-bridge-dot"></span>
+                <div>
+                  <strong>Local bridge</strong>
+                  <p id="local-bridge-status">Checking 127.0.0.1 Harness Console.</p>
+                  <small id="local-bridge-detail">Waiting for local health.</small>
+                  <div class="bridge-actions">
+                    <button type="button" id="plan-local-action">Plan local action</button>
+                    <a href="http://127.0.0.1:8766/" target="_blank" rel="noreferrer">Open local</a>
+                  </div>
+                  <div class="permission-mini empty" id="local-permission">
+                    <strong>No action waiting</strong>
+                    <p>Reviewed actions appear here before execution.</p>
+                  </div>
+                </div>
+              </section>
               <section>
                 <span class="status-dot warn"></span>
                 <div>

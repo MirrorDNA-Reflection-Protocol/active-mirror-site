@@ -108,8 +108,16 @@
                 <div><strong>Browser use</strong><p>Not attached inside this public route yet.</p></div>
               </section>
               <section>
+                <span class="status-dot warn" id="ops-local-dot"></span>
+                <div>
+                  <strong>Local Harness Console</strong>
+                  <p>Status: <span id="ops-local-status">checking</span></p>
+                  <p>Mode: <span id="ops-local-mode">not checked</span></p>
+                </div>
+              </section>
+              <section>
                 <span class="status-dot warn"></span>
-                <div><strong>Computer use</strong><p>Requires the local harness bridge, not the public gateway.</p></div>
+                <div><strong>Computer use</strong><p>Requires local OS/tool adapters. The public gateway cannot move the machine by itself.</p></div>
               </section>
               <section>
                 <span class="status-dot warn"></span>
@@ -126,10 +134,26 @@
               </div>
             </div>
             <ol class="next-list">
-              <li>Attach the local harness bridge behind explicit approval.</li>
+              <li>Use Local control for receipt-backed Harness Console routing.</li>
               <li>Stream route/tool events into the glass pane.</li>
               <li>Keep `/app/` packaged until the cockpit source is promoted.</li>
             </ol>
+          </section>
+
+          <section class="ops-card">
+            <div class="panel-head">
+              <div>
+                <strong>Local bridge</strong>
+                <span>Loopback capability surface.</span>
+              </div>
+              <a href="http://127.0.0.1:8766/" target="_blank" rel="noreferrer">Open</a>
+            </div>
+            <dl class="glass-grid ops-glass">
+              <div><dt>Actions</dt><dd id="ops-local-actions">checking</dd></div>
+              <div><dt>Memory</dt><dd id="ops-local-memory">checking</dd></div>
+              <div><dt>Raw tools</dt><dd>blocked unless explicitly added</dd></div>
+              <div><dt>Approval</dt><dd>allow-once reviewed actions</dd></div>
+            </dl>
           </section>
         </section>
       </main>
