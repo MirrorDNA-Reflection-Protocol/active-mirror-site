@@ -31,6 +31,12 @@ ACTIVE_MIRROR_EXPECTED_CHAT_PROVIDER=openai \
 npm run monitor:gateway
 ```
 
+Shortcut:
+
+```sh
+npm run monitor:gateway:failover
+```
+
 Run the public canary against the same expected route:
 
 ```sh
@@ -42,6 +48,39 @@ npm run canary:prod
 This proves a temporary cloud-primary failover. It does not prove the Mini
 bridge is healthy. Restore the default check when `MIRROR_REFLECTION_PRIMARY`
 and `MIRROR_CHAT_PRIMARY` are set back to `bridge`.
+
+## Turn-On Restore Path
+
+When the Mac Mini is powered on again, prove bridge readiness first:
+
+```sh
+npm run bridge:ready
+```
+
+That command checks:
+
+- Tailscale reachability for `100.114.247.53`
+- SSH to `mirror-admin@mirror-admins-mac-mini`
+- Mini bridge tunnel metrics
+- `https://bridge.activemirror.ai/health`
+- `https://proxy.activemirror.ai/health`
+
+If readiness passes, restore bridge-primary with one command:
+
+```sh
+npm run bridge:restore
+```
+
+`bridge:restore` refuses to continue unless `bridge:ready` passes. When it does
+continue, it updates the Worker route policy back to bridge-primary, updates
+the Worker version string, runs `npm run worker:test`, deploys the Worker, then
+runs the default bridge-primary monitor and production canary.
+
+Use a dry run to see the planned local source edits after readiness passes:
+
+```sh
+npm run bridge:restore -- --dry-run
+```
 
 ## Watch Worker Logs
 
