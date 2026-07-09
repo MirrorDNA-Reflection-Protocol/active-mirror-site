@@ -40,8 +40,8 @@
   ],
   "vars": {
     "MIRROR_BRIDGE_URL": "https://bridge.activemirror.ai",
-    "MIRROR_REFLECTION_PRIMARY": "bridge",
-    "MIRROR_CHAT_PRIMARY": "bridge",
+    "MIRROR_REFLECTION_PRIMARY": "openai",
+    "MIRROR_CHAT_PRIMARY": "openai",
     "MIRROR_MEDIA_PRIMARY": "gemini",
     "PROVIDER_TIMEOUT_MS": "25000",
     "ANTHROPIC_REFLECTION_MODEL": "claude-sonnet-4-5",
