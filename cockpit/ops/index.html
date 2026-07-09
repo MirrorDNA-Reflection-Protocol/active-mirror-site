@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Active Mirror Glass shows route, model, memory, tools, guardrails, and receipts exposed by the live gateway."
+    />
+    <link rel="canonical" href="https://activemirror.ai/cockpit/ops/" />
+    <title>Active Mirror Glass Ops</title>
+  </head>
+  <body data-view="ops">
+    <div class="am-shell">
+      <aside class="am-rail" aria-label="Cockpit navigation">
+        <a class="rail-mark" href="/cockpit/" aria-label="Active Mirror Cockpit">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3.5 19 7.5v8.9l-7 4.1-7-4.1V7.5l7-4Z" />
+            <path d="M12 8.3 15.8 10.4v3.9L12 16.4l-3.8-2.1v-3.9L12 8.3Z" />
+          </svg>
+        </a>
+        <a class="rail-button" href="/cockpit/" aria-label="Chat">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7.5h14M5 12h10M5 16.5h7" /></svg>
+        </a>
+        <a class="rail-button is-active" href="/cockpit/ops/" aria-label="Glass ops">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17V7l8-4 8 4v10l-8 4-8-4Z" /><path d="M8 9h8M8 13h8M8 17h4" /></svg>
+        </a>
+      </aside>
+
+      <main class="am-main">
+        <header class="topbar">
+          <div>
+            <span class="eyeless-label">MirrorDash Glass</span>
+            <h1>Ops</h1>
+          </div>
+          <nav class="view-switch" aria-label="Cockpit view">
+            <a href="/cockpit/">Chat</a>
+            <a class="is-active" href="/cockpit/ops/">Glass</a>
+          </nav>
+          <button class="ghost-button" id="refresh-ops" type="button">Refresh</button>
+        </header>
+
+        <section class="ops-grid" aria-label="Active Mirror operations dashboard">
+          <section class="ops-card hero-card">
+            <div class="card-kicker">Live gateway</div>
+            <strong id="ops-version">checking</strong>
+            <p id="ops-identity">Waiting for the health endpoint.</p>
+            <dl class="mini-metrics">
+              <div><dt>Routes</dt><dd id="ops-route-count">0</dd></div>
+              <div><dt>Guardrails</dt><dd id="ops-guardrail-count">0</dd></div>
+              <div><dt>Last receipt</dt><dd id="ops-last-receipt">none</dd></div>
+            </dl>
+          </section>
+
+          <section class="ops-card">
+            <div class="panel-head">
+              <div>
+                <strong>Routes</strong>
+                <span>Declared by `/health`.</span>
+              </div>
+              <span id="ops-updated">not checked</span>
+            </div>
+            <div class="route-table" id="route-table"></div>
+          </section>
+
+          <section class="ops-card">
+            <div class="panel-head">
+              <div>
+                <strong>Trust gates</strong>
+                <span>Enabled rules exposed by the gateway.</span>
+              </div>
+            </div>
+            <div class="gate-list" id="gate-list"></div>
+          </section>
+
+          <section class="ops-card">
+            <div class="panel-head">
+              <div>
+                <strong>Last turn glass</strong>
+                <span>From this browser.</span>
+              </div>
+              <a href="/cockpit/">Run chat</a>
+            </div>
+            <dl class="glass-grid ops-glass">
+              <div><dt>Provider</dt><dd id="ops-provider">none</dd></div>
+              <div><dt>Model</dt><dd id="ops-model">none</dd></div>
+              <div><dt>Truth</dt><dd id="ops-truth">none</dd></div>
+              <div><dt>Memory</dt><dd id="ops-memory">none</dd></div>
+              <div><dt>Prompt</dt><dd id="ops-prompt">none</dd></div>
+              <div><dt>Tools</dt><dd id="ops-tools">none</dd></div>
+            </dl>
+          </section>
+
+          <section class="ops-card">
+            <div class="panel-head">
+              <div>
+                <strong>Control boundary</strong>
+                <span>What is attached today.</span>
+              </div>
+            </div>
+            <div class="boundary-list">
+              <section>
+                <span class="status-dot"></span>
+                <div><strong>Gateway chat</strong><p>Attached through `gateway.activemirror.ai`.</p></div>
+              </section>
+              <section>
+                <span class="status-dot warn"></span>
+                <div><strong>Browser use</strong><p>Not attached inside this public route yet.</p></div>
+              </section>
+              <section>
+                <span class="status-dot warn"></span>
+                <div><strong>Computer use</strong><p>Requires the local harness bridge, not the public gateway.</p></div>
+              </section>
+              <section>
+                <span class="status-dot warn"></span>
+                <div><strong>Filesystem</strong><p>No file access is exposed here.</p></div>
+              </section>
+            </div>
+          </section>
+
+          <section class="ops-card">
+            <div class="panel-head">
+              <div>
+                <strong>Next promotion</strong>
+                <span>Smallest honest upgrade.</span>
+              </div>
+            </div>
+            <ol class="next-list">
+              <li>Attach the local harness bridge behind explicit approval.</li>
+              <li>Stream route/tool events into the glass pane.</li>
+              <li>Keep `/app/` packaged until the cockpit source is promoted.</li>
+            </ol>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/cockpit/cockpit.js"></script>
+  </body>
+</html>

@@ -13,6 +13,8 @@ export default defineConfig({
         consulting: resolve(__dirname, 'consulting/index.html'),
         enterprise: resolve(__dirname, 'enterprise/index.html'),
         research: resolve(__dirname, 'research/index.html'),
+        cockpit: resolve(__dirname, 'cockpit/index.html'),
+        cockpitOps: resolve(__dirname, 'cockpit/ops/index.html'),
         privacy: resolve(__dirname, 'privacy/index.html'),
         terms: resolve(__dirname, 'terms/index.html'),
       },

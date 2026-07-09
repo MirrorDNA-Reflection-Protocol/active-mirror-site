@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Active Mirror Cockpit is a chat-first control surface with route, model, memory, and receipt visibility."
+    />
+    <link rel="canonical" href="https://activemirror.ai/cockpit/" />
+    <title>Active Mirror Cockpit</title>
+  </head>
+  <body data-view="chat">
+    <div class="am-shell">
+      <aside class="am-rail" aria-label="Cockpit navigation">
+        <a class="rail-mark" href="/cockpit/" aria-label="Active Mirror Cockpit">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3.5 19 7.5v8.9l-7 4.1-7-4.1V7.5l7-4Z" />
+            <path d="M12 8.3 15.8 10.4v3.9L12 16.4l-3.8-2.1v-3.9L12 8.3Z" />
+          </svg>
+        </a>
+        <a class="rail-button is-active" href="/cockpit/" aria-label="Chat">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7.5h14M5 12h10M5 16.5h7" /></svg>
+        </a>
+        <a class="rail-button" href="/cockpit/ops/" aria-label="Glass ops">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17V7l8-4 8 4v10l-8 4-8-4Z" /><path d="M8 9h8M8 13h8M8 17h4" /></svg>
+        </a>
+      </aside>
+
+      <main class="am-main">
+        <header class="topbar">
+          <div>
+            <span class="eyeless-label">Active Mirror</span>
+            <h1>Cockpit</h1>
+          </div>
+          <nav class="view-switch" aria-label="Cockpit view">
+            <a class="is-active" href="/cockpit/">Chat</a>
+            <a href="/cockpit/ops/">Glass</a>
+          </nav>
+          <div class="status-pill" id="gateway-pill">
+            <span class="status-dot"></span>
+            <span id="gateway-label">checking gateway</span>
+          </div>
+        </header>
+
+        <section class="chat-layout" aria-label="Active Mirror chat cockpit">
+          <section class="chat-pane">
+            <div class="chat-toolbar">
+              <div>
+                <strong>Driver chat</strong>
+                <span>Answer with receipt, route, and boundary.</span>
+              </div>
+              <div class="compact-controls">
+                <label>
+                  <span>Route</span>
+                  <select id="route-select">
+                    <option value="reflection">Reflection</option>
+                    <option value="chat">Critique</option>
+                    <option value="artifact">Artifact</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Boundary</span>
+                  <select id="boundary-select">
+                    <option value="personal">Personal</option>
+                    <option value="public">Public-safe</option>
+                    <option value="client">Client</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div class="thread" id="thread" aria-live="polite">
+              <article class="turn mirror-turn">
+                <div class="speaker">Active Mirror</div>
+                <p>Start with the thing you want handled. I will answer with the useful move and show what route, memory scope, and receipt backed the turn.</p>
+                <div class="starter-row" aria-label="Starter prompts">
+                  <button type="button" data-starter="What should we build next in Active Mirror, with no guessing?">Next build</button>
+                  <button type="button" data-starter="Show me the bad news first and the smallest safe fix.">Bad news first</button>
+                  <button type="button" data-starter="What can this cockpit actually control today, and what is not attached yet?">Control truth</button>
+                </div>
+              </article>
+            </div>
+
+            <form class="composer" id="composer">
+              <textarea id="prompt" rows="3" maxlength="1800" placeholder="Tell Active Mirror what you want handled."></textarea>
+              <button id="send" type="submit">Send</button>
+            </form>
+          </section>
+
+          <aside class="glass-pane" id="glass-pane" aria-label="MirrorDash Glass inspector">
+            <div class="panel-head">
+              <div>
+                <strong>MirrorDash Glass</strong>
+                <span>Transparent route for the latest turn.</span>
+              </div>
+              <a href="/cockpit/ops/">Open ops</a>
+            </div>
+            <dl class="glass-grid">
+              <div><dt>Provider</dt><dd id="glass-provider">pending</dd></div>
+              <div><dt>Model</dt><dd id="glass-model">pending</dd></div>
+              <div><dt>Route</dt><dd id="glass-route">pending</dd></div>
+              <div><dt>Truth</dt><dd id="glass-truth">pending</dd></div>
+              <div><dt>Memory</dt><dd id="glass-memory">pending</dd></div>
+              <div><dt>Tools</dt><dd id="glass-tools">pending</dd></div>
+              <div><dt>Prompt</dt><dd id="glass-prompt">hash pending</dd></div>
+              <div><dt>Receipt</dt><dd id="glass-receipt">pending</dd></div>
+            </dl>
+            <div class="capability-stack">
+              <section>
+                <span class="status-dot warn"></span>
+                <div>
+                  <strong>Computer use</strong>
+                  <p id="computer-status">Not attached to this public web route.</p>
+                </div>
+              </section>
+              <section>
+                <span class="status-dot warn"></span>
+                <div>
+                  <strong>Filesystem</strong>
+                  <p id="filesystem-status">No local files are exposed to the gateway.</p>
+                </div>
+              </section>
+              <section>
+                <span class="status-dot"></span>
+                <div>
+                  <strong>Gateway</strong>
+                  <p id="gateway-version">Waiting for health check.</p>
+                </div>
+              </section>
+            </div>
+          </aside>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/cockpit/cockpit.js"></script>
+  </body>
+</html>
