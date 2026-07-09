@@ -5,7 +5,7 @@ const BRIDGE = process.env.ACTIVE_MIRROR_BRIDGE || "https://bridge.activemirror.
 const PROXY = process.env.ACTIVE_MIRROR_PROXY || "https://proxy.activemirror.ai";
 const TIMEOUT_MS = Number(process.env.ACTIVE_MIRROR_MONITOR_TIMEOUT_MS || 30000);
 const EXPECTED_GATEWAY_VERSION =
-  process.env.ACTIVE_MIRROR_EXPECTED_GATEWAY_VERSION || "2026-07-08-source-tone-hardening-v1";
+  process.env.ACTIVE_MIRROR_EXPECTED_GATEWAY_VERSION || "2026-07-09-openai-reflection-primary-v1";
 const EXPECTED_REFLECTION_PRIMARY = process.env.ACTIVE_MIRROR_EXPECTED_REFLECTION_PRIMARY || "bridge";
 const EXPECTED_REFLECTION_PROVIDER = process.env.ACTIVE_MIRROR_EXPECTED_REFLECTION_PROVIDER || EXPECTED_REFLECTION_PRIMARY;
 const EXPECTED_REFLECTION_UPSTREAM_HOST =

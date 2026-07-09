@@ -19,7 +19,7 @@ Deploy:
 
 - Command: `npm run worker:deploy`
 - Worker: `active-mirror-site-gateway`
-- Version ID: `d3aea219-e33d-4c69-976c-566e744e72b2`
+- Version ID: `351e9113-2a0e-484f-8c87-2dd82b8a24e6`
 - Custom domain: `gateway.activemirror.ai`
 
 Changed scope:
@@ -27,6 +27,11 @@ Changed scope:
 - `worker/wrangler.jsonc`
   - `MIRROR_REFLECTION_PRIMARY`: `bridge` -> `openai`
   - `MIRROR_CHAT_PRIMARY`: `bridge` -> `openai`
+- `worker/src/index.js`
+  - `WORKER_VERSION`: `2026-07-09-openai-reflection-primary-v1`
+- `scripts/gateway-monitor.mjs` and `scripts/production-canary.mjs`
+  - default expected gateway version:
+    `2026-07-09-openai-reflection-primary-v1`
 - `MIRROR_BRIDGE_URL` remains configured as `https://bridge.activemirror.ai`
   for rollback to bridge-primary.
 
@@ -54,9 +59,10 @@ Post-deploy checks:
 
 Final monitor proof:
 
-- Run ID: `mrdfe82z-3xudtb`
-- Mirror receipt: `c4b0775fe1c9cb6df384526d`
-- Chat receipt: `389907a44142d0853bb14585`
+- Run ID: `mrdfksjw-u6vfwo`
+- Gateway version: `2026-07-09-openai-reflection-primary-v1`
+- Mirror receipt: `cd3b5ea2db0242838448e852`
+- Chat receipt: `89c5a1a82c0afbf9cbcd04e3`
 - Oversized payload rejection: `413 payload_too_large`
 - Alerts: none.
 
