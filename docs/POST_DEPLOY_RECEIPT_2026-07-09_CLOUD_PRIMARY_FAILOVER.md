@@ -102,3 +102,35 @@ Next:
 
 - Restore the Mini bridge/proxy path when the Mini is reachable, then roll
   reflection/chat primary back to `bridge` and prove the default monitor.
+
+## Cleanup Follow-Up: 2026-07-09
+
+Status: `PARTIAL`.
+
+Checked scope:
+
+- `tailscale ping --timeout=5s --c=3 100.114.247.53`: failed, no reply.
+- `ssh -o BatchMode=yes -o ConnectTimeout=8 mirror-admin@mirror-admins-mac-mini ...`:
+  failed, operation timed out.
+- `ssh -o BatchMode=yes -o ConnectTimeout=8 100.114.247.53 ...`: failed,
+  operation timed out.
+- `ACTIVE_MIRROR_REQUIRE_BRIDGE_HEALTH=0 ACTIVE_MIRROR_EXPECTED_REFLECTION_PRIMARY=openai ACTIVE_MIRROR_EXPECTED_REFLECTION_PROVIDER=openai ACTIVE_MIRROR_EXPECTED_CHAT_PRIMARY=openai ACTIVE_MIRROR_EXPECTED_CHAT_PROVIDER=openai npm run monitor:gateway`:
+  pass.
+
+Latest failover monitor:
+
+- Run ID: `mrdfqv04-pnfs8x`
+- Mirror receipt: `c787ebc1cfe688f552eff26a`
+- Chat receipt: `7a1a6762d87de5068294a0c6`
+- Gateway version: `2026-07-09-openai-reflection-primary-v1`
+
+Cleanup decision:
+
+- The site repo dirty July 1 council-control-plane receipt was committed as a
+  docs-only ledger cleanup.
+- No bridge-primary rollback was attempted because the Mini is still
+  unreachable.
+- No body lattice sync was run because the actual MacBook launchd service
+  `ai.activemirror.gateway-monitor` is not loaded here, and the `.activemirror`
+  body repo is already heavily dirty from unrelated state. The failover monitor
+  command remains documented in `docs/GATEWAY_MONITORING.md`.
