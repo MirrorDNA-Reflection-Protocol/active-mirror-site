@@ -1,23 +1,22 @@
-name: Deploy site
+name: Public Boundary
 
 on:
+  pull_request:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: active-mirror-site-pages
+  group: active-mirror-public-boundary-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  public-boundary:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -37,19 +36,5 @@ jobs:
       - name: Public deploy boundary guard
         run: npm run guard:public-deploy-boundary
 
-      - name: Build
-        run: npm run build
-
       - name: Public copy audit
         run: npm run copy:audit
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./dist
-
-      - name: Deploy Pages
-        uses: actions/deploy-pages@v4
