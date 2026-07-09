@@ -4,6 +4,8 @@ const GATEWAY = process.env.ACTIVE_MIRROR_GATEWAY || "https://gateway.activemirr
 const BRIDGE = process.env.ACTIVE_MIRROR_BRIDGE || "https://bridge.activemirror.ai";
 const PROXY = process.env.ACTIVE_MIRROR_PROXY || "https://proxy.activemirror.ai";
 const TIMEOUT_MS = Number(process.env.ACTIVE_MIRROR_MONITOR_TIMEOUT_MS || 30000);
+const EXPECTED_GATEWAY_VERSION =
+  process.env.ACTIVE_MIRROR_EXPECTED_GATEWAY_VERSION || "2026-07-08-source-tone-hardening-v1";
 const RUN_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 const LOG_TYPES = new Set([
   "active_mirror_rate_limited",
@@ -61,7 +63,10 @@ async function runProbeChecks(summary) {
   await check(summary, "gateway health exposes live guardrails", async () => {
     const data = await readJson(`${GATEWAY}/health`);
     assert(data.ok === true, "health ok was not true");
-    assert(/^2026-07-07-media-kv-fallback-v1$/.test(String(data.version || "")), `unexpected version ${data.version || "missing"}`);
+    assert(
+      String(data.version || "") === EXPECTED_GATEWAY_VERSION,
+      `unexpected version ${data.version || "missing"}`
+    );
     assert(data.guardrails?.event_policy === "no-prompt-content", "event policy missing");
     assert(data.guardrails?.truth_state === "enabled", "truth-state guardrail missing");
     assert(data.guardrails?.volunteer_bad_news === "enabled", "bad-news guardrail missing");
