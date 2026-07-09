@@ -56,6 +56,7 @@ Use this to build the runtime separately from the public homepage and design wor
 - [Campaign approval demo](campaign-approval-demo.md)
 - [Public copy friction sweep](public-copy-friction-sweep.md)
 - [Dispatch v0](templates/dispatch-v0.md)
+- [MirrorProd Story OS v0](mirrorprod-story-os-v0.md)
 
 ## Role Orchestration
 
