@@ -10,8 +10,6 @@ const htmlFiles = [
   "pricing/index.html",
   "privacy/index.html",
   "terms/index.html",
-  "public/mirrorprod-india/index.html",
-  "public/mirrorprod/index.html",
 ];
 
 const runtimeFiles = ["src/main.js"];
