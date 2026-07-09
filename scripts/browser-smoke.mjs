@@ -14,7 +14,7 @@ const routes = [
     mustSee: [
       /What do you want\?/i,
       /Start here/i,
-      /Already have one\?/i,
+      /Load saved setup/i,
       /Send/i,
       /\bMake\b/i,
       /\bDecide\b/i,
@@ -49,7 +49,7 @@ const routes = [
     name: "mirror",
     path: "/mirror",
     fresh: true,
-    mustSee: [/What do you want\?/i, /Start here/i, /Already have one\?/i, /Send/i, /\bMake\b/i, /\bDecide\b/i, /\bFix\b/i, /\bUnderstand\b/i],
+    mustSee: [/What do you want\?/i, /Start here/i, /Load saved setup/i, /Send/i, /\bMake\b/i, /\bDecide\b/i, /\bFix\b/i, /\bUnderstand\b/i],
   },
   {
     name: "enterprise",
