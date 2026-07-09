@@ -36,6 +36,7 @@ const appRoutes = [
   'mirror',
   'mirror-ambient',
   'mirror-beta',
+  'mirrorprod-story',
   'mirrorseed',
   'platform',
   'preview',
