@@ -11,8 +11,17 @@ const allowedPublicEntries = [
   "public/images/",
   "public/llms.txt",
   "public/manifest.json",
+  "public/mirrorprod/",
+  "public/mirrorprod-india/",
+  "public/assets/mirrorprod-hero-wall.png",
+  "public/assets/og-mirrorprod.png",
   "public/robots.txt",
   "public/sitemap.xml",
+];
+
+const allowedPublicPrefixes = [
+  "public/videos/mprod-",
+  "public/videos/posters/mprod-",
 ];
 
 const failures = [];
@@ -27,7 +36,7 @@ function isAllowedPublicPath(path) {
     entry.endsWith("/")
       ? normalized.startsWith(entry)
       : normalized === entry
-  ));
+  )) || allowedPublicPrefixes.some((entry) => normalized.startsWith(entry));
 }
 
 function walkFiles(dir) {
@@ -73,7 +82,7 @@ const untrackedPublic = status
   .filter((line) => line.startsWith("?? "))
   .map((line) => normalize(line.slice(3)));
 
-const unsafeUntracked = untrackedPublic.filter((path) => !path.startsWith("public/app/"));
+const unsafeUntracked = untrackedPublic.filter((path) => !isAllowedPublicPath(path));
 if (unsafeUntracked.length) {
   failures.push(
     [
