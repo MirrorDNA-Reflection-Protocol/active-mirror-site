@@ -33,6 +33,13 @@ async function main() {
     );
   });
 
+  await check("www redirects to apex", async () => {
+    const response = await fetchWithTimeout("https://www.activemirror.ai/", { redirect: "manual" });
+    assert([301, 302, 308].includes(response.status), `www status ${response.status}`);
+    const location = response.headers.get("location") || "";
+    assert(location === `${SITE}/` || location.startsWith(`${SITE}/`), `www location ${location || "(missing)"}`);
+  });
+
   await check("app bundle is present", async () => {
     const response = await fetchWithTimeout(`${SITE}/app/index.html`);
     const text = await response.text();
@@ -92,6 +99,7 @@ async function main() {
     assert(sitemapText.includes("<urlset"), "sitemap urlset missing");
     assert(sitemapText.includes(`${SITE}/app/`), "sitemap app route missing");
     assert(sitemapText.includes(`${SITE}/app/enterprise/`), "sitemap enterprise route missing");
+    assert(sitemapText.includes(`${SITE}/mirrorprod-india/`), "sitemap mirrorprod route missing");
   });
 
   await check("app about shell is present", async () => {
@@ -553,7 +561,7 @@ async function fetchWithTimeout(url, init = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    return await fetch(url, { ...init, signal: controller.signal, redirect: "follow" });
+    return await fetch(url, { ...init, signal: controller.signal, redirect: init.redirect ?? "follow" });
   } finally {
     clearTimeout(timeout);
   }
