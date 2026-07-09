@@ -10,6 +10,7 @@ const routes = [
   {
     name: "home",
     path: "/",
+    fresh: true,
     mustSee: [
       /What do you want\?/i,
       /Start here/i,
@@ -25,6 +26,7 @@ const routes = [
   {
     name: "start",
     path: "/start",
+    fresh: true,
     mustSee: [/Set it up\./i, /What are you here for\?/i, /Get unstuck/i],
     setup: true,
   },
@@ -46,6 +48,7 @@ const routes = [
   {
     name: "mirror",
     path: "/mirror",
+    fresh: true,
     mustSee: [/What do you want\?/i, /Start here/i, /Already have one\?/i, /Send/i, /\bMake\b/i, /\bDecide\b/i, /\bFix\b/i, /\bUnderstand\b/i],
   },
   {
@@ -178,6 +181,22 @@ async function visibleText(page) {
   return page.locator("body").innerText({ timeout: 10000 });
 }
 
+async function waitForBodyText(page, pattern, timeout = 10000) {
+  await page.waitForFunction(
+    ([source, flags]) => new RegExp(source, flags).test(document.body?.innerText || ""),
+    [pattern.source, pattern.flags],
+    { timeout },
+  );
+}
+
+async function clearBrowserState(page) {
+  await page.goto(routeUrl("/"), { waitUntil: "domcontentloaded", timeout: 20000 });
+  await page.evaluate(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+}
+
 async function assertHomeLegalLinkShape(page, text) {
   const privacyCount = (text.match(/\bPrivacy\b/g) || []).length;
   if (privacyCount !== 1) {
@@ -245,6 +264,23 @@ async function exerciseFirstInput(page) {
 
   await exerciseSavedContext(page);
   await exerciseStarterSecondTurns(page);
+}
+
+async function exerciseRefreshRecovery(page) {
+  const input = page.locator("textarea, input[type='text'], [contenteditable='true']").first();
+  await input.fill("Help me write one clear follow-up after a meeting.");
+  await page.getByRole("button", { name: /^Send$/ }).first().click();
+  await waitForBodyText(page, /follow-up|message|draft|next move/i, 30000);
+
+  const storedSessionThread = await page.evaluate(() => sessionStorage.getItem("activeMirror_homeChat_session_v1") || "");
+  if (!storedSessionThread.includes("follow-up") && !storedSessionThread.includes("meeting")) {
+    fail("Current chat was not kept in session storage before refresh.");
+  }
+
+  await page.reload({ waitUntil: "domcontentloaded", timeout: 20000 });
+  await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+  await page.getByText(/Picked up where you left\./i).waitFor({ timeout: 10000 });
+  await waitForBodyText(page, /follow-up|message|draft|next move/i);
 }
 
 async function exerciseSavedContext(page) {
@@ -365,6 +401,9 @@ async function main() {
       for (const route of routes) {
         const ignoredBefore = ignoredConsoleProblems.length;
         const url = routeUrl(route.path);
+        if (route.fresh) {
+          await clearBrowserState(page);
+        }
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
         await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
 
@@ -391,6 +430,7 @@ async function main() {
 
         if (route.name === "home") {
           await assertHomeLegalLinkShape(page, text);
+          await exerciseRefreshRecovery(page);
         }
 
         if (route.interact) {
