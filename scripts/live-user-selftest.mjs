@@ -96,7 +96,7 @@ function isIgnoredConsoleMessage(text) {
 async function loadHome(page, theme = "light") {
   await page.addInitScript((themeValue) => localStorage.setItem("mirror-theme", themeValue), theme);
   await page.goto(routeUrl(), { waitUntil: "domcontentloaded", timeout: timeoutMs });
-  await page.waitForSelector('textarea[placeholder="Or type what you want..."]', { timeout: timeoutMs });
+  await page.waitForSelector("textarea", { timeout: timeoutMs });
 }
 
 async function pageHealth(page) {
@@ -146,7 +146,7 @@ async function pageHealth(page) {
 }
 
 async function submitPrompt(page, prompt) {
-  const input = page.locator('textarea[placeholder="Or type what you want..."]');
+  const input = page.locator("textarea").first();
   await input.fill(prompt);
   await page.getByLabel("Send").click();
 }
