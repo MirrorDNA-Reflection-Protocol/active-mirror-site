@@ -1,0 +1,1 @@
+import{R as o,M as e}from"./index-DTmo67n2.js";import{j as r}from"./vendor-motion-BKa6ABDb.js";import{B as t}from"./vendor-react-BFYU5EyY.js";o.createRoot(document.getElementById("root")).render(r.jsx(t,{children:r.jsx(e,{})}));
