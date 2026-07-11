@@ -11,6 +11,8 @@ const allowedPublicEntries = [
   "public/images/",
   "public/llms.txt",
   "public/manifest.json",
+  "public/mirrorprod-india/",
+  "public/mirrorprod-site-assets/",
   "public/robots.txt",
   "public/sitemap.xml",
 ];
