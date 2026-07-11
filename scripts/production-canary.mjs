@@ -7,7 +7,7 @@ const BRIDGE = process.env.ACTIVE_MIRROR_BRIDGE || "https://bridge.activemirror.
 const RUN_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 const TIMEOUT_MS = Number(process.env.ACTIVE_MIRROR_CANARY_TIMEOUT_MS || 30000);
 const EXPECTED_GATEWAY_VERSION =
-  process.env.ACTIVE_MIRROR_EXPECTED_GATEWAY_VERSION || "2026-07-09-openai-reflection-primary-v5";
+  process.env.ACTIVE_MIRROR_EXPECTED_GATEWAY_VERSION || "2026-07-11-conversational-local-first-v1";
 const EXPECTED_REFLECTION_PRIMARY = process.env.ACTIVE_MIRROR_EXPECTED_REFLECTION_PRIMARY || "openai";
 const EXPECTED_REFLECTION_PROVIDER = process.env.ACTIVE_MIRROR_EXPECTED_REFLECTION_PROVIDER || EXPECTED_REFLECTION_PRIMARY;
 const EXPECTED_REFLECTION_UPSTREAM_HOST =

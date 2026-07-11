@@ -75,11 +75,23 @@ for (const required of [
 }
 
 const worker = read("worker/src/index.js");
+const productionCanary = read("scripts/production-canary.mjs");
+const gatewayMonitor = read("scripts/gateway-monitor.mjs");
 if (!worker.includes('"https://id.activemirror.ai"')) {
   failures.push("Worker allowed origins must include https://id.activemirror.ai");
 }
 if (!worker.includes("/v1/mirror/proof-sprint")) {
   failures.push("Worker must expose the proof-sprint metadata endpoint.");
+}
+const workerVersion = worker.match(/const WORKER_VERSION = "([^"]+)";/)?.[1] || "";
+if (!workerVersion) {
+  failures.push("Worker must declare a versioned runtime identifier.");
+} else {
+  for (const [label, source] of [["production canary", productionCanary], ["gateway monitor", gatewayMonitor]]) {
+    if (!source.includes(`ACTIVE_MIRROR_EXPECTED_GATEWAY_VERSION || "${workerVersion}"`)) {
+      failures.push(`${label} expected version must match Worker version ${workerVersion}.`);
+    }
+  }
 }
 
 const kernel = read("worker/KERNEL.md");
