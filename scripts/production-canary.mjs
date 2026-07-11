@@ -7,7 +7,7 @@ const BRIDGE = process.env.ACTIVE_MIRROR_BRIDGE || "https://bridge.activemirror.
 const RUN_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 const TIMEOUT_MS = Number(process.env.ACTIVE_MIRROR_CANARY_TIMEOUT_MS || 30000);
 const EXPECTED_GATEWAY_VERSION =
-  process.env.ACTIVE_MIRROR_EXPECTED_GATEWAY_VERSION || "2026-07-09-openai-reflection-primary-v3";
+  process.env.ACTIVE_MIRROR_EXPECTED_GATEWAY_VERSION || "2026-07-09-openai-reflection-primary-v5";
 const EXPECTED_REFLECTION_PRIMARY = process.env.ACTIVE_MIRROR_EXPECTED_REFLECTION_PRIMARY || "openai";
 const EXPECTED_REFLECTION_PROVIDER = process.env.ACTIVE_MIRROR_EXPECTED_REFLECTION_PROVIDER || EXPECTED_REFLECTION_PRIMARY;
 const EXPECTED_REFLECTION_UPSTREAM_HOST =
@@ -52,6 +52,17 @@ async function main() {
     const text = await response.text();
     assert(response.ok, `app status ${response.status}`);
     assert(/assets\/index-[A-Za-z0-9_-]+\.js/.test(text), "app index does not reference a hashed bundle");
+  });
+
+  await check("app service worker is a bounded JavaScript asset", async () => {
+    const response = await fetchWithTimeout(`${SITE}/app/service-worker.js`);
+    const text = await response.text();
+    assert(response.ok, `service worker status ${response.status}`);
+    assert(/javascript/i.test(response.headers.get("content-type") || ""), "service worker content type is not JavaScript");
+    assert(!/<html/i.test(text), "service worker route returned the app HTML shell");
+    assert(text.includes("active-mirror-app-shell-"), "service worker cache contract missing");
+    assert(text.includes("request.method !== 'GET'"), "service worker write-method guard missing");
+    assert(text.includes('url.pathname.startsWith("/app/v1/")'), "service worker API exclusion missing");
   });
 
   await check("root utility routes point to app routes", async () => {

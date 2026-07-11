@@ -32,15 +32,24 @@ if (!legacyCnamePublish && !workflowPagesPublish) {
 
 requireFile(join("public/app", "index.html"), "/app/index.html shell");
 requireFile(join("public/app", "404.html"), "/app/404.html shell fallback");
+requireFile(join("public/app", "service-worker.js"), "/app/service-worker.js offline shell worker");
 
 const appIndex = read(join("public/app", "index.html"));
 const appFallback = read(join("public/app", "404.html"));
 const appFallbackGenerator = read("scripts/app-fallbacks.mjs");
+const appServiceWorker = read(join("public/app", "service-worker.js"));
+const siteWorker = read("site-worker/index.js");
 if (appIndex && appFallback && appIndex !== appFallback) {
   failures.push("/app/index.html and /app/404.html must match so deep links render the same app shell");
 }
 if (!appFallback.includes("/app/assets/")) {
   failures.push("/app/404.html must load app assets from /app/assets/");
+}
+if (!appServiceWorker.includes("active-mirror-app-shell-") || !appServiceWorker.includes("request.mode === 'navigate'")) {
+  failures.push("/app/service-worker.js must be the generated bounded offline shell worker");
+}
+if (!siteWorker.includes('pathname === "/app/service-worker.js"') || !siteWorker.includes("return false")) {
+  failures.push("Site Worker must serve /app/service-worker.js as an asset, not the HTML shell");
 }
 for (const route of ["id", "mirrorseed", "enterprise"]) {
   if (!appFallbackGenerator.includes(`'${route}'`)) {

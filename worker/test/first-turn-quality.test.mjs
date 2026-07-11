@@ -230,4 +230,42 @@ for (const fixture of allPrompts()) {
   assertFirstTurnQuality(fixture, data);
 }
 
+const justTalk = await reflect({
+  intent: "Can we just talk for a while? No advice, timer, or exercise.",
+  boundary: "personal",
+  turn: 1,
+  capability: "chat",
+  callModel: async () => ({
+    mirror: {
+      reflection: "We can just talk. This moment does not need to become a task.",
+      question: "",
+      move: "",
+      receipt: {
+        why: "The user asked for conversation rather than coaching.",
+        context_used: "Only the current request was used.",
+        context_excluded: "Durable memory and private history were excluded.",
+        route: "Active Mirror conversation.",
+        memory_decision: "Nothing was saved or promoted.",
+      },
+      visual: { kind: "none", left: "", right: "", note: "" },
+    },
+    fallback: false,
+    routeText: "Active Mirror conversation used with the selected boundary.",
+  }),
+});
+assert.equal(justTalk.response_mode, "conversation");
+assert.equal(justTalk.mirror.question, "", "just-talk chat forced a question");
+assert.equal(justTalk.mirror.move, "", "just-talk chat forced a move");
+
+const strictReflection = await reflect({
+  intent: "I need to decide which project task to do first.",
+  boundary: "personal",
+  turn: 1,
+  capability: "reflection",
+  callModel: async () => null,
+});
+assert.equal(strictReflection.response_mode, "reflection");
+assert.match(strictReflection.mirror.question, /\?$/, "reflection lost its deciding question");
+assert.ok(strictReflection.mirror.move, "reflection lost its one move");
+
 console.log(`first-turn quality passed: ${allPrompts().length}/${allPrompts().length}`);

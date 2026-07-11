@@ -310,6 +310,108 @@ await check("public mirror response hides internal router and Glass details by d
   assert.strictEqual(JSON.stringify(data).includes("transparent_router"), false, "Glass contract leaked");
 });
 
+await check("chat accepts bounded ephemeral context without forcing coaching", async () => {
+  installEdgeCache();
+  const previousFetch = globalThis.fetch;
+  const prompts = [];
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("/v1/mirror/reflect")) {
+      const requestBody = JSON.parse(init?.body || "{}");
+      prompts.push(requestBody.prompt || "");
+      assert.strictEqual(requestBody.route, "chat", "chat request used the wrong capability");
+      return Response.json({
+        ok: true,
+        model: "internal-chat-worker-name",
+        mirror: {
+          reflection: "We can just talk. This does not have to become a task or an exercise.",
+          question: "",
+          move: "",
+          receipt: RECEIPT,
+          visual: { kind: "none", left: "", right: "", note: "" },
+        },
+      });
+    }
+    return previousFetch(url, init);
+  };
+
+  const legacyContext = [
+    { role: "user", content: "drop oldest sentinel" },
+    { role: "assistant", content: "drop second sentinel" },
+    { role: "user", content: "third retained turn" },
+    { role: "assistant", content: "fourth retained turn" },
+    { role: "user", content: `Email me at client@example.com. ${"Long context detail ".repeat(80)}` },
+    { role: "assistant", content: "newest retained turn" },
+  ];
+
+  try {
+    const arrayResponse = await postPublic("/v1/mirror/create", {
+      intent: "Can we just talk for a bit? No advice or exercises.",
+      boundary: "client",
+      route: "chat",
+      context: legacyContext,
+    });
+    const arrayData = await arrayResponse.json();
+    const envelopeResponse = await postPublic("/v1/mirror/create", {
+      intent: "Keep this playful and conversational.",
+      boundary: "personal",
+      route: "chat",
+      session_context: {
+        mode: "conversation",
+        tone: "playful",
+        turns: [{ role: "user", content: "We were joking about launch week." }],
+      },
+    });
+    const envelopeData = await envelopeResponse.json();
+
+    assert.strictEqual(arrayResponse.status, 200);
+    assert.strictEqual(arrayData.response_mode, "conversation");
+    assert.strictEqual(arrayData.mirror.question, "", "chat forced a question");
+    assert.strictEqual(arrayData.mirror.move, "", "chat forced a move");
+    assert.deepStrictEqual(
+      {
+        source: arrayData.session_context?.source,
+        durable: arrayData.session_context?.durable,
+        storage: arrayData.session_context?.storage,
+        amos_runtime: arrayData.session_context?.amos_runtime,
+        messages_received: arrayData.session_context?.messages_received,
+        messages_used: arrayData.session_context?.messages_used,
+      },
+      {
+        source: "session",
+        durable: false,
+        storage: "none",
+        amos_runtime: "not_invoked",
+        messages_received: 6,
+        messages_used: 4,
+      },
+      "session context receipt was incomplete or misleading",
+    );
+    assert.match(arrayData.mirror.receipt.context_used, /4 sanitized prior turns.*response only/i);
+    assert.match(arrayData.mirror.receipt.context_excluded, /durable memory.*model memory.*raw-vault/i);
+    assert.strictEqual(JSON.stringify(arrayData).includes("internal-chat-worker-name"), false, "model name leaked publicly");
+    assert.strictEqual(JSON.stringify(arrayData).includes("mini.example"), false, "route host leaked publicly");
+
+    const contextLine = prompts[0].split("\n").find((line) => line.startsWith("Session context envelope"));
+    assert.ok(contextLine, "bounded context line missing from chat prompt");
+    const routedTurns = JSON.parse(contextLine.slice(contextLine.indexOf(":") + 1).trim()).turns;
+    assert.strictEqual(routedTurns.length, 4, "more than four turns reached the route");
+    assert.doesNotMatch(prompts[0], /drop oldest sentinel|drop second sentinel/, "older context reached the route");
+    assert.doesNotMatch(prompts[0], /client@example\.com/, "client email reached the route");
+    assert.ok(routedTurns.every((turn) => turn.content.length <= 480), "a routed context turn exceeded its bound");
+
+    assert.strictEqual(envelopeResponse.status, 200);
+    assert.strictEqual(envelopeData.response_mode, "conversation");
+    const envelopeLine = prompts[1].split("\n").find((line) => line.startsWith("Session context envelope"));
+    assert.ok(envelopeLine, "session context envelope missing from chat prompt");
+    const routedEnvelope = JSON.parse(envelopeLine.slice(envelopeLine.indexOf(":") + 1).trim());
+    assert.strictEqual(routedEnvelope.mode, "conversation");
+    assert.strictEqual(routedEnvelope.tone, "playful");
+    assert.match(envelopeData.mirror.receipt.memory_decision, /request-scoped.*not saved.*durable memory/i);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
 await check("mirror accepts natural short stuck turns", async () => {
   const response = await post("/v1/mirror/create", {
     intent: "I'm stuck.",
@@ -383,6 +485,22 @@ await check("mirror accepts non-Latin language input", async () => {
   assert.notStrictEqual(data.error, "intent_too_short");
 });
 
+await check("gateway fallback keeps Hindi chat in Hindi", async () => {
+  const response = await post("/v1/mirror/create", {
+    intent: "क्लाइंट से होमपेज की मंजूरी के लिए कैसे पूछूं?",
+    boundary: "personal",
+    route: "chat",
+    reply_language: "hi",
+  }, { ACTIVE_MIRROR_FAILSAFE: "true" });
+  const data = await response.json();
+
+  assert.strictEqual(response.status, 200);
+  assert.strictEqual(data.ok, true);
+  assert.strictEqual(data.response_mode, "conversation");
+  assert.match(data.mirror.reflection, /[\u0900-\u097f]/u);
+  assert.doesNotMatch(data.mirror.reflection, /Say it the way it comes/i);
+});
+
 await check("MirrorDash Glass exposes transparent router facts without prompt body", async () => {
   installEdgeCache();
   const response = await post("/v1/mirror/create", {
@@ -448,7 +566,12 @@ await check("MirrorDash Glass exposes transparent router facts without prompt bo
   assert.strictEqual(data.glass.promotion_policy.id, "reflection_promotion_v1");
   assert.strictEqual(data.glass.promotion_policy.training, "amendable_after_reflection");
   assert.strictEqual(data.glass.promotion_policy.reverse_abliteration, "strengthen_reflection_refusal_source_truth_and_boundary_directions");
-  assert.deepStrictEqual(data.glass.memory.excluded, ["raw_vault", "model_memory", "unapproved_memory"]);
+  assert.deepStrictEqual(data.glass.memory.excluded, [
+    "raw_vault",
+    "model_memory",
+    "unapproved_memory",
+    "durable_chat_history",
+  ]);
   assert.strictEqual(data.glass.gates.mirror_filter, "enabled");
   assert.strictEqual(serializedGlass.includes("I do not know what to do next"), false, "prompt body leaked into Glass");
 });
@@ -1170,6 +1293,12 @@ await check("artifact route creates a provider-backed document", async () => {
     assert.strictEqual(response.status, 200);
     assert.strictEqual(data.ok, true);
     assert.strictEqual(data.fallback, false);
+    assert.deepStrictEqual(data.readiness, {
+      status: "ready",
+      ready: true,
+      degraded: false,
+      note: "The requested artifact was created. Check current factual claims before relying on them.",
+    });
     assert.match(data.receipt_id, /^[0-9a-f]{24}$/);
     assert.strictEqual(data.artifact.kind, "doc");
     assert.strictEqual(data.artifact.title, "Launch note");
@@ -1179,6 +1308,56 @@ await check("artifact route creates a provider-backed document", async () => {
     assert.doesNotMatch(data.artifact.body, /\b(I can help|you could|consider adding|here is how)\b/i, "weak artifact phrasing leaked");
     assert.strictEqual(data.route.label, "artifact help");
     assert.strictEqual(JSON.stringify(data).includes("test-openai-key"), false, "secret leaked into response");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+await check("artifact output limits end at sentence or word boundaries without ellipses", async () => {
+  installEdgeCache();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("api.openai.com")) {
+      return Response.json({
+        output_text: JSON.stringify({
+          kind: "doc",
+          title: "Long project note with a complete and usable title",
+          body: `Opening sentence with a complete thought. ${"Continuation detail ".repeat(500)}`,
+          checklist: ["Review the finished note before sharing."],
+        }),
+      });
+    }
+    return originalFetch(url, init);
+  };
+
+  try {
+    const response = await post(
+      "/v1/mirror/artifact",
+      {
+        intent: "Create a long project note for internal review.",
+        artifactKind: "doc",
+        boundary: "personal",
+        mirror: {
+          reflection: "The project note needs a complete draft.",
+          question: "What should the reviewer understand?",
+          move: "Draft the note for review.",
+        },
+      },
+      {
+        MIRROR_BRIDGE_URL: "",
+        MIRROR_BRIDGE_TOKEN: "",
+        OPENAI_API_KEY: "test-openai-key",
+      },
+    );
+    const data = await response.json();
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(data.fallback, false);
+    assert.strictEqual(data.readiness?.status, "ready");
+    assert.ok(data.artifact.body.length <= 6000, "artifact body exceeded its visible limit");
+    assert.match(data.artifact.body, /[.!?]$/, "artifact body ended mid-sentence");
+    assert.doesNotMatch(data.artifact.body, /\.\.\.$/, "artifact body ended in a generated ellipsis");
+    assert.match(data.artifact.body, /(?:Continuation|detail)\.$/, "artifact body ended in a partial word");
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -1526,6 +1705,10 @@ await check("artifact route replaces weak provider prose with a finished fallbac
     assert.strictEqual(response.status, 200);
     assert.strictEqual(data.ok, true);
     assert.strictEqual(data.fallback, true);
+    assert.strictEqual(data.readiness?.status, "degraded");
+    assert.strictEqual(data.readiness?.ready, false);
+    assert.strictEqual(data.readiness?.degraded, true);
+    assert.match(data.readiness?.note || "", /backup.*review/i);
     assert.strictEqual(data.artifact.kind, "doc");
     assert.strictEqual(data.artifact.title, "Working doc");
     assert.match(data.artifact.body, /Title|Purpose|Next move/i);
@@ -1758,6 +1941,50 @@ await check("artifact route provides deterministic fallback without provider key
   assert.strictEqual(data.fallback, true);
   assert.strictEqual(data.artifact.kind, "code");
   assert.ok(data.artifact.body.includes("export function nextStep"), "fallback code starter missing");
+});
+
+await check("fallback approval message preserves recipient subject and deadline while staying degraded", async () => {
+  installEdgeCache();
+  const response = await post(
+    "/v1/mirror/artifact",
+    {
+      intent: "Write a short, warm message to my client asking them to approve the homepage draft by Friday.",
+      artifactKind: "draft",
+      boundary: "client",
+      mirror: {
+        reflection: "The client needs a warm and direct approval request.",
+        question: "Can the client approve the homepage draft by Friday?",
+        move: "Send the short approval request.",
+      },
+    },
+    {
+      MIRROR_BRIDGE_URL: "",
+      MIRROR_BRIDGE_TOKEN: "",
+      OPENAI_API_KEY: "",
+      ANTHROPIC_API_KEY: "",
+      GEMINI_API_KEY: "",
+      GEMINI_API_KEY_ACTIVE_MIRROR_BROWSER: "",
+    },
+  );
+  const data = await response.json();
+  const artifactText = `${data.artifact?.title || ""}\n${data.artifact?.body || ""}\n${(data.artifact?.checklist || []).join("\n")}`;
+
+  assert.strictEqual(response.status, 200);
+  assert.strictEqual(data.ok, true);
+  assert.strictEqual(data.fallback, true);
+  assert.deepStrictEqual(data.readiness, {
+    status: "degraded",
+    ready: false,
+    degraded: true,
+    note: "A backup artifact was used. Review it before sending or relying on it.",
+  });
+  assert.strictEqual(data.artifact.kind, "draft");
+  assert.match(artifactText, /client/i, "client recipient was lost");
+  assert.match(artifactText, /homepage draft/i, "homepage draft was lost");
+  assert.match(artifactText, /Friday/i, "Friday deadline was lost");
+  assert.match(data.artifact.body, /I hope you're doing well/i, "warm opening missing");
+  assert.match(data.artifact.body, /review and approve the homepage draft by Friday\?/i, "concrete approval ask missing");
+  assert.doesNotMatch(data.artifact.body, /\.\.\.$/, "fallback message ended in an incomplete ellipsis");
 });
 
 restoreFetch();

@@ -41,7 +41,7 @@ The boot packet is steering, not enforcement. It tells the model to:
 - privately self-check that the answer is specific, non-sycophantic, privacy-safe, and small enough to act on;
 - enforce anti-sycophancy in generation;
 - refuse bad paths when saying no protects privacy, clarity, truth, or output quality;
-- use only the submitted turn plus the selected boundary;
+- use only the submitted turn, an optional bounded request-scoped session context, and the selected boundary;
 - prefer reflection before prediction;
 - return one small reversible move;
 - avoid implying memory without explicit approval;
@@ -54,6 +54,10 @@ The boot packet is steering, not enforcement. It tells the model to:
   requests, ask only for the relevant sentence or paragraph;
 - answer "who are you / what can you do" plainly and move the user back to one useful action;
 - avoid therapy, professor, brand-strategy, and internal-evaluator voice;
+- on the chat route, stay curious, calm, perceptive, lightly opinionated, and
+  playful when invited; continue from bounded prior turns instead of restarting;
+- avoid the generic validation, paraphrase, and homework cadence in normal
+  conversation;
 - challenge the idea, plan, or next move without attacking the person;
 - avoid meta-analysis openings such as "you are treating", "the loop is", "the real question is", or "what I hear is";
 - avoid inverted, mystical, guru-like, or riddle-like phrasing;
@@ -147,10 +151,11 @@ claim as needing sources.
 |---|---|---|---|
 | `intent` | string | yes | the one thing the user is stuck on. **2–1000 Unicode letters/numbers** after cleanup. Natural short starts such as `"I'm stuck."` are valid; punctuation-only noise throws. |
 | `boundary` | string | no | `"personal"` (default) · `"client"` · `"secrets"` · `"drafts"`. Controls declared exclusions and, for `client`, best-effort masking before model/source-check routing. |
-| `route` | string | no | `"reflection"` (use this) · `"chat"` · `"media"` · `"auto"` (default). |
+| `route` | string | no | `"reflection"` for question-plus-move help · `"chat"` for natural conversation · `"media"` · `"auto"` (default). |
 | `turn` | integer | no | 1–9999, default 1. Increment per turn in a session. |
 | `mode` | string | no | `"standard"` (default) or `"short_start_followup"` for the deterministic second-turn intake path. |
 | `reply_language` | string | no | Experimental reply-language hint. Supported values normalize to `en`, `hi`, `hinglish`, `es`, `fr`, `ar`, `pt`, or `de`. Unknown values fall back to `en`. |
+| `session_context` | object | no | Chat-only, request-scoped context. Requires `schema_version: "session_context.v0_1"`, `source: "session"`, `durable: false`, `mode: "conversation"`, an optional allowlisted tone, and at most four prior `{role, content}` messages. Each message is capped at 480 characters. It is not AMOS runtime state or durable memory. |
 
 **Request header** (recommended):
 
@@ -164,6 +169,7 @@ claim as needing sources.
 {
   "ok": true,
   "fallback": false,
+  "response_mode": "reflection",
   "receipt_id": "ae80bdb39151b7e8d529569d",
   "mirror": {
     "reflection": "string — 2–3 sentences, names the real thing under their question",
@@ -253,6 +259,8 @@ claim as needing sources.
 }
 ```
 
+For `route: "chat"`, `response_mode` is `"conversation"`. The complete reply remains in `mirror.reflection`; `mirror.question` and `mirror.move` may be empty. When bounded session context is supplied, the public response includes a metadata-only `session_context` receipt with message counts, truncation/redaction flags, `storage: "none"`, and `amos_runtime: "not_invoked"`. Raw prior messages are never returned in that receipt.
+
 - `receipt_id` — 24 hex chars (SHA-256 of the returned mirror + truth marker + turn).
 - `fallback` — `true` if a backup route/model was used (still a valid mirror).
 - `route.primary` — the configured first-choice provider family for that capability.
@@ -260,6 +268,7 @@ claim as needing sources.
 - `route.model` — the model id reported by the answering route, or `"none"` for deterministic identity turns.
 - `route.upstream_host` — only present for the bridge route, and only contains the non-secret host used by the Worker.
 - `glass` — the MirrorDash Glass transparency receipt. It shows why the prompt went where, which provider/model answered, route attempts, tools, memory scope, deterministic gates, and what remains opaque.
+- `glass.memory.session_context` — metadata-only proof of whether ephemeral session context was used. It never establishes live AMOS/SCD enforcement and never includes transcript text.
 - `glass.algorithm` — the product loop that governed the answer. Current id: `mirror_loop_v1`.
 - `glass.source_policy` — the web/source route policy. The model does not receive ambient internet access; Active Mirror invokes whitelisted source tools and records the result.
 - `glass.prompt.body_disclosed` is `false` by default. Public responses disclose the prompt hash and destination, not the full model prompt.

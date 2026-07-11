@@ -18,6 +18,7 @@ import {
   deflatter,
   parseProviderMirror,
   receiptHash,
+  limitModelVisibleText,
   normalizeReplyLanguage,
   replyLanguageInstruction,
   reflect,
@@ -46,7 +47,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:8976",
 ]);
 
-const WORKER_VERSION = "2026-07-09-openai-reflection-primary-v1";
+const WORKER_VERSION = "2026-07-10-chat-artifact-truth-v1";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 14000;
 const DEFAULT_MIRROR_REQUEST_BYTES = 16 * 1024;
 const DEFAULT_EVENT_REQUEST_BYTES = 2 * 1024;
@@ -352,6 +353,7 @@ export default {
         capability: route.capability,
         mode: input.mode,
         replyLanguage: input.reply_language,
+        sessionContext: input.session_context,
         callModel: async (prompt) => {
           lastPromptHash = await receiptHash({
             type: "active_mirror_prompt",
@@ -436,6 +438,8 @@ export default {
           ok: true,
           fallback: result.fallback,
           receipt_id: result.receipt_id,
+          response_mode: result.response_mode || (route.capability === "chat" ? "conversation" : "reflection"),
+          ...(result.session_context_receipt ? { session_context: result.session_context_receipt } : {}),
           mirror: result.mirror,
           truth_state: result.truth_state,
           straitjacket: result.straitjacket,
@@ -633,6 +637,7 @@ async function handleArtifact(request, env, ctx, corsHeaders) {
           fallback: true,
           receipt_id,
           artifact,
+          readiness: artifactReadiness(true, "failsafe"),
           truth_state: {
             status: "reflective",
             checked: false,
@@ -665,6 +670,7 @@ async function handleArtifact(request, env, ctx, corsHeaders) {
           fallback: true,
           receipt_id,
           artifact,
+          readiness: artifactReadiness(true, "privacy"),
           truth_state: {
             status: "reflective",
             checked: false,
@@ -693,6 +699,7 @@ async function handleArtifact(request, env, ctx, corsHeaders) {
           fallback: true,
           receipt_id,
           artifact,
+          readiness: artifactReadiness(true, "safety"),
           truth_state: {
             status: "reflective",
             checked: false,
@@ -755,12 +762,15 @@ async function handleArtifact(request, env, ctx, corsHeaders) {
         fallback: Boolean(result.fallback),
         receipt_id,
         artifact,
+        readiness: artifactReadiness(Boolean(result.fallback), result.publicReason),
         truth_state: {
           status: "reflective",
           checked: false,
-          label: "Artifact created.",
-          reason: "The artifact was created from this turn and the current reflection. Current factual claims still need source checking before reliance.",
-          signals: ["artifact_created"],
+          label: result.fallback ? "Backup artifact created." : "Artifact created.",
+          reason: result.fallback
+            ? "A degraded backup artifact was created from this turn. Review it before use, and source-check current factual claims before reliance."
+            : "The artifact was created from this turn and the current reflection. Current factual claims still need source checking before reliance.",
+          signals: result.fallback ? ["artifact_created", "artifact_degraded"] : ["artifact_created"],
         },
         route: {
           capability: "artifact",
@@ -1412,7 +1422,7 @@ function logSafe(ctx, payload) {
 }
 
 function sanitizeInput(body) {
-  const intent = String(body?.intent || body?.input || "").replace(/\s+/g, " ").trim().slice(0, 1000);
+  const intent = cleanSourceText(body?.intent || body?.input, 1000);
   if (!hasUsableMirrorIntent(intent)) throw httpError(400, "intent_too_short");
   const boundary = String(body?.boundary || "personal").toLowerCase();
   return {
@@ -1422,7 +1432,23 @@ function sanitizeInput(body) {
     turn: Number.isFinite(body?.turn) ? Math.max(1, Math.min(9999, Math.trunc(body.turn))) : 1,
     mode: normalizeMirrorMode(body?.mode),
     reply_language: normalizeReplyLanguage(body?.reply_language || body?.language || ""),
+    session_context: requestSessionContext(body),
   };
+}
+
+function requestSessionContext(body) {
+  const envelope = body?.session_context;
+  if (envelope && typeof envelope === "object" && !Array.isArray(envelope)) {
+    return {
+      schema_version: envelope.schema_version,
+      source: envelope.source,
+      durable: envelope.durable,
+      mode: envelope.mode,
+      tone: envelope.tone,
+      turns: Array.isArray(envelope.turns) ? envelope.turns : [],
+    };
+  }
+  return Array.isArray(body?.context) ? { turns: body.context } : null;
 }
 
 function hasUsableMirrorIntent(intent = "") {
@@ -1485,11 +1511,11 @@ function maskSourceCheckInput(input) {
 }
 
 function cleanSourceText(value, maxLength) {
-  return String(value || "")
+  const clean = String(value || "")
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")
     .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, maxLength);
+    .trim();
+  return limitModelVisibleText(clean, maxLength, { closeSentence: false });
 }
 
 function normalizeRoute(value) {
@@ -2217,7 +2243,7 @@ function normalizeArtifactResult(text, input) {
 
 function artifactNeedsFallback(body, input = {}) {
   const text = String(body || "");
-  if (isLaunchArtifactInput(input)) {
+  if (isLaunchArtifactInput(input) && !isMessageArtifactInput(input)) {
     if (/\[[^\]]+\]/.test(text) || /\btrust line\b/i.test(text)) return true;
     const hasLaunchStarter = /Headline:/i.test(text) && /Button label:/i.test(text) && /Reassurance line:/i.test(text);
     if (!hasLaunchStarter) return true;
@@ -2251,7 +2277,7 @@ function cleanArtifactText(value, fallback, maxLength) {
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")
     .replace(/\s+/g, " ")
     .trim();
-  return (clean || fallback).slice(0, maxLength);
+  return limitModelVisibleText(clean || fallback, maxLength, { closeSentence: false });
 }
 
 function cleanArtifactBody(value, fallback) {
@@ -2268,7 +2294,7 @@ function cleanArtifactBody(value, fallback) {
     .replace(/\bAssumptions\b/g, "Still needed")
     .replace(/\bAssumption\b/g, "Starting point")
     .trim();
-  return (clean || fallback).slice(0, 6000);
+  return limitModelVisibleText(clean || fallback, 6000, { preserveLines: true });
 }
 
 function defaultArtifactTitle(kind) {
@@ -2301,6 +2327,10 @@ function isLaunchArtifactInput(input = {}) {
 
 function isMessageArtifactInput(input = {}) {
   return /\b(?:message|email|dm|reply|sendable note|sendable message|ask a friend)\b/i.test(artifactContextText(input));
+}
+
+function isApprovalMessageArtifact(input = {}) {
+  return isMessageArtifactInput(input) && /\b(?:approve|approval)\b/i.test(artifactContextText(input));
 }
 
 function launchArtifact(input, intent, question, move) {
@@ -2361,9 +2391,65 @@ function messageArtifact(intent, question, move) {
   };
 }
 
+function approvalMessageArtifact(rawIntent) {
+  const intent = String(rawIntent || "");
+  const subjectMatch = intent.match(
+    /\b((?:homepage|home page|landing page|website|site)\s+(?:draft|design|copy|proposal)|(?:draft|proposal|design|copy|document|memo))\b/i,
+  );
+  const deadlineMatch = intent.match(
+    /\b(?:by|before|on)\s+((?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)|today|tomorrow|(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:st|nd|rd|th)?|\d{1,2}(?:st|nd|rd|th)?)\b/i,
+  );
+  const subject = cleanArtifactText(subjectMatch?.[1], "draft", 100);
+  const deadline = cleanArtifactText(deadlineMatch?.[1], "", 40);
+  const deadlinePhrase = deadline ? ` by ${deadline}` : "";
+
+  return {
+    kind: "draft",
+    title: `Client ${subject} approval`,
+    body: [
+      "Hi [Client name],",
+      "",
+      `I hope you're doing well. Could you please review and approve the ${subject}${deadlinePhrase}? If you would like any changes before approving it, please let me know.`,
+      "",
+      "Thank you.",
+    ].join("\n"),
+    checklist: [
+      "Replace [Client name] before sending.",
+      deadline ? `Keep ${deadline} only if it is the intended approval deadline.` : "Add the intended approval deadline if needed.",
+    ],
+  };
+}
+
+function artifactReadiness(fallback, reason = "") {
+  if (!fallback) {
+    return {
+      status: "ready",
+      ready: true,
+      degraded: false,
+      note: "The requested artifact was created. Check current factual claims before relying on them.",
+    };
+  }
+
+  const code = String(reason || "").toLowerCase();
+  const note = code.includes("privacy")
+    ? "A safer placeholder version was created because private details were held back. Complete and review it before use."
+    : code.includes("safety")
+    ? "A safer alternative was created. It does not fulfill the harmful part of the request."
+    : code.includes("failsafe")
+    ? "A backup artifact was created while live generation was unavailable. Review it before sending or relying on it."
+    : "A backup artifact was used. Review it before sending or relying on it.";
+  return {
+    status: "degraded",
+    ready: false,
+    degraded: true,
+    note,
+  };
+}
+
 function fallbackArtifact(input, reason = "provider") {
   const kind = normalizeArtifactKind(input.kind);
-  const intent = cleanArtifactText(input.intent, "the thing you want", 180);
+  const fullIntent = cleanArtifactText(input.intent, "the thing you want", 1000);
+  const intent = cleanArtifactText(fullIntent, "the thing you want", 180);
   const question = cleanArtifactText(input.mirror?.question, "What output would help right now?", 180);
   const move = cleanArtifactText(input.mirror?.move, "Create the smallest useful version.", 180);
 
@@ -2402,6 +2488,7 @@ function fallbackArtifact(input, reason = "provider") {
     };
   }
 
+  if (isApprovalMessageArtifact(input)) return approvalMessageArtifact(fullIntent);
   if (isMessageArtifactInput(input)) return messageArtifact(intent, question, move);
 
   if (kind === "code") {
@@ -3106,7 +3193,7 @@ function cleanResearchText(value, fallback, maxLength) {
     .replace(/\(\s*\)/g, "")
     .replace(MIXED_SCRIPT_WORD_RE, repairMixedScriptWord)
     .trim();
-  return (clean || fallback).slice(0, maxLength);
+  return limitModelVisibleText(clean || fallback, maxLength);
 }
 
 const MIXED_SCRIPT_WORD_RE = /(?:[A-Za-z]*[\p{Script=Georgian}\p{Script=Cyrillic}\p{Script=Greek}\p{Script=Hebrew}\p{Script=Arabic}\p{Script=Devanagari}]+[A-Za-z]+|[A-Za-z]+[\p{Script=Georgian}\p{Script=Cyrillic}\p{Script=Greek}\p{Script=Hebrew}\p{Script=Arabic}\p{Script=Devanagari}]+[A-Za-z]*)/gu;
@@ -3401,7 +3488,7 @@ function extractAnthropicText(data) {
 
 // --- Public route language (runtime owns route semantics; the kernel just prints what it's handed) ---
 function publicRouteLabel(capability) {
-  return { reflection: "reflection help", chat: "critique help", media: "media help", source_check: "source-backed help" }[capability] || "approved help";
+  return { reflection: "reflection help", chat: "conversation help", media: "media help", source_check: "source-backed help" }[capability] || "approved help";
 }
 
 function publicRouteReceipt(capability) {
@@ -3444,7 +3531,12 @@ function mirrorDashGlass({ route, selectedRoute, boundary, result, attempts, pro
       rule: "The mirror is the filter; the model never becomes the identity.",
       capsule: publicIdentityCapsule(),
     },
-    algorithm: ACTIVE_MIRROR_ALGORITHM,
+    algorithm: {
+      ...ACTIVE_MIRROR_ALGORITHM,
+      response_mode: result.response_mode || (selectedRoute.capability === "chat" ? "conversation" : "reflection"),
+      visible_question: selectedRoute.capability === "chat" ? "optional" : "required",
+      visible_move: selectedRoute.capability === "chat" ? "optional" : "required",
+    },
     recursion_lock: RECURSIVE_PERFECTION_LOCK,
     council_control_plane: COUNCIL_CONTROL_PLANE,
     router: {
@@ -3477,9 +3569,18 @@ function mirrorDashGlass({ route, selectedRoute, boundary, result, attempts, pro
     promotion_policy: PROMOTION_POLICY,
     memory: {
       mode: "scoped",
-      used: ["current_turn", `boundary_${boundary}`],
-      excluded: ["raw_vault", "model_memory", "unapproved_memory"],
+      used: [
+        "current_turn",
+        `boundary_${boundary}`,
+        ...(result.session_context_receipt ? ["ephemeral_session_context"] : []),
+      ],
+      excluded: ["raw_vault", "model_memory", "unapproved_memory", "durable_chat_history"],
       write_policy: "model_cannot_write_memory",
+      session_context: result.session_context_receipt || {
+        status: "not_used",
+        storage: "none",
+        amos_runtime: "not_invoked",
+      },
     },
     egress: {
       model_route_allowed: !failsafe?.active && answeredByModel,
@@ -3513,9 +3614,9 @@ function publicRoutes(env) {
       purpose: "reflective reasoning and first-use mirror generation",
     },
     chat: {
-      label: "critique help",
+      label: "conversation help",
       status: modelRouteStatus((env.MIRROR_BRIDGE_URL && env.MIRROR_BRIDGE_TOKEN) || env.ANTHROPIC_API_KEY || env.OPENAI_API_KEY ? "available" : "browser fallback"),
-      purpose: "chat polish, critique, rewrite, and receipt review",
+      purpose: "natural conversation, critique, rewrite, and continuity within the current session",
     },
     media: {
       label: "media help",

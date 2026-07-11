@@ -6,6 +6,7 @@ if (!globalThis.crypto) globalThis.crypto = webcrypto; // kernel uses Web Crypto
 
 import {
   ACTIVE_MIRROR_BOOT_VERSION,
+  CHAT_MIRROR_SCHEMA,
   buildPrompt,
   reflect,
   straitjacket,
@@ -13,6 +14,7 @@ import {
   gateVisual,
   normalizeReplyLanguage,
   sanitizeModelIntent,
+  sanitizeSessionContext,
   truthGate,
 } from "../src/mirror-kernel.js";
 
@@ -92,6 +94,72 @@ await check("buildPrompt supports experimental reply languages", () => {
   assert.ok(prompt.includes("Reply in Hindi"), "Hindi instruction missing");
   assert.ok(!prompt.includes("Plain English ASCII only"), "old English-only instruction survived");
   assert.equal(normalizeReplyLanguage("hi-IN"), "hi", "locale base was not normalized");
+});
+
+await check("chat prompt carries a distinct conversational voice", () => {
+  const prompt = buildPrompt(
+    {
+      intent: "Keep talking with me about why this launch feels strange.",
+      boundary: "personal",
+      sessionContext: {
+        mode: "conversation",
+        tone: "direct",
+        turns: [{ role: "user", content: "The launch looks polished, but it feels anonymous." }],
+      },
+    },
+    {
+      excluded: "Stored personal history stays out.",
+      memory: "Nothing is promoted without approval.",
+    },
+    "chat",
+  );
+
+  assert.match(prompt, /curious, calm, perceptive.*lightly opinionated.*playful when invited/i);
+  assert.match(prompt, /point of view without pretending certainty/i);
+  assert.match(prompt, /validation, paraphrase, and homework/i);
+  assert.match(prompt, /Continue the conversation from the bounded prior turns/i);
+  assert.doesNotMatch(prompt, /ONE_MOVE_ONLY/, "chat inherited the forced coaching rule");
+});
+
+await check("chat prompt uses only bounded ephemeral session context", () => {
+  const turns = [
+    { role: "user", content: "oldest sentinel must be dropped" },
+    { role: "assistant", content: "second sentinel must be dropped" },
+    { role: "user", content: "third turn" },
+    { role: "assistant", content: "fourth turn" },
+    { role: "user", content: `Client email person@example.com ${"detail ".repeat(120)}` },
+    { role: "assistant", content: "newest turn" },
+  ];
+  const sessionContext = sanitizeSessionContext({ mode: "conversation", tone: "playful", turns }, "client");
+  const prompt = buildPrompt(
+    {
+      intent: "Can we just talk for a bit?",
+      boundary: "client",
+      sessionContext,
+    },
+    {
+      excluded: "Extra client context stays out.",
+      memory: "Only public-safe project learning can be promoted.",
+    },
+    "chat",
+  );
+
+  assert.equal(sessionContext.turns.length, 4, "session context exceeded four turns");
+  assert.ok(sessionContext.turns.every((turn) => turn.content.length <= 480), "session turn exceeded the character bound");
+  assert.doesNotMatch(prompt, /oldest sentinel|second sentinel/, "older turns reached the prompt");
+  assert.match(prompt, /third turn|fourth turn|newest turn/, "newest four turns were not retained");
+  assert.doesNotMatch(prompt, /person@example\.com/, "client email reached the prompt");
+  assert.match(prompt, /\[email masked\]/, "client masking was not recorded in context");
+  assert.match(prompt, /request.*not durable memory|not durable memory.*request/is, "request-only memory boundary missing");
+  assert.match(prompt, /question and move as empty strings/i, "chat slot relaxation missing");
+
+  const personalContext = sanitizeSessionContext({
+    mode: "conversation",
+    turns: [{ role: "user", content: "Email me at person@example.com, open https://example.com, or call 555 123 4567." }],
+  }, "personal");
+  const personalText = personalContext.turns[0].content;
+  assert.doesNotMatch(personalText, /person@example\.com|https:\/\/example\.com|555 123 4567/, "private identifiers survived personal session masking");
+  assert.match(personalText, /\[email masked\].*\[url masked\].*\[phone\/id masked\]/, "personal session masking markers were missing");
 });
 
 // 1. The straitjacket strips flattery, forces a real question, keeps one move — pure, no model.
@@ -222,6 +290,144 @@ await check("reflect() cages a flattering model end to end", async () => {
   assert.ok(!out.mirror.move.includes("2."), "move stayed a list");
   assert.ok(out.straitjacket.includes("flattery_removed"), "straitjacket did not record the catch");
   assert.match(out.receipt_id, /^[0-9a-f]{24}$/, "receipt id is not a 24-hex hash");
+});
+
+await check("chat can return a complete just-talk response without a forced action", async () => {
+  let receivedSchema = null;
+  const out = await reflect({
+    intent: "Can we just talk for a bit? No advice or exercises.",
+    boundary: "personal",
+    capability: "chat",
+    sessionContext: {
+      mode: "conversation",
+      tone: "warm",
+      turns: [
+        { role: "user", content: "Today was noisier than I expected." },
+        { role: "assistant", content: "We can keep this simple." },
+      ],
+    },
+    callModel: async (_prompt, schema) => {
+      receivedSchema = schema;
+      return {
+        mirror: {
+          reflection: "We can just talk. This does not need to become a task or an exercise.",
+          question: "",
+          move: "",
+          receipt: RECEIPT,
+          visual: { kind: "none", left: "", right: "", note: "" },
+        },
+        fallback: false,
+        routeText: "Active Mirror conversation used with the selected boundary.",
+      };
+    },
+  });
+
+  assert.equal(out.ok, true);
+  assert.strictEqual(receivedSchema, CHAT_MIRROR_SCHEMA, "chat did not receive the relaxed same-envelope schema");
+  assert.equal(out.response_mode, "conversation");
+  assert.equal(out.mirror.question, "", "chat forced a question");
+  assert.equal(out.mirror.move, "", "chat forced a move");
+  assert.doesNotMatch(out.mirror.reflection, /timer|next step|homework/i, "chat turned into coaching");
+  assert.doesNotMatch(out.straitjacket.join(" "), /question_forced|move_made_singular/, "empty chat slots were treated as violations");
+  assert.match(out.mirror.receipt.context_used, /2 sanitized prior turns.*response only/i);
+  assert.match(out.mirror.receipt.context_excluded, /durable memory.*model memory.*raw-vault/i);
+  assert.match(out.mirror.receipt.memory_decision, /request-scoped.*not saved.*durable memory/i);
+});
+
+await check("playful chat fallback is complete without coaching", async () => {
+  const out = await reflect({
+    intent: "Say something playful.",
+    boundary: "personal",
+    capability: "chat",
+    sessionContext: { mode: "conversation", tone: "playful", turns: [] },
+    callModel: async () => null,
+  });
+
+  assert.equal(out.ok, true);
+  assert.equal(out.fallback, true);
+  assert.equal(out.response_mode, "conversation");
+  assert.equal(out.mirror.question, "");
+  assert.equal(out.mirror.move, "");
+  assert.match(out.mirror.reflection, /[.!?]$/, "playful response did not end cleanly");
+  assert.doesNotMatch(out.mirror.reflection, /timer|exercise|write one|next step/i, "playful response became an exercise");
+});
+
+await check("plain chat fallback has a recognizable voice", async () => {
+  const greeting = await reflect({
+    intent: "Hey",
+    boundary: "personal",
+    capability: "chat",
+    callModel: async () => null,
+  });
+  const justTalk = await reflect({
+    intent: "No advice. Just talk with me.",
+    boundary: "personal",
+    capability: "chat",
+    callModel: async () => null,
+  });
+
+  assert.match(greeting.mirror.reflection, /paying attention/i);
+  assert.match(justTalk.mirror.reflection, /No homework, no timer, and no stealth coaching/i);
+  assert.doesNotMatch(`${greeting.mirror.reflection} ${justTalk.mirror.reflection}`, /I am here with you|How can I help/i);
+});
+
+await check("Indian-language chat fallback stays in the requested language", async () => {
+  const hindi = await reflect({
+    intent: "क्लाइंट से होमपेज की मंजूरी के लिए कैसे पूछूं?",
+    boundary: "personal",
+    capability: "chat",
+    replyLanguage: "hi",
+    callModel: async () => null,
+  });
+
+  assert.equal(hindi.response_mode, "conversation");
+  assert.match(hindi.mirror.reflection, /[\u0900-\u097f]/u);
+  assert.doesNotMatch(hindi.mirror.reflection, /Say it the way it comes/i);
+  for (const code of ["bn", "ta", "te", "mr", "gu", "kn", "ml", "pa", "or", "ur"]) {
+    assert.equal(normalizeReplyLanguage(code), code, `${code} was normalized away`);
+  }
+});
+
+await check("chat context secrets fail closed before model routing", async () => {
+  let modelWasCalled = false;
+  const out = await reflect({
+    intent: "Keep talking with me.",
+    boundary: "personal",
+    capability: "chat",
+    context: [{ role: "user", content: "My password is examplepassword123." }],
+    callModel: async () => {
+      modelWasCalled = true;
+      return null;
+    },
+  });
+
+  assert.equal(out.ok, false);
+  assert.equal(out.error, "boundary_violation");
+  assert.equal(modelWasCalled, false, "secret-bearing context reached the model");
+});
+
+await check("model-visible limits finish cleanly without truncation ellipses", async () => {
+  const out = await reflect({
+    intent: "Give me one concise response about this project decision.",
+    boundary: "personal",
+    capability: "reflection",
+    callModel: async () => ({
+      mirror: {
+        reflection: `This is one intentionally long response ${"with concrete project detail ".repeat(80)}`,
+        question: "Which project signal matters most?",
+        move: "Write the strongest project signal in one sentence.",
+        receipt: RECEIPT,
+        visual: { kind: "none", left: "", right: "", note: "" },
+      },
+      fallback: false,
+      routeText: "mock route",
+    }),
+  });
+
+  assert.match(out.mirror.reflection, /[.!?]$/, "limited reflection did not end cleanly");
+  assert.doesNotMatch(out.mirror.reflection, /\.\.\.$/, "limited reflection ended in a generated ellipsis");
+  assert.equal(out.response_mode, "reflection");
+  assert.match(out.mirror.move, /Write\b/i, "strict reflection lost its one move");
 });
 
 // 4b. Explicit agreement bait is not delegated to a model; the kernel challenges it directly.
