@@ -2,7 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="robots" content="noindex, nofollow"><link rel="icon" type="image/png" href="/mirrorprod-india/favicon.png"><link rel="apple-touch-icon" href="/mirrorprod-india/apple-touch-icon.png"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- HANDLE_PROVENANCE: video srcs are live-200-verified this session (6x /videos/*.mp4 + studio atmosphere mp4);
+     poster paths from this deploy's own assets; design per critique claim-680fd8b01942 fix-all pass -->
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" href="/mirrorprod-india/favicon.png">
+<link rel="apple-touch-icon" href="/mirrorprod-india/apple-touch-icon.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MirrorProd · Preview — Cinema-grade business videos. No shoot day.</title>
 <style>
   /* Palette: warm film-noir, not blue-black. One accent family (brass). */
@@ -16,14 +21,17 @@
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
   body{background:var(--ink);color:var(--bone);font-family:var(--sans);line-height:1.6}
-  img{display:block;max-width:100%}
-  a:focus-visible,summary:focus-visible{outline:2px solid var(--brass-hot);outline-offset:3px;border-radius:3px}
+  img,video{display:block;max-width:100%}
+  a:focus-visible,summary:focus-visible,video:focus-visible{outline:2px solid var(--brass-hot);outline-offset:3px;border-radius:3px}
   .wrap{max-width:74rem;margin:0 auto;padding:0 1.1rem}
+
+  .skip{position:absolute;left:-999px;top:.5rem;z-index:100;background:var(--brass);color:#191204;padding:.5rem 1rem;border-radius:999px;font-weight:650;text-decoration:none}
+  .skip:focus{left:.5rem}
 
   .slate{font-family:var(--mono);font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--brass)}
   .slate::before{content:"◼ ";font-size:.5rem;vertical-align:.12em}
 
-  header{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--ink) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  header{position:sticky;top:0;z-index:50;background:rgba(19,16,9,.92);background:color-mix(in srgb,var(--ink) 88%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
   .bar{display:flex;align-items:center;justify-content:space-between;padding:.75rem 0;gap:1rem}
   .brand{text-decoration:none;color:var(--bone);font-family:var(--serif);font-size:1.15rem;letter-spacing:.01em}
   .brand small{display:block;font-family:var(--mono);font-size:.58rem;letter-spacing:.26em;text-transform:uppercase;color:var(--dust)}
@@ -32,17 +40,25 @@
   nav.top a:hover{color:var(--bone)}
   @media(min-width:800px){nav.top{display:flex}}
   .btn{display:inline-flex;align-items:center;gap:.5rem;background:var(--brass);color:#191204;font-weight:650;font-size:.88rem;
-       padding:.65rem 1.15rem;border-radius:999px;text-decoration:none;border:1px solid var(--brass);transition:background .2s,transform .2s}
+       padding:.65rem 1.15rem;border-radius:999px;text-decoration:none;border:1px solid var(--brass);transition:background .2s,transform .2s;cursor:pointer}
   .btn:hover{background:var(--brass-hot)}
   .btn.quiet{background:transparent;color:var(--bone);border-color:var(--line)}
   .btn.quiet:hover{border-color:var(--brass);transform:none}
 
-  /* HERO — full-bleed real still, one-sheet inset */
+  /* HERO — the page about film opens with film (desktop); the founder's face carries mobile */
   .hero{position:relative;min-height:88svh;display:flex;align-items:flex-end;overflow:hidden;border-bottom:1px solid var(--line)}
-  .hero .bg{position:absolute;inset:0;background:url('/mirrorprod-india/next/assets/hero-atmosphere.jpg') center/cover no-repeat}
+  .hero .bg{position:absolute;inset:0;background:url('/mirrorprod-india/next/assets/hero-founder.jpg') center 22%/cover no-repeat}
+  .hero video.film{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
+  @media(min-width:900px){
+    .hero .bg{background-image:url('/mirrorprod-india/next/assets/hero-atmosphere.jpg');background-position:center}
+  }
+  @media(min-width:900px) and (prefers-reduced-motion: no-preference){
+    .hero video.film{display:block}
+  }
   .hero .scrim{position:absolute;inset:0;background:
-      linear-gradient(180deg,rgba(19,16,9,.55) 0%,rgba(19,16,9,.25) 40%,rgba(19,16,9,.94) 88%),
-      linear-gradient(100deg,rgba(19,16,9,.82) 0%,rgba(19,16,9,.2) 62%)}
+      linear-gradient(0deg,rgba(58,40,16,.16),rgba(58,40,16,.16)),
+      linear-gradient(180deg,rgba(19,16,9,.55) 0%,rgba(19,16,9,.28) 40%,rgba(19,16,9,.96) 88%),
+      linear-gradient(100deg,rgba(19,16,9,.84) 0%,rgba(19,16,9,.2) 62%)}
   .hero .wrap{position:relative;width:100%;display:grid;gap:2rem;padding-top:6rem;padding-bottom:2.6rem;grid-template-columns:1fr;align-items:end}
   @media(min-width:900px){.hero .wrap{grid-template-columns:1.25fr .75fr}}
   .hero h1{font-family:var(--serif);font-weight:500;font-size:clamp(2.5rem,6.5vw,4.6rem);line-height:1.02;letter-spacing:-.02em;margin:.9rem 0 1rem;max-width:15ch}
@@ -60,6 +76,14 @@
            background:rgba(19,16,9,.72);font-family:var(--mono);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--bone)}
   .ai-chip::before{content:"◇";color:var(--brass)}
 
+  /* film-leader ticker */
+  .leader{overflow:hidden;border-bottom:1px solid var(--line);background:var(--smoke)}
+  .leader .strip{display:inline-flex;white-space:nowrap;gap:0;animation:leader 38s linear infinite;will-change:transform}
+  .leader span{font-family:var(--mono);font-size:.64rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dust);
+               padding:.55rem 1.4rem;border-right:1px solid var(--line)}
+  .leader span b{color:var(--brass)}
+  @keyframes leader{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
   @media (prefers-reduced-motion: no-preference){
     .hero .wrap>*{animation:rise .8s cubic-bezier(.16,1,.3,1) both}
     .hero .onesheet{animation-delay:.15s}
@@ -67,48 +91,60 @@
     .poster{transition:transform .25s}
     .poster:hover{transform:translateY(-5px)}
   }
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto}
+    .leader .strip{animation:none}
+    .sticky{transition:none}
+  }
 
   section{padding:3.2rem 0;border-bottom:1px solid var(--line)}
   h2{font-family:var(--serif);font-weight:500;font-size:clamp(1.6rem,3.4vw,2.4rem);letter-spacing:-.01em;margin:.5rem 0 .5rem}
   .lede{color:var(--dust);max-width:56ch;margin-bottom:1.6rem}
 
-  /* NOW SHOWING rail — real frames */
-  .rail{display:grid;grid-auto-flow:column;grid-auto-columns:72%;gap:.9rem;overflow-x:auto;padding-bottom:.8rem;
+  /* SCREENING ROOM — the samples play here */
+  .rail{display:grid;grid-auto-flow:column;grid-auto-columns:78%;gap:.9rem;overflow-x:auto;padding-bottom:.8rem;
         scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
-  @media(min-width:640px){.rail{grid-auto-columns:38%}}
-  @media(min-width:1000px){.rail{grid-auto-columns:23.5%}}
-  .poster{scroll-snap-align:start;background:var(--smoke);border:1px solid var(--line);border-radius:.6rem;overflow:hidden;text-decoration:none;color:var(--bone)}
-  .poster .frame{position:relative}
-  .poster img{aspect-ratio:3/4;object-fit:cover;width:100%}
-  .poster .frame .ai-chip{position:absolute;left:.55rem;top:.55rem}
-  .poster .frame .len{position:absolute;right:.55rem;bottom:.55rem;font-family:var(--mono);font-size:.6rem;letter-spacing:.12em;
+  @media(min-width:640px){.rail{grid-auto-columns:42%}}
+  @media(min-width:1000px){.rail{grid-auto-columns:24.5%}}
+  .poster{scroll-snap-align:start;background:var(--smoke);border:1px solid var(--line);border-radius:.6rem;overflow:hidden}
+  .poster .frame{position:relative;background:#000}
+  .poster video{aspect-ratio:3/4;object-fit:cover;width:100%}
+  .poster .frame .ai-chip{position:absolute;left:.55rem;top:.55rem;pointer-events:none;z-index:2}
+  .poster .frame .len{position:absolute;right:.55rem;top:.55rem;pointer-events:none;z-index:2;font-family:var(--mono);font-size:.6rem;letter-spacing:.12em;
                       background:rgba(19,16,9,.75);border:1px solid var(--line);border-radius:999px;padding:.16rem .5rem;color:var(--dust)}
   .poster .meta{padding:.7rem .85rem .85rem}
   .poster .meta .slate{font-size:.58rem}
   .poster .meta h3{font-family:var(--serif);font-weight:500;font-size:1.02rem;margin-top:.25rem}
   .rail-note{font-family:var(--mono);font-size:.66rem;color:var(--dust);letter-spacing:.1em;margin-top:.4rem}
+  .rail-note a{color:var(--brass)}
 
-  /* SCENES — honest sequence with slate marks */
   .scenes{display:grid;gap:.9rem;grid-template-columns:1fr}
   @media(min-width:820px){.scenes{grid-template-columns:repeat(3,1fr)}}
   .scene{border:1px solid var(--line);border-radius:.6rem;padding:1.15rem;background:var(--smoke)}
   .scene .slate{display:block;margin-bottom:.55rem}
   .scene h3{font-family:var(--serif);font-weight:500;font-size:1.12rem;margin-bottom:.3rem}
-  .scene p{font-size:.87rem;color:var(--dust)}
+  .scene p{font-size:.87rem;color:var(--dust);margin-bottom:.7rem}
   .scene a{color:var(--brass);font-size:.82rem;text-decoration:none}
   .scene a:hover{color:var(--brass-hot)}
 
-  /* CERTIFICATE — the signature. Indian film-certificate grammar for the compliance promise. */
-  .cert-wrap{display:grid;gap:1.6rem;grid-template-columns:1fr;align-items:center}
+  /* CERTIFICATE — the signature: censor-certificate grammar, laid on the table, sealed, honestly a specimen */
+  .cert-wrap{display:grid;gap:1.9rem;grid-template-columns:1fr;align-items:center}
   @media(min-width:920px){.cert-wrap{grid-template-columns:.95fr 1.05fr}}
-  .certificate{background:var(--paper);color:#241c0e;border-radius:.35rem;padding:1.6rem 1.5rem;position:relative;
-               box-shadow:0 24px 70px rgba(0,0,0,.5);
+  .certificate{background:var(--paper);color:#241c0e;border-radius:.35rem;padding:1.7rem 1.5rem;position:relative;
+               box-shadow:0 24px 70px rgba(0,0,0,.5);transform:rotate(-.6deg);
                border:1px solid #9a8a67;outline:4px double #9a8a67;outline-offset:-11px}
+  .certificate .specimen{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;
+               font-family:var(--mono);font-size:2.1rem;letter-spacing:.55em;color:rgba(122,101,49,.12);transform:rotate(-16deg);text-transform:uppercase}
+  .certificate .seal{position:absolute;right:1rem;top:-1.4rem;width:66px;height:66px;border-radius:50%;background:var(--brass);
+               color:#191204;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--serif);
+               box-shadow:0 8px 22px rgba(0,0,0,.4), inset 0 0 0 3px rgba(25,18,4,.25), inset 0 0 0 6px rgba(241,233,219,.35);
+               transform:rotate(6deg)}
+  .certificate .seal b{font-size:1.05rem;letter-spacing:.06em}
+  .certificate .seal i{font-style:normal;font-family:var(--mono);font-size:.42rem;letter-spacing:.18em}
   .certificate .head{text-align:center;border-bottom:1px solid #b3a37e;padding-bottom:.8rem;margin-bottom:.9rem}
-  .certificate .head .slate{color:#7a6531}
-  .certificate .head .slate::before{content:""}
+  .certificate .head .cert-eyebrow{font-family:var(--mono);font-size:.6rem;letter-spacing:.26em;text-transform:uppercase;color:#7a6531}
   .certificate h3{font-family:var(--serif);font-size:1.35rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-top:.3rem}
-  .certificate ol{list-style:none;counter-reset:clause}
+  .certificate ol{list-style:none;counter-reset:clause;position:relative}
   .certificate li{counter-increment:clause;display:flex;gap:.7rem;padding:.5rem 0;border-bottom:1px dashed #c9bb96;font-size:.9rem}
   .certificate li:last-child{border-bottom:0}
   .certificate li::before{content:counter(clause,upper-roman) ".";font-family:var(--serif);font-weight:600;min-width:1.8rem;color:#7a6531}
@@ -117,7 +153,6 @@
   .cert-copy p{color:var(--dust);max-width:48ch;margin-bottom:.9rem}
   .cert-copy .fine{font-family:var(--mono);font-size:.66rem;color:var(--dust);letter-spacing:.06em;border-top:1px solid var(--line);padding-top:.8rem;max-width:52ch}
 
-  /* PACKS — quiet */
   .packs{display:grid;gap:.9rem;grid-template-columns:1fr}
   @media(min-width:860px){.packs{grid-template-columns:repeat(3,1fr)}}
   .pack{border:1px solid var(--line);border-radius:.6rem;padding:1.25rem;background:var(--smoke);display:flex;flex-direction:column}
@@ -145,18 +180,21 @@
   @media(min-width:800px){footer{padding-bottom:2rem}}
 
   .sticky{position:fixed;inset-inline:0;bottom:0;z-index:60;display:flex;justify-content:center;padding:.65rem 1rem 1rem;
-          background:linear-gradient(transparent,rgba(19,16,9,.94) 45%)}
+          background:linear-gradient(transparent,rgba(19,16,9,.94) 45%);
+          transform:translateY(130%);transition:transform .35s cubic-bezier(.16,1,.3,1)}
+  .sticky.show{transform:none}
   .sticky .btn{width:100%;max-width:26rem;justify-content:center}
   @media(min-width:800px){.sticky{display:none}}
 </style>
 </head>
 <body>
+<a class="skip" href="#showing">Skip to samples</a>
 
 <header>
   <div class="wrap bar">
     <a class="brand" href="https://activemirror.ai/mirrorprod-india/">MirrorProd<small>by Active Mirror · India</small></a>
     <nav class="top" aria-label="Primary">
-      <a href="#showing">Now showing</a>
+      <a href="#showing">Screening room</a>
       <a href="#scenes">How it works</a>
       <a href="#certificate">The certificate</a>
       <a href="#packs">Packs</a>
@@ -167,76 +205,92 @@
 
 <main>
   <div class="hero">
-    <div class="bg" role="img" aria-label="Warm cinematic studio atmosphere — a real MirrorProd generated frame"></div>
+    <div class="bg" role="img" aria-label="A MirrorProd founder film frame"></div>
+    <video class="film" autoplay muted loop playsinline preload="metadata" tabindex="-1" aria-hidden="true"
+           poster="/mirrorprod-india/next/assets/hero-atmosphere.jpg"
+           src="https://activemirror.ai/mirrorprod-site-assets/studio_atmosphere_20260424.mp4"></video>
     <div class="scrim" aria-hidden="true"></div>
     <div class="wrap">
       <div>
         <span class="slate">Scene 00 · The offer</span>
         <h1>Cinema-grade videos for your business. <em>No shoot day.</em></h1>
-        <p class="sub">Founder films, product ads, and local promos cut from a rough WhatsApp brief — no camera, crew, or acting. Watch the real samples below, then send yours.</p>
-        <div class="actions">
+        <p class="sub">Founder films, product ads, and local promos cut from a rough WhatsApp brief — no camera, crew, or acting. Play the samples below, then send yours.</p>
+        <div class="actions" id="heroActions">
           <a class="btn" href="https://wa.me/917756858857?text=Hi%2C%20I%20want%20a%20MirrorProd%20video%20for%20my%20business.">Send a rough brief on WhatsApp</a>
-          <a class="btn quiet" href="#showing">Watch samples</a>
+          <a class="btn quiet" href="#showing">Enter the screening room</a>
         </div>
-        <p class="anchor">Campaign packs from <b>₹39k</b> · Hindi + English · every video ships with its certificate</p>
+        <p class="anchor">Campaign packs from <b>₹39k</b> · Hindi + English · the certificate ships with delivery</p>
       </div>
       <figure class="onesheet">
-        <img src="/mirrorprod-india/next/assets/hero-founder.jpg" alt="Founder-style opener — a real MirrorProd sample frame of a founder addressing camera">
+        <img src="/mirrorprod-india/next/assets/hero-founder.jpg" alt="Founder-style opener — a MirrorProd sample frame of a founder addressing camera">
         <figcaption><span>Founder-style opener</span><span class="ai-chip">AI-generated</span></figcaption>
       </figure>
     </div>
   </div>
 
+  <div class="leader" aria-hidden="true">
+    <div class="strip">
+      <span>27+ samples on file</span><span><b>Hindi + English</b></span><span>reels · ads · explainers</span><span>label <b>+</b> provenance <b>+</b> consent receipt</span><span>Mumbai-made frames</span><span>no shoot day</span>
+      <span>27+ samples on file</span><span><b>Hindi + English</b></span><span>reels · ads · explainers</span><span>label <b>+</b> provenance <b>+</b> consent receipt</span><span>Mumbai-made frames</span><span>no shoot day</span>
+    </div>
+  </div>
+
   <section id="showing">
     <div class="wrap">
-      <span class="slate">Now showing · real frames from real samples</span>
-      <h2>Made without a single shoot.</h2>
-      <p class="lede">Every frame below is pulled straight from a MirrorProd sample. Every one carries its AI label — the same label your delivered videos will carry, because Indian law now asks for it and we build it in.</p>
+      <span class="slate">The screening room · tap to play</span>
+      <h2>Made without a single shoot. Playing now.</h2>
+      <p class="lede">These frames are pulled straight from MirrorProd samples — tap one and it plays right here. Note the AI label on the footage: the same disclosure your delivered videos will carry, because Indian law now asks for it and we build it in.</p>
       <div class="rail">
-        <a class="poster" href="https://activemirror.ai/mirrorprod-india/#showroom">
+        <article class="poster">
           <div class="frame">
-            <img src="/mirrorprod-india/next/assets/founder.jpg" alt="Founder on a Mumbai rooftop at dusk — sample frame">
+            <video controls muted playsinline preload="none" poster="/mirrorprod-india/next/assets/founder.jpg"
+                   src="https://activemirror.ai/videos/paul-rooftop-signal.mp4" aria-label="Play sample: Rooftop signal, founder ad, English reel"></video>
             <span class="ai-chip">AI-generated</span><span class="len">Reel · EN</span>
           </div>
           <div class="meta"><span class="slate">Founder ads</span><h3>Rooftop signal</h3></div>
-        </a>
-        <a class="poster" href="https://activemirror.ai/mirrorprod-india/#showroom">
+        </article>
+        <article class="poster">
           <div class="frame">
-            <img src="/mirrorprod-india/next/assets/product.jpg" alt="Product demo close-up — sample frame">
+            <video controls muted playsinline preload="none" poster="/mirrorprod-india/next/assets/product.jpg"
+                   src="https://activemirror.ai/videos/mprod-product-demo.mp4" aria-label="Play sample: Product demo, product ad, English film"></video>
             <span class="ai-chip">AI-generated</span><span class="len">Film · EN</span>
           </div>
           <div class="meta"><span class="slate">Product ads</span><h3>Product demo</h3></div>
-        </a>
-        <a class="poster" href="https://activemirror.ai/mirrorprod-india/#showroom">
+        </article>
+        <article class="poster">
           <div class="frame">
-            <img src="/mirrorprod-india/next/assets/food.jpg" alt="Restaurant food promo — sample frame">
+            <video controls muted playsinline preload="none" poster="/mirrorprod-india/next/assets/food.jpg"
+                   src="https://activemirror.ai/videos/mprod-food-promo.mp4" aria-label="Play sample: Food promo, local business reel, Hindi"></video>
             <span class="ai-chip">AI-generated</span><span class="len">Reel · HI</span>
           </div>
           <div class="meta"><span class="slate">Local business</span><h3>Food promo</h3></div>
-        </a>
-        <a class="poster" href="https://activemirror.ai/mirrorprod-india/#showroom">
+        </article>
+        <article class="poster">
           <div class="frame">
-            <img src="/mirrorprod-india/next/assets/salon.jpg" alt="Salon transformation reel — sample frame">
+            <video controls muted playsinline preload="none" poster="/mirrorprod-india/next/assets/salon.jpg"
+                   src="https://activemirror.ai/videos/mprod-salon-reel.mp4" aria-label="Play sample: Salon reel, local business, English"></video>
             <span class="ai-chip">AI-generated</span><span class="len">Reel · EN</span>
           </div>
           <div class="meta"><span class="slate">Local business</span><h3>Salon reel</h3></div>
-        </a>
-        <a class="poster" href="https://activemirror.ai/mirrorprod-india/#showroom">
+        </article>
+        <article class="poster">
           <div class="frame">
-            <img src="/mirrorprod-india/next/assets/coaching.jpg" alt="Coaching institute admissions ad — sample frame">
+            <video controls muted playsinline preload="none" poster="/mirrorprod-india/next/assets/coaching.jpg"
+                   src="https://activemirror.ai/videos/mprod-coaching-ad.mp4" aria-label="Play sample: Coaching admissions ad, schools and institutions, English"></video>
             <span class="ai-chip">AI-generated</span><span class="len">Film · EN</span>
           </div>
           <div class="meta"><span class="slate">Schools · institutions</span><h3>Coaching ad</h3></div>
-        </a>
-        <a class="poster" href="https://activemirror.ai/mirrorprod-india/#showroom">
+        </article>
+        <article class="poster">
           <div class="frame">
-            <img src="/mirrorprod-india/next/assets/awareness.jpg" alt="Public awareness campaign wall of screens — sample frame">
+            <video controls muted playsinline preload="none" poster="/mirrorprod-india/next/assets/awareness.jpg"
+                   src="https://activemirror.ai/videos/chetana-command-wall.mp4" aria-label="Play sample: Command wall, awareness campaign, English"></video>
             <span class="ai-chip">AI-generated</span><span class="len">Film · EN</span>
           </div>
           <div class="meta"><span class="slate">Awareness</span><h3>Command wall</h3></div>
-        </a>
+        </article>
       </div>
-      <p class="rail-note">→ swipe for more · full library on the live page</p>
+      <p class="rail-note">→ swipe for more · <a href="https://activemirror.ai/mirrorprod-india/#showroom">full library on the live page</a></p>
     </div>
   </section>
 
@@ -259,7 +313,7 @@
         </div>
         <div class="scene">
           <span class="slate">Scene 03 · Final cut</span>
-          <h3>Review, approve, publish</h3>
+          <h3>You review, approve, publish</h3>
           <p>A structured review lane — and the certificate ships with the final cut.</p>
           <a href="#certificate">What's in the certificate →</a>
         </div>
@@ -269,9 +323,11 @@
 
   <section id="certificate">
     <div class="wrap cert-wrap">
-      <div class="certificate" role="group" aria-label="MirrorProd delivery certificate — what ships with every video">
+      <div class="certificate" role="group" aria-label="MirrorProd delivery certificate — specimen">
+        <div class="specimen">Specimen</div>
+        <div class="seal" aria-hidden="true"><b>AM</b><i>TRUST</i></div>
         <div class="head">
-          <span class="slate">Ships with every delivery</span>
+          <span class="cert-eyebrow">Ships with delivery</span>
           <h3>Certificate of Provenance</h3>
         </div>
         <ol>
@@ -283,9 +339,9 @@
       </div>
       <div class="cert-copy">
         <span class="slate">Why this matters now</span>
-        <h2>Every video leaves here legal to run.</h2>
+        <h2>Your video leaves here legal to run.</h2>
         <p>Since February 2026, realistic AI video published in India must be labelled and provenance-tagged. Most services leave that to you. Here it's the delivery standard — like a censor certificate, but for the AI age, and it's yours to keep.</p>
-        <p>If your face is in the film, the founder lane adds consent custody: captured with explicit consent, used only per approval, receipted on every reuse.</p>
+        <p>If your face is in the film, the founder lane adds consent custody: captured with explicit consent, used only per approval, receipted on reuse.</p>
         <p class="fine">Rules status as of 12 Jul 2026 — labelling and provenance obligations effective 20 Feb 2026; final label-visibility norms still in consultation. A delivery standard, not legal advice.</p>
       </div>
     </div>
@@ -355,7 +411,7 @@
   <div class="final">
     <div class="wrap">
       <span class="slate">Ready when you are</span>
-      <h2>Send the rough idea. We'll suggest the right film.</h2>
+      <h2 class="serif">Send the rough idea. We'll suggest the right film.</h2>
       <p>A business name, an offer, or a message is enough for a first concept.</p>
       <div class="actions">
         <a class="btn" href="https://wa.me/917756858857?text=Hi%2C%20I%20want%20a%20MirrorProd%20video%20for%20my%20business.">Send on WhatsApp</a>
@@ -372,9 +428,30 @@
   </div>
 </footer>
 
-<div class="sticky">
+<div class="sticky" id="stickyCta">
   <a class="btn" href="https://wa.me/917756858857?text=Hi%2C%20I%20want%20a%20MirrorProd%20video%20for%20my%20business.">Send a rough brief on WhatsApp</a>
 </div>
+<noscript><style>.sticky{transform:none}</style></noscript>
 
+<script>
+(function(){
+  // Sticky CTA appears only after the hero CTA scrolls out of view.
+  var sticky=document.getElementById('stickyCta'), heroActions=document.getElementById('heroActions');
+  if('IntersectionObserver' in window && sticky && heroActions){
+    new IntersectionObserver(function(entries){
+      sticky.classList.toggle('show', !entries[0].isIntersecting);
+    },{threshold:0}).observe(heroActions);
+  } else if(sticky){ sticky.classList.add('show'); }
+
+  // Desktop hover-preview in the screening room; user interaction takes precedence.
+  if(window.matchMedia('(hover:hover) and (pointer:fine)').matches){
+    document.querySelectorAll('.rail video').forEach(function(v){
+      v.addEventListener('click',function(){ v.dataset.lock='1'; });
+      v.addEventListener('mouseenter',function(){ if(v.paused && !v.dataset.lock){ v.play().catch(function(){}); } });
+      v.addEventListener('mouseleave',function(){ if(!v.dataset.lock){ v.pause(); try{v.currentTime=0;}catch(e){} } });
+    });
+  }
+})();
+</script>
 </body>
 </html>

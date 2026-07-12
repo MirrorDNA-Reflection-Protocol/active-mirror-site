@@ -20,6 +20,11 @@ const SITE_ORIGIN = 'https://activemirror.ai';
 // Paths the current host actually owns; a bundle href in this namespace that
 // fails to resolve is a real regression of the graft, not old-SPA residue.
 const HOST_NS = /^\/(app(\/|$)|product(\/|$)|mirror(\/|$)|pricing$|trust$|privacy$|terms$|mirrorprod-india(\/|$))|^\/$/;
+// HANDLE_PROVENANCE: /videos/* is served by the worker media layer, not dist —
+// discovered 2026-07-12 when six live-200 sample MP4s failed the dist check
+// (dist lacks videos/ while the worker serves them; R2/KV bindings in worker config).
+// Reported as media-class, never fatal on dist absence.
+const WORKER_SERVED = /^\/videos\//;
 
 const fail = (msg) => { console.error(`Mirrorprod link guard FAILED: ${msg}`); process.exit(1); };
 
@@ -52,13 +57,16 @@ const normalize = (raw) => {
 
 const fatalChecks = new Map();
 const warnChecks = new Map();
+const mediaChecks = new Map();
 
 for (const dir of pageDirs) {
     const html = readFileSync(join(dir, 'index.html'), 'utf8');
-    // Page-declared targets (head links, anchors, noscript) are always fatal.
+    // Page-declared targets (head links, anchors, noscript) are fatal unless worker-served media.
     for (const m of html.matchAll(/(?:href|src)="([^"#][^"]*)"/g)) {
         const p = normalize(m[1]);
-        if (p !== null) fatalChecks.set(p, m[1]);
+        if (p === null) continue;
+        if (WORKER_SERVED.test(p)) mediaChecks.set(p, m[1]);
+        else fatalChecks.set(p, m[1]);
     }
     // The bundle referenced by this page, if any.
     const bundleMatch = html.match(/src="(\/mirrorprod-india\/assets\/main-[^"]+\.js)"/);
@@ -69,7 +77,8 @@ for (const dir of pageDirs) {
         for (const m of js.matchAll(/href:\s*"([^"]+)"/g)) {
             const p = normalize(m[1]);
             if (p === null) continue;
-            if (HOST_NS.test(p)) fatalChecks.set(p, m[1]);
+            if (WORKER_SERVED.test(p)) mediaChecks.set(p, m[1]);
+            else if (HOST_NS.test(p)) fatalChecks.set(p, m[1]);
             else warnChecks.set(p, m[1]);
         }
     }
