@@ -1,0 +1,22 @@
+{
+  "certificate": "MP-2026-0001",
+  "standard": "MirrorProd delivery standard v1 (hash-commit provenance; not C2PA, not ZKP)",
+  "legal_basis": "India IT Rules SGI amendments, labelling+provenance effective 2026-02-20",
+  "generator": "MirrorProd (Veo pipeline)",
+  "source_sha256": "a6a6df90493680a7a82917d1a30cf20abec587e334f4152ead09bd74be5e2bac",
+  "client": "SPECIMEN \u2014 internal proof",
+  "project": "Receipts pipeline v1 proof",
+  "issued_utc": "2026-07-12T14:18:10+00:00",
+  "issuer": "Active Mirror / N1 Intelligence (OPC) Pvt Ltd",
+  "delivered_sha256": "e70e0614d765faa63fc9efc4d7959336073851176c3c03102296ec651319a7b0",
+  "visible_label": "burned",
+  "consent_receipt": {
+    "present": false,
+    "note": "no real likeness declared, or consent pending"
+  },
+  "clauses": [
+    "I. Visible AI label on the video",
+    "II. Provenance metadata embedded in the file (container comment) + this hash-committed certificate",
+    "III. Consent receipt travels with the project when a real likeness appears"
+  ]
+}
