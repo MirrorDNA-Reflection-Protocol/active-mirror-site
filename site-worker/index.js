@@ -22,8 +22,8 @@ const APP_SHELL_HTML = `<!doctype html>
     <link rel="alternate" type="text/plain" href="https://activemirror.ai/llms.txt" title="Active Mirror AI instructions" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230b110e'/%3E%3Cpath d='M32 10 50 20.5v21L32 54 14 41.5v-21L32 10Z' fill='none' stroke='%235db8a5' stroke-width='4'/%3E%3Cpath d='M32 21 42 27v10L32 43 22 37V27L32 21Z' fill='none' stroke='%2370b7e6' stroke-width='4'/%3E%3C/svg%3E" />
     <title>Active Mirror - start with one thing</title>
-    <script type="module" crossorigin src="/app/assets/index-D2_rhkA8.js"></script>
-    <link rel="stylesheet" crossorigin href="/app/assets/index-D2OYVJsV.css">
+    <script type="module" crossorigin src="/app/assets/index-pOMKZoAP.js"></script>
+    <link rel="stylesheet" crossorigin href="/app/assets/index-DE7OMOkt.css">
   </head>
   <body>
     <div id="root"></div>
