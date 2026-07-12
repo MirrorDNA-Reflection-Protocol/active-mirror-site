@@ -171,6 +171,7 @@ function isIgnoredConsoleError(text) {
     // Production deploy bundles send allowlisted event metadata to the gateway.
     // Local preview origins are intentionally not CORS-allowed by the Worker.
     || (isLocalPreview() && /Failed to load resource: the server responded with a status of 403/i.test(text))
+    || (isLocalPreview() && /gateway\.activemirror\.ai\/health.*CORS policy/i.test(text))
     || (isLocalPreview() && /gateway\.activemirror\.ai\/v1\/mirror\/create.*CORS policy/i.test(text))
     || (isLocalPreview() && /gateway\.activemirror\.ai\/v1\/mirror\/artifact.*CORS policy/i.test(text))
     || (isLocalPreview() && /gateway\.activemirror\.ai\/v1\/mirror\/enterprise-stream.*CORS policy/i.test(text))
