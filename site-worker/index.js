@@ -17,13 +17,13 @@ const APP_SHELL_HTML = `<!doctype html>
     <meta name="twitter:image" content="https://activemirror.ai/app/assets/active-mirror-trust-poster.jpg" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://gateway.activemirror.ai; connect-src 'self' https://gateway.activemirror.ai https://cloudflareinsights.com https://static.cloudflareinsights.com https://storage.googleapis.com https://huggingface.co https://*.hf.co; font-src 'self' data:; media-src 'self' blob: data:; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
-    <meta name="theme-color" content="#050507" />
+    <meta name="theme-color" content="#0b110e" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="alternate" type="text/plain" href="https://activemirror.ai/llms.txt" title="Active Mirror AI instructions" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23000000'/%3E%3Cpath d='M32 10 50 20.5v21L32 54 14 41.5v-21L32 10Z' fill='none' stroke='%23a78bfa' stroke-width='4'/%3E%3Cpath d='M32 21 42 27v10L32 43 22 37V27L32 21Z' fill='none' stroke='%2322d3ee' stroke-width='4'/%3E%3C/svg%3E" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230b110e'/%3E%3Cpath d='M32 10 50 20.5v21L32 54 14 41.5v-21L32 10Z' fill='none' stroke='%235db8a5' stroke-width='4'/%3E%3Cpath d='M32 21 42 27v10L32 43 22 37V27L32 21Z' fill='none' stroke='%2370b7e6' stroke-width='4'/%3E%3C/svg%3E" />
     <title>Active Mirror - start with one thing</title>
-    <script type="module" crossorigin src="/app/assets/index-BSFa-CIw.js"></script>
-    <link rel="stylesheet" crossorigin href="/app/assets/index-C6ZjJUxg.css">
+    <script type="module" crossorigin src="/app/assets/index-D2_rhkA8.js"></script>
+    <link rel="stylesheet" crossorigin href="/app/assets/index-D2OYVJsV.css">
   </head>
   <body>
     <div id="root"></div>
