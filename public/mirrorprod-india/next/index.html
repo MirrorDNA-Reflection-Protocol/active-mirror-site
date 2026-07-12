@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow"><link rel="icon" type="image/png" href="/mirrorprod-india/favicon.png"><link rel="apple-touch-icon" href="/mirrorprod-india/apple-touch-icon.png"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MirrorProd · Preview — Cinema-grade business videos. No shoot day.</title>
+<style>
+  /* Palette: warm film-noir, not blue-black. One accent family (brass). */
+  :root{
+    --ink:#131009; --smoke:#1e1912; --bone:#f1e9db; --dust:#b9ae9c;
+    --brass:#c9a464; --brass-hot:#e6c07a; --line:#3a3226; --paper:#efe6d3;
+    --serif:Georgia,'Times New Roman',serif;
+    --sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    --mono:ui-monospace,'SF Mono',Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--ink);color:var(--bone);font-family:var(--sans);line-height:1.6}
+  img{display:block;max-width:100%}
+  a:focus-visible,summary:focus-visible{outline:2px solid var(--brass-hot);outline-offset:3px;border-radius:3px}
+  .wrap{max-width:74rem;margin:0 auto;padding:0 1.1rem}
+
+  .slate{font-family:var(--mono);font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--brass)}
+  .slate::before{content:"◼ ";font-size:.5rem;vertical-align:.12em}
+
+  header{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--ink) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .bar{display:flex;align-items:center;justify-content:space-between;padding:.75rem 0;gap:1rem}
+  .brand{text-decoration:none;color:var(--bone);font-family:var(--serif);font-size:1.15rem;letter-spacing:.01em}
+  .brand small{display:block;font-family:var(--mono);font-size:.58rem;letter-spacing:.26em;text-transform:uppercase;color:var(--dust)}
+  nav.top{display:none;gap:1.4rem}
+  nav.top a{color:var(--dust);text-decoration:none;font-size:.85rem}
+  nav.top a:hover{color:var(--bone)}
+  @media(min-width:800px){nav.top{display:flex}}
+  .btn{display:inline-flex;align-items:center;gap:.5rem;background:var(--brass);color:#191204;font-weight:650;font-size:.88rem;
+       padding:.65rem 1.15rem;border-radius:999px;text-decoration:none;border:1px solid var(--brass);transition:background .2s,transform .2s}
+  .btn:hover{background:var(--brass-hot)}
+  .btn.quiet{background:transparent;color:var(--bone);border-color:var(--line)}
+  .btn.quiet:hover{border-color:var(--brass);transform:none}
+
+  /* HERO — full-bleed real still, one-sheet inset */
+  .hero{position:relative;min-height:88svh;display:flex;align-items:flex-end;overflow:hidden;border-bottom:1px solid var(--line)}
+  .hero .bg{position:absolute;inset:0;background:url('/mirrorprod-india/next/assets/hero-atmosphere.jpg') center/cover no-repeat}
+  .hero .scrim{position:absolute;inset:0;background:
+      linear-gradient(180deg,rgba(19,16,9,.55) 0%,rgba(19,16,9,.25) 40%,rgba(19,16,9,.94) 88%),
+      linear-gradient(100deg,rgba(19,16,9,.82) 0%,rgba(19,16,9,.2) 62%)}
+  .hero .wrap{position:relative;width:100%;display:grid;gap:2rem;padding-top:6rem;padding-bottom:2.6rem;grid-template-columns:1fr;align-items:end}
+  @media(min-width:900px){.hero .wrap{grid-template-columns:1.25fr .75fr}}
+  .hero h1{font-family:var(--serif);font-weight:500;font-size:clamp(2.5rem,6.5vw,4.6rem);line-height:1.02;letter-spacing:-.02em;margin:.9rem 0 1rem;max-width:15ch}
+  .hero h1 em{color:var(--brass-hot);font-style:italic}
+  .hero .sub{color:var(--dust);max-width:44ch;font-size:1.05rem;margin-bottom:1.4rem}
+  .hero .actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem}
+  .hero .anchor{font-family:var(--mono);font-size:.72rem;color:var(--dust);letter-spacing:.06em}
+  .hero .anchor b{color:var(--bone);font-weight:600}
+  .onesheet{position:relative;border:1px solid var(--line);background:var(--smoke);border-radius:.6rem;overflow:hidden;
+            box-shadow:0 30px 80px rgba(0,0,0,.55);max-width:21rem;justify-self:end;display:none}
+  @media(min-width:900px){.onesheet{display:block}}
+  .onesheet img{aspect-ratio:4/5;object-fit:cover;width:100%}
+  .onesheet figcaption{display:flex;justify-content:space-between;align-items:center;padding:.6rem .8rem;font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dust)}
+  .ai-chip{display:inline-flex;align-items:center;gap:.35rem;border:1px solid var(--line);border-radius:999px;padding:.2rem .55rem;
+           background:rgba(19,16,9,.72);font-family:var(--mono);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--bone)}
+  .ai-chip::before{content:"◇";color:var(--brass)}
+
+  @media (prefers-reduced-motion: no-preference){
+    .hero .wrap>*{animation:rise .8s cubic-bezier(.16,1,.3,1) both}
+    .hero .onesheet{animation-delay:.15s}
+    @keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+    .poster{transition:transform .25s}
+    .poster:hover{transform:translateY(-5px)}
+  }
+
+  section{padding:3.2rem 0;border-bottom:1px solid var(--line)}
+  h2{font-family:var(--serif);font-weight:500;font-size:clamp(1.6rem,3.4vw,2.4rem);letter-spacing:-.01em;margin:.5rem 0 .5rem}
+  .lede{color:var(--dust);max-width:56ch;margin-bottom:1.6rem}
+
+  /* NOW SHOWING rail — real frames */
+  .rail{display:grid;grid-auto-flow:column;grid-auto-columns:72%;gap:.9rem;overflow-x:auto;padding-bottom:.8rem;
+        scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+  @media(min-width:640px){.rail{grid-auto-columns:38%}}
+  @media(min-width:1000px){.rail{grid-auto-columns:23.5%}}
+  .poster{scroll-snap-align:start;background:var(--smoke);border:1px solid var(--line);border-radius:.6rem;overflow:hidden;text-decoration:none;color:var(--bone)}
+  .poster .frame{position:relative}
+  .poster img{aspect-ratio:3/4;object-fit:cover;width:100%}
+  .poster .frame .ai-chip{position:absolute;left:.55rem;top:.55rem}
+  .poster .frame .len{position:absolute;right:.55rem;bottom:.55rem;font-family:var(--mono);font-size:.6rem;letter-spacing:.12em;
+                      background:rgba(19,16,9,.75);border:1px solid var(--line);border-radius:999px;padding:.16rem .5rem;color:var(--dust)}
+  .poster .meta{padding:.7rem .85rem .85rem}
+  .poster .meta .slate{font-size:.58rem}
+  .poster .meta h3{font-family:var(--serif);font-weight:500;font-size:1.02rem;margin-top:.25rem}
+  .rail-note{font-family:var(--mono);font-size:.66rem;color:var(--dust);letter-spacing:.1em;margin-top:.4rem}
+
+  /* SCENES — honest sequence with slate marks */
+  .scenes{display:grid;gap:.9rem;grid-template-columns:1fr}
+  @media(min-width:820px){.scenes{grid-template-columns:repeat(3,1fr)}}
+  .scene{border:1px solid var(--line);border-radius:.6rem;padding:1.15rem;background:var(--smoke)}
+  .scene .slate{display:block;margin-bottom:.55rem}
+  .scene h3{font-family:var(--serif);font-weight:500;font-size:1.12rem;margin-bottom:.3rem}
+  .scene p{font-size:.87rem;color:var(--dust)}
+  .scene a{color:var(--brass);font-size:.82rem;text-decoration:none}
+  .scene a:hover{color:var(--brass-hot)}
+
+  /* CERTIFICATE — the signature. Indian film-certificate grammar for the compliance promise. */
+  .cert-wrap{display:grid;gap:1.6rem;grid-template-columns:1fr;align-items:center}
+  @media(min-width:920px){.cert-wrap{grid-template-columns:.95fr 1.05fr}}
+  .certificate{background:var(--paper);color:#241c0e;border-radius:.35rem;padding:1.6rem 1.5rem;position:relative;
+               box-shadow:0 24px 70px rgba(0,0,0,.5);
+               border:1px solid #9a8a67;outline:4px double #9a8a67;outline-offset:-11px}
+  .certificate .head{text-align:center;border-bottom:1px solid #b3a37e;padding-bottom:.8rem;margin-bottom:.9rem}
+  .certificate .head .slate{color:#7a6531}
+  .certificate .head .slate::before{content:""}
+  .certificate h3{font-family:var(--serif);font-size:1.35rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-top:.3rem}
+  .certificate ol{list-style:none;counter-reset:clause}
+  .certificate li{counter-increment:clause;display:flex;gap:.7rem;padding:.5rem 0;border-bottom:1px dashed #c9bb96;font-size:.9rem}
+  .certificate li:last-child{border-bottom:0}
+  .certificate li::before{content:counter(clause,upper-roman) ".";font-family:var(--serif);font-weight:600;min-width:1.8rem;color:#7a6531}
+  .certificate .no{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.62rem;letter-spacing:.12em;color:#7a6531;margin-top:1rem;text-transform:uppercase}
+  .cert-copy h2{margin-top:.2rem}
+  .cert-copy p{color:var(--dust);max-width:48ch;margin-bottom:.9rem}
+  .cert-copy .fine{font-family:var(--mono);font-size:.66rem;color:var(--dust);letter-spacing:.06em;border-top:1px solid var(--line);padding-top:.8rem;max-width:52ch}
+
+  /* PACKS — quiet */
+  .packs{display:grid;gap:.9rem;grid-template-columns:1fr}
+  @media(min-width:860px){.packs{grid-template-columns:repeat(3,1fr)}}
+  .pack{border:1px solid var(--line);border-radius:.6rem;padding:1.25rem;background:var(--smoke);display:flex;flex-direction:column}
+  .pack.reco{border-color:var(--brass)}
+  .pack .name{font-family:var(--mono);font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dust)}
+  .pack .price{font-family:var(--serif);font-size:1.7rem;color:var(--brass-hot);margin:.35rem 0 .7rem}
+  .pack ul{list-style:none;margin-bottom:1.1rem}
+  .pack li{font-size:.86rem;color:var(--dust);padding:.28rem 0 .28rem 1.15rem;position:relative}
+  .pack li::before{content:"·";position:absolute;left:.2rem;color:var(--brass);font-weight:700}
+  .pack .btn{margin-top:auto;justify-content:center}
+
+  .faq details{border:1px solid var(--line);border-radius:.6rem;background:var(--smoke);padding:.9rem 1.05rem;margin-bottom:.6rem}
+  .faq summary{cursor:pointer;font-family:var(--serif);font-size:1.02rem}
+  .faq p{font-size:.87rem;color:var(--dust);margin-top:.55rem}
+
+  .final{padding:3.4rem 0;text-align:center;background:radial-gradient(42rem 16rem at 50% 0%,rgba(201,164,100,.12),transparent 70%)}
+  .final h2{max-width:22ch;margin:0 auto .6rem}
+  .final p{color:var(--dust);max-width:40ch;margin:0 auto 1.4rem}
+  .final .actions{display:flex;justify-content:center;flex-wrap:wrap;gap:.75rem}
+
+  footer{padding:1.7rem 0 5.5rem;color:var(--dust);font-size:.8rem}
+  footer .row{display:flex;flex-wrap:wrap;gap:1rem;justify-content:space-between}
+  footer a{color:var(--dust)}
+  footer a:hover{color:var(--bone)}
+  @media(min-width:800px){footer{padding-bottom:2rem}}
+
+  .sticky{position:fixed;inset-inline:0;bottom:0;z-index:60;display:flex;justify-content:center;padding:.65rem 1rem 1rem;
+          background:linear-gradient(transparent,rgba(19,16,9,.94) 45%)}
+  .sticky .btn{width:100%;max-width:26rem;justify-content:center}
+  @media(min-width:800px){.sticky{display:none}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="https://activemirror.ai/mirrorprod-india/">MirrorProd<small>by Active Mirror · India</small></a>
+    <nav class="top" aria-label="Primary">
+      <a href="#showing">Now showing</a>
+      <a href="#scenes">How it works</a>
+      <a href="#certificate">The certificate</a>
+      <a href="#packs">Packs</a>
+    </nav>
+    <a class="btn" href="https://wa.me/917756858857?text=Hi%2C%20I%20want%20a%20MirrorProd%20video%20for%20my%20business.">Send brief</a>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="bg" role="img" aria-label="Warm cinematic studio atmosphere — a real MirrorProd generated frame"></div>
+    <div class="scrim" aria-hidden="true"></div>
+    <div class="wrap">
+      <div>
+        <span class="slate">Scene 00 · The offer</span>
+        <h1>Cinema-grade videos for your business. <em>No shoot day.</em></h1>
+        <p class="sub">Founder films, product ads, and local promos cut from a rough WhatsApp brief — no camera, crew, or acting. Watch the real samples below, then send yours.</p>
+        <div class="actions">
+          <a class="btn" href="https://wa.me/917756858857?text=Hi%2C%20I%20want%20a%20MirrorProd%20video%20for%20my%20business.">Send a rough brief on WhatsApp</a>
+          <a class="btn quiet" href="#showing">Watch samples</a>
+        </div>
+        <p class="anchor">Campaign packs from <b>₹39k</b> · Hindi + English · every video ships with its certificate</p>
+      </div>
+      <figure class="onesheet">
+        <img src="/mirrorprod-india/next/assets/hero-founder.jpg" alt="Founder-style opener — a real MirrorProd sample frame of a founder addressing camera">
+        <figcaption><span>Founder-style opener</span><span class="ai-chip">AI-generated</span></figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <section id="showing">
+    <div class="wrap">
+      <span class="slate">Now showing · real frames from real samples</span>
+      <h2>Made without a single shoot.</h2>
+      <p class="lede">Every frame below is pulled straight from a MirrorProd sample. Every one carries its AI label — the same label your delivered videos will carry, because Indian law now asks for it and we build it in.</p>
+      <div class="rail">
+        <a class="poster" href="https://activemirror.ai/mirrorprod-india/#showroom">
+          <div class="frame">
+            <img src="/mirrorprod-india/next/assets/founder.jpg" alt="Founder on a Mumbai rooftop at dusk — sample frame">
+            <span class="ai-chip">AI-generated</span><span class="len">Reel · EN</span>
+          </div>
+          <div class="meta"><span class="slate">Founder ads</span><h3>Rooftop signal</h3></div>
+        </a>
+        <a class="poster" href="https://activemirror.ai/mirrorprod-india/#showroom">
+          <div class="frame">
+            <img src="/mirrorprod-india/next/assets/product.jpg" alt="Product demo close-up — sample frame">
+            <span class="ai-chip">AI-generated</span><span class="len">Film · EN</span>
+          </div>
+          <div class="meta"><span class="slate">Product ads</span><h3>Product demo</h3></div>
+        </a>
+        <a class="poster" href="https://activemirror.ai/mirrorprod-india/#showroom">
+          <div class="frame">
+            <img src="/mirrorprod-india/next/assets/food.jpg" alt="Restaurant food promo — sample frame">
+            <span class="ai-chip">AI-generated</span><span class="len">Reel · HI</span>
+          </div>
+          <div class="meta"><span class="slate">Local business</span><h3>Food promo</h3></div>
+        </a>
+        <a class="poster" href="https://activemirror.ai/mirrorprod-india/#showroom">
+          <div class="frame">
+            <img src="/mirrorprod-india/next/assets/salon.jpg" alt="Salon transformation reel — sample frame">
+            <span class="ai-chip">AI-generated</span><span class="len">Reel · EN</span>
+          </div>
+          <div class="meta"><span class="slate">Local business</span><h3>Salon reel</h3></div>
+        </a>
+        <a class="poster" href="https://activemirror.ai/mirrorprod-india/#showroom">
+          <div class="frame">
+            <img src="/mirrorprod-india/next/assets/coaching.jpg" alt="Coaching institute admissions ad — sample frame">
+            <span class="ai-chip">AI-generated</span><span class="len">Film · EN</span>
+          </div>
+          <div class="meta"><span class="slate">Schools · institutions</span><h3>Coaching ad</h3></div>
+        </a>
+        <a class="poster" href="https://activemirror.ai/mirrorprod-india/#showroom">
+          <div class="frame">
+            <img src="/mirrorprod-india/next/assets/awareness.jpg" alt="Public awareness campaign wall of screens — sample frame">
+            <span class="ai-chip">AI-generated</span><span class="len">Film · EN</span>
+          </div>
+          <div class="meta"><span class="slate">Awareness</span><h3>Command wall</h3></div>
+        </a>
+      </div>
+      <p class="rail-note">→ swipe for more · full library on the live page</p>
+    </div>
+  </section>
+
+  <section id="scenes">
+    <div class="wrap">
+      <span class="slate">How it works</span>
+      <h2>Three scenes. One week, not one shoot.</h2>
+      <div class="scenes">
+        <div class="scene">
+          <span class="slate">Scene 01 · 00:00</span>
+          <h3>Send the rough brief</h3>
+          <p>What you're promoting, who it's for, where it runs. WhatsApp is enough.</p>
+          <a href="https://wa.me/917756858857?text=Hi%2C%20I%20want%20a%20MirrorProd%20video%20for%20my%20business.">Start on WhatsApp →</a>
+        </div>
+        <div class="scene">
+          <span class="slate">Scene 02 · 48h</span>
+          <h3>We shape the concept</h3>
+          <p>A clear direction, an opening idea, and a first concept come back to you.</p>
+          <a href="#showing">See what concepts become →</a>
+        </div>
+        <div class="scene">
+          <span class="slate">Scene 03 · Final cut</span>
+          <h3>Review, approve, publish</h3>
+          <p>A structured review lane — and the certificate ships with the final cut.</p>
+          <a href="#certificate">What's in the certificate →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="certificate">
+    <div class="wrap cert-wrap">
+      <div class="certificate" role="group" aria-label="MirrorProd delivery certificate — what ships with every video">
+        <div class="head">
+          <span class="slate">Ships with every delivery</span>
+          <h3>Certificate of Provenance</h3>
+        </div>
+        <ol>
+          <li>Visible AI label on the video — the on-screen disclosure India's IT Rules require, styled, not slapped on.</li>
+          <li>Provenance metadata embedded in the file — machine-readable origin, traceable end to end.</li>
+          <li>Consent receipt — when a real face or voice appears, the signed consent artifact travels with the project.</li>
+        </ol>
+        <div class="no"><span>Cert № MP-2026-····</span><span>Active Mirror · Trust by Design</span></div>
+      </div>
+      <div class="cert-copy">
+        <span class="slate">Why this matters now</span>
+        <h2>Every video leaves here legal to run.</h2>
+        <p>Since February 2026, realistic AI video published in India must be labelled and provenance-tagged. Most services leave that to you. Here it's the delivery standard — like a censor certificate, but for the AI age, and it's yours to keep.</p>
+        <p>If your face is in the film, the founder lane adds consent custody: captured with explicit consent, used only per approval, receipted on every reuse.</p>
+        <p class="fine">Rules status as of 12 Jul 2026 — labelling and provenance obligations effective 20 Feb 2026; final label-visibility norms still in consultation. A delivery standard, not legal advice.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="packs">
+    <div class="wrap">
+      <span class="slate">Campaign packs · not per-clip rates</span>
+      <h2>Priced for campaigns that run.</h2>
+      <div class="packs">
+        <div class="pack">
+          <span class="name">Starter</span>
+          <div class="price">₹39k–59k</div>
+          <ul>
+            <li>1 concept + 1 hero cut</li>
+            <li>3 platform recuts</li>
+            <li>Poster frames included</li>
+            <li>Certificate of Provenance</li>
+          </ul>
+          <a class="btn quiet" href="https://wa.me/917756858857?text=Hi%2C%20I%27m%20interested%20in%20the%20MirrorProd%20Starter%20Pack.">Start with Starter</a>
+        </div>
+        <div class="pack reco">
+          <span class="name">Growth · recommended</span>
+          <div class="price">₹79k–99k</div>
+          <ul>
+            <li>Multiple opening options</li>
+            <li>More than one output format</li>
+            <li>Reusable brand + founder setup</li>
+            <li>Review lane for live campaigns</li>
+          </ul>
+          <a class="btn" href="https://wa.me/917756858857?text=Hi%2C%20I%27m%20interested%20in%20the%20MirrorProd%20Growth%20Pack.">Talk Growth</a>
+        </div>
+        <div class="pack">
+          <span class="name">Custom</span>
+          <div class="price">Let's scope it</div>
+          <ul>
+            <li>Schools, brands, campaigns</li>
+            <li>Multi-video rollout</li>
+            <li>Multi-stakeholder review</li>
+            <li>Structured approvals</li>
+          </ul>
+          <a class="btn quiet" href="mailto:paul@activemirror.ai?subject=MirrorProd%20Custom%20Campaign">Email the brief</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq" class="faq">
+    <div class="wrap">
+      <span class="slate">Before the first brief</span>
+      <h2>Asked, answered.</h2>
+      <details>
+        <summary>What kinds of videos can MirrorProd make?</summary>
+        <p>Founder videos, product ads, explainers, awareness campaigns, creator content, local-business promos, and lighter spoof-style social cuts.</p>
+      </details>
+      <details>
+        <summary>Do I need to be good on camera?</summary>
+        <p>No. The point is to remove the pressure of shoots, camera setups, and on-camera performance just to get useful video made.</p>
+      </details>
+      <details>
+        <summary>What does the certificate actually cover?</summary>
+        <p>The visible AI label and embedded provenance metadata India's IT Rules ask for on realistic synthetic media, plus a consent receipt when a real person's likeness is used. You publish without retrofitting compliance.</p>
+      </details>
+    </div>
+  </section>
+
+  <div class="final">
+    <div class="wrap">
+      <span class="slate">Ready when you are</span>
+      <h2>Send the rough idea. We'll suggest the right film.</h2>
+      <p>A business name, an offer, or a message is enough for a first concept.</p>
+      <div class="actions">
+        <a class="btn" href="https://wa.me/917756858857?text=Hi%2C%20I%20want%20a%20MirrorProd%20video%20for%20my%20business.">Send on WhatsApp</a>
+        <a class="btn quiet" href="mailto:paul@activemirror.ai?subject=MirrorProd%20India%20%E2%80%94%20Video%20Brief">Email instead</a>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap row">
+    <span>MirrorProd by <a href="https://activemirror.ai/">Active Mirror</a> · N1 Intelligence (OPC) Pvt Ltd</span>
+    <span><a href="https://activemirror.ai/mirrorprod-india/">Live page</a> · <a href="https://wa.me/917756858857?text=Hi%2C%20I%20want%20a%20MirrorProd%20video%20for%20my%20business.">WhatsApp</a> · <a href="mailto:paul@activemirror.ai">Email</a></span>
+  </div>
+</footer>
+
+<div class="sticky">
+  <a class="btn" href="https://wa.me/917756858857?text=Hi%2C%20I%20want%20a%20MirrorProd%20video%20for%20my%20business.">Send a rough brief on WhatsApp</a>
+</div>
+
+</body>
+</html>

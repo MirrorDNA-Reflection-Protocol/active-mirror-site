@@ -1,0 +1,18 @@
+{
+    "name": "MirrorProd India",
+    "short_name": "MirrorProd",
+    "description": "Professional videos without shoots — founder videos, product ads, and local promos for India.",
+    "start_url": "/mirrorprod-india/",
+    "scope": "/mirrorprod-india/",
+    "display": "standalone",
+    "background_color": "#08161e",
+    "theme_color": "#08161e",
+    "icons": [
+        {
+            "src": "/mirrorprod-india/assets/active-mirror-icon.png",
+            "sizes": "768x768",
+            "type": "image/png",
+            "purpose": "any"
+        }
+    ]
+}
