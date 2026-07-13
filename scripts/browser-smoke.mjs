@@ -12,14 +12,17 @@ const routes = [
     path: "/",
     fresh: true,
     mustSee: [
-      /What do you want\?/i,
-      /Start here/i,
-      /Load saved setup/i,
+      /Bring the unfinished thing\./i,
+      /A rough note, decision, or draft is enough\./i,
+      /Start with a move/i,
+      /Set a private context/i,
+      /Load saved context/i,
       /Send/i,
       /\bMake\b/i,
       /\bDecide\b/i,
       /\bFix\b/i,
       /\bUnderstand\b/i,
+      /\bTalk\b/i,
     ],
     interact: true,
   },
@@ -49,7 +52,19 @@ const routes = [
     name: "mirror",
     path: "/mirror",
     fresh: true,
-    mustSee: [/What do you want\?/i, /Start here/i, /Load saved setup/i, /Send/i, /\bMake\b/i, /\bDecide\b/i, /\bFix\b/i, /\bUnderstand\b/i],
+    mustSee: [
+      /Bring the unfinished thing\./i,
+      /A rough note, decision, or draft is enough\./i,
+      /Start with a move/i,
+      /Set a private context/i,
+      /Load saved context/i,
+      /Send/i,
+      /\bMake\b/i,
+      /\bDecide\b/i,
+      /\bFix\b/i,
+      /\bUnderstand\b/i,
+      /\bTalk\b/i,
+    ],
   },
   {
     name: "enterprise",
@@ -237,11 +252,10 @@ async function exerciseFirstInput(page) {
   await page.goto(routeUrl("/"), { waitUntil: "domcontentloaded", timeout: 20000 });
   await page.locator("textarea, input[type='text'], [contenteditable='true']").first().fill(testText);
   await page.getByRole("button", { name: /^Send$/ }).first().click();
-  await page.getByRole("button", { name: /^Save$/ }).waitFor({ timeout: 30000 });
-  await page.getByRole("button", { name: /^Save$/ }).click();
+  await page.getByRole("button", { name: /^Save note$/ }).waitFor({ timeout: 30000 });
+  await page.getByRole("button", { name: /^Save note$/ }).click();
   await page.getByRole("button", { name: /^Saved$/ }).waitFor({ timeout: 10000 });
-  await page.getByRole("button", { name: /^(Different angle|Another angle|Make page copy|Test it)$/ }).last().waitFor({ timeout: 10000 });
-  const artifactButton = page.getByRole("button", { name: /^(Draft it|Make doc|Make code starter|Make visual brief|Make page copy|Test it)$/ }).first();
+  const artifactButton = page.getByRole("button", { name: /^Improve$/ }).first();
   await artifactButton.waitFor({ timeout: 10000 });
   await artifactButton.click();
   await page.getByRole("button", { name: /^Download(?: \.[a-z0-9]+| brief| code)?$/ }).last().waitFor({ timeout: 30000 });
@@ -356,7 +370,7 @@ async function exerciseStartFlow(page) {
 
   await page.getByRole("button", { name: /Start chat/i }).click();
   await page.waitForURL(/\/app\/?$/, { timeout: 10000 });
-  await page.getByText(/What do you want\?/i).waitFor({ timeout: 10000 });
+  await page.getByText(/Build the next version\./i).waitFor({ timeout: 10000 });
 
   const state = await page.evaluate(() => {
     try {
