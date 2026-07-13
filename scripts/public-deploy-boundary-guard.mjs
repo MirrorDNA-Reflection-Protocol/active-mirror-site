@@ -15,6 +15,7 @@ const allowedPublicEntries = [
   "public/mirrorprod-site-assets/",
   "public/robots.txt",
   "public/sitemap.xml",
+  "public/videos/",
 ];
 
 const failures = [];
