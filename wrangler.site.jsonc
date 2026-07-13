@@ -20,14 +20,10 @@
       "zone_name": "activemirror.ai"
     }
   ],
-  // MEASUREMENT — PENDING ONE DASHBOARD TOGGLE (Paul): the deploy on 2026-07-13 failed with
-  // "You need to enable Analytics Engine" (code 10089) at
-  // https://dash.cloudflare.com/c67a8591dff0a1b3681da50540530fc3/workers/analytics-engine
-  // The /e beacon route + client sendBeacon are LIVE and no-op safely without this binding.
-  // To turn on collection: enable Analytics Engine in the dashboard, then uncomment and redeploy.
-  // "analytics_engine_datasets": [
-  //   { "binding": "MP_METRICS", "dataset": "mirrorprod_events" }
-  // ],
+  // HANDLE_PROVENANCE: first-party measurement of bounded event types and query-free route paths.
+  "analytics_engine_datasets": [
+    { "binding": "ANALYTICS_ENGINE", "dataset": "Active_Mirror" }
+  ],
   "observability": {
     "enabled": true
   }

@@ -47,6 +47,29 @@ export default {
       return Response.redirect(url.toString(), 308);
     }
 
+    // First-party event beacon. Only bounded event names and URL paths reach Analytics Engine.
+    if (url.pathname === "/e" && request.method === "POST") {
+      try {
+        const body = await request.json();
+        const type = String(body?.t || "").slice(0, 24);
+        const path = String(body?.p || "").split("?")[0].slice(0, 128);
+        const allowed = ["pageview", "sample_play", "brief_view", "wa_tap"];
+        if (env.ANALYTICS_ENGINE && allowed.includes(type)) {
+          env.ANALYTICS_ENGINE.writeDataPoint({
+            blobs: [type, path],
+            indexes: [type],
+            doubles: [1],
+          });
+        }
+      } catch (_error) {
+        // Measurement must never break the visitor path.
+      }
+      return new Response(null, {
+        status: 204,
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
+
     if (isAppShellRoute(url.pathname)) {
       return new Response(APP_SHELL_HTML, {
         headers: {
