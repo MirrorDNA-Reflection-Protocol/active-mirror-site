@@ -255,11 +255,12 @@ async function exerciseFirstInput(page) {
   await page.getByRole("button", { name: /^Save note$/ }).waitFor({ timeout: 30000 });
   await page.getByRole("button", { name: /^Save note$/ }).click();
   await page.getByRole("button", { name: /^Saved$/ }).waitFor({ timeout: 10000 });
+  await exerciseSavedContext(page);
   const artifactButton = page.getByRole("button", { name: /^Improve$/ }).first();
   await artifactButton.waitFor({ timeout: 10000 });
   await artifactButton.click();
   await page.getByRole("button", { name: /^Download(?: \.[a-z0-9]+| brief| code)?$/ }).last().waitFor({ timeout: 30000 });
-  await page.getByRole("button", { name: /^Copy$/ }).last().waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: /^Copy(?: to edit)?$/ }).last().waitFor({ timeout: 10000 });
   if (await page.getByText("This asks for current facts.", { exact: true }).isVisible().catch(() => false)) {
     fail("Starter/feedback reflection leaked source-check UI.");
   }
@@ -277,7 +278,6 @@ async function exerciseFirstInput(page) {
     fail("Privacy event buffer leaked prompt text.");
   }
 
-  await exerciseSavedContext(page);
   await exerciseStarterSecondTurns(page);
 }
 
@@ -299,12 +299,15 @@ async function exerciseRefreshRecovery(page) {
 }
 
 async function exerciseSavedContext(page) {
-  await page.goto(routeUrl("/"), { waitUntil: "domcontentloaded", timeout: 20000 });
-  await page.getByText("Pick up where you left off", { exact: true }).waitFor({ timeout: 10000 });
-  await page.getByRole("button", { name: /^Continue$/ }).first().waitFor({ timeout: 10000 });
-  await page.getByRole("button", { name: /^Saved$/ }).first().click();
-  await page.getByText("Saved by you", { exact: true }).waitFor({ timeout: 10000 });
-  await page.getByText("Only on this browser. Delete it anytime.", { exact: true }).waitFor({ timeout: 10000 });
+  const privateRecord = page.locator('[data-testid="mirror-private-record"]');
+  await privateRecord.waitFor({ state: "visible", timeout: 10000 });
+  await privateRecord.getByRole("button", { name: "Open saved record", exact: true }).click();
+
+  const savedDrawer = page.getByRole("dialog", { name: "Saved here" });
+  await savedDrawer.waitFor({ state: "visible", timeout: 10000 });
+  await savedDrawer.getByText("Private records", { exact: true }).waitFor({ timeout: 10000 });
+  await savedDrawer.getByText("Saved only after you chose it, on this browser. Delete it anytime. Sharing stays your choice.", { exact: true }).waitFor({ timeout: 10000 });
+  await savedDrawer.getByText("Private record · sharing is your choice", { exact: true }).waitFor({ timeout: 10000 });
 
   const savedState = await page.evaluate(() => {
     try {
@@ -320,7 +323,7 @@ async function exerciseSavedContext(page) {
     fail("Saving a reflection did not keep the approved local default.");
   }
 
-  await page.getByRole("button", { name: /^Clear$/ }).click();
+  await savedDrawer.getByRole("button", { name: /^Clear$/ }).click();
   const clearedState = await page.evaluate(() => {
     try {
       return JSON.parse(localStorage.getItem("mirrorState_v1") || "{}");
@@ -331,21 +334,25 @@ async function exerciseSavedContext(page) {
   if (Array.isArray(clearedState.continuityLedger) && clearedState.continuityLedger.length !== 0) {
     fail("Clearing saved context did not remove browser-local saved items.");
   }
-  await page.getByRole("button", { name: "Close saved notes" }).last().click();
+  await page.getByRole("button", { name: "Close saved" }).last().click();
 }
 
 async function exerciseStarterSecondTurns(page) {
+  // Each starter path is a fresh-first-turn contract, not a continuation of the
+  // prior live conversation that this smoke test has already exercised.
+  await clearBrowserState(page);
   await page.goto(routeUrl("/"), { waitUntil: "domcontentloaded", timeout: 20000 });
-  await page.getByRole("button", { name: /^Make$/ }).click();
-  await page.getByText(/Start with the version someone can react to today/i).waitFor({ timeout: 10000 });
-  await page.locator("textarea, input[type='text'], [contenteditable='true']").first().fill("page");
+  await page.getByRole("button", { name: /^Make\b/ }).click();
+  await page.getByText(/Make the first usable version\. It does not need to be perfect\./i).waitFor({ timeout: 10000 });
+  await page.locator("textarea, input[type='text'], [contenteditable='true']").first().fill("page for a local maker");
   await page.getByRole("button", { name: /^Send$/ }).first().click();
   await page.getByText(/Page is enough\. Make the first screen, not the whole site/i).waitFor({ timeout: 10000 });
   await page.getByText(/Write one headline and one button label/i).waitFor({ timeout: 10000 });
 
+  await clearBrowserState(page);
   await page.goto(routeUrl("/"), { waitUntil: "domcontentloaded", timeout: 20000 });
-  await page.getByRole("button", { name: /^Fix$/ }).click();
-  await page.getByText(/Fix the smallest visible break first/i).waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: /^Fix\b/ }).click();
+  await page.getByText(/Do not fix the whole system\. Find the first snag\./i).waitFor({ timeout: 10000 });
   await page.locator("textarea, input[type='text'], [contenteditable='true']").first().fill("unclear");
   await page.getByRole("button", { name: /^Send$/ }).first().click();
   await page.getByText(/Clarity is the fix/i).waitFor({ timeout: 10000 });
