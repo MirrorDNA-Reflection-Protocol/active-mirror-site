@@ -20,12 +20,14 @@
       "zone_name": "activemirror.ai"
     }
   ],
-  // HANDLE_PROVENANCE: first-party sovereign measurement added 2026-07-13 per Paul "do it all".
-  // Analytics Engine is binding-only (no dashboard token, no third-party beacon); the /e route in
-  // site-worker/index.js writes here. Reading the data back later needs an account API token.
-  "analytics_engine_datasets": [
-    { "binding": "MP_METRICS", "dataset": "mirrorprod_events" }
-  ],
+  // MEASUREMENT — PENDING ONE DASHBOARD TOGGLE (Paul): the deploy on 2026-07-13 failed with
+  // "You need to enable Analytics Engine" (code 10089) at
+  // https://dash.cloudflare.com/c67a8591dff0a1b3681da50540530fc3/workers/analytics-engine
+  // The /e beacon route + client sendBeacon are LIVE and no-op safely without this binding.
+  // To turn on collection: enable Analytics Engine in the dashboard, then uncomment and redeploy.
+  // "analytics_engine_datasets": [
+  //   { "binding": "MP_METRICS", "dataset": "mirrorprod_events" }
+  // ],
   "observability": {
     "enabled": true
   }
