@@ -24,6 +24,8 @@
     "amos:queue": "node scripts/amos-task-queue.mjs",
     "amos:copy-sweep": "node scripts/amos-public-copy-friction-sweep.mjs",
     "amos:skill": "node scripts/amos-skill-contract.mjs",
+    "deliver": "python3 scripts/mirrorprod-deliver.py deliver",
+    "verify:delivery": "python3 scripts/mirrorprod-deliver.py verify",
     "preview": "vite preview",
     "cf:whoami": "node scripts/cloudflare-wrangler.mjs whoami",
     "cf:r2:list": "node scripts/cloudflare-wrangler.mjs r2 bucket list --config worker/wrangler.jsonc",
