@@ -421,6 +421,19 @@
     </div>
   </section>
 
+  <section id="answers">
+    <div class="wrap">
+      <span class="slate">Is AI video legal in India? · straight answers</span>
+      <h2>The questions buyers ask before they brief.</h2>
+      <div class="scenes" style="margin-top:1.4rem">
+        <a class="scene" style="text-decoration:none;color:inherit" href="/mirrorprod-india/answers/is-ai-video-legal-for-ads-india/"><h3>Is AI video legal to run as an ad in India?</h3><p>Short answer: yes, if it's labelled and provenance-tagged. →</p></a>
+        <a class="scene" style="text-decoration:none;color:inherit" href="/mirrorprod-india/answers/meity-ai-video-labelling-rules-explained/"><h3>India's AI labelling rules, explained</h3><p>What a compliant label looks like, in plain English. →</p></a>
+        <a class="scene" style="text-decoration:none;color:inherit" href="/mirrorprod-india/answers/dpdp-consent-for-ai-founder-videos/"><h3>DPDP consent for founder videos</h3><p>What to keep on file when your face is in the film. →</p></a>
+        <a class="scene" style="text-decoration:none;color:inherit" href="/mirrorprod-india/answers/ai-video-vs-shoot-cost-india/"><h3>AI video vs a shoot: real cost</h3><p>The honest comparison, compliance angle included. →</p></a>
+      </div>
+    </div>
+  </section>
+
   <div class="final">
     <div class="wrap">
       <span class="slate">Ready when you are</span>
@@ -460,6 +473,31 @@
       v.addEventListener('mouseenter',function(){ if(v.paused && !v.dataset.lock){ v.play().catch(function(){}); } });
       v.addEventListener('mouseleave',function(){ if(!v.dataset.lock){ v.pause(); try{v.currentTime=0;}catch(e){} } });
     });
+  }
+
+  // First-party measurement — posts to the same-origin /e worker route. No cookies, no third party.
+  var seen = {};
+  function send(t){
+    if(seen[t]) return; seen[t]=1;
+    var payload = JSON.stringify({t:t, p:location.pathname});
+    try{
+      if(navigator.sendBeacon){ navigator.sendBeacon('/e', new Blob([payload],{type:'application/json'})); }
+      else{ fetch('/e',{method:'POST',body:payload,headers:{'Content-Type':'application/json'},keepalive:true}); }
+    }catch(e){}
+  }
+  send('pageview');
+  document.querySelectorAll('.rail video').forEach(function(v){
+    v.addEventListener('play', function(){ send('sample_play'); }, {once:true});
+  });
+  document.querySelectorAll('a[href*="wa.me"]').forEach(function(a){
+    a.addEventListener('click', function(){ send('wa_tap'); });
+  });
+  var packs = document.getElementById('packs');
+  if(packs && 'IntersectionObserver' in window){
+    var po = new IntersectionObserver(function(en){
+      if(en[0].isIntersecting){ send('brief_view'); po.disconnect(); }
+    },{threshold:0.4});
+    po.observe(packs);
   }
 })();
 </script>

@@ -47,6 +47,25 @@ export default {
       return Response.redirect(url.toString(), 308);
     }
 
+    // First-party event beacon (sovereign measurement — no third-party tracker, no PII stored).
+    // POST /e {t: eventType, p: path}. Fails closed to 204 so metrics never break a page.
+    if (url.pathname === "/e" && request.method === "POST") {
+      try {
+        const body = await request.json();
+        const type = String(body?.t || "").slice(0, 24);
+        const path = String(body?.p || "").split("?")[0].slice(0, 128);
+        const allowed = ["pageview", "sample_play", "brief_view", "wa_tap"];
+        if (env.MP_METRICS && allowed.includes(type)) {
+          env.MP_METRICS.writeDataPoint({
+            blobs: [type, path],
+            indexes: [type],
+            doubles: [1],
+          });
+        }
+      } catch (_e) { /* swallow — a metrics error must never affect the visitor */ }
+      return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
+    }
+
     if (isAppShellRoute(url.pathname)) {
       return new Response(APP_SHELL_HTML, {
         headers: {
