@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 // HANDLE_PROVENANCE: per-video landing-page generator, built 2026-07-13 per Paul "yes lets do it" (move #3).
-// Reads the real video catalog (VIDEO_INVENTORY) from the mirrorprod rescue worktree — the same data that
-// powers the live /videos/*.mp4 (served by the worker media layer, verified 200 in prior sessions).
+// Reads the video catalog (VIDEO_INVENTORY) from the mirrorprod rescue worktree. Generated /videos/*
+// references are validated as build assets and live media by mirrorprod-media-gate.mjs.
 // Emits /mirrorprod-india/watch/<slug>/ per video + /mirrorprod-india/watch/ index, and a unified sitemap
 // covering the main page, the 4 answer pages, the library index, and every watch page.
-// Palette matches the live page. Every video page is forwardable, plays inline, labelled AI-generated,
-// routes to the WhatsApp brief, and links the Certificate section.
+// Palette matches the live page. Every page exposes inline controls, labels the sample AI-generated,
+// routes to the WhatsApp brief, and links the Certificate section. Playback is a separate observed gate.
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 
