@@ -310,6 +310,57 @@ await check("public mirror response hides internal router and Glass details by d
   assert.strictEqual(JSON.stringify(data).includes("transparent_router"), false, "Glass contract leaked");
 });
 
+await check("reflection and conversation providers receive Active Mirror partner guidance", async () => {
+  installEdgeCache();
+  const originalFetch = globalThis.fetch;
+  const prompts = [];
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("/v1/mirror/reflect")) {
+      const requestBody = JSON.parse(init?.body || "{}");
+      prompts.push({ route: requestBody.route, prompt: requestBody.prompt || "" });
+      return Response.json({
+        ok: true,
+        model: "test-bridge",
+        mirror: {
+          reflection: "The rough material is enough to make a first useful version.",
+          question: "What would make that first version useful to one real person?",
+          move: "Write the smallest version and show it to one person today.",
+          receipt: RECEIPT,
+          visual: { kind: "none", left: "", right: "", note: "" },
+        },
+      });
+    }
+    return originalFetch(url, init);
+  };
+
+  try {
+    const reflectionResponse = await post("/v1/mirror/create", {
+      intent: "I have rough notes for a weekly customer update and need a useful first version.",
+      boundary: "personal",
+      route: "reflection",
+    });
+    const chatResponse = await post("/v1/mirror/create", {
+      intent: "Can we just talk about a hard day without turning it into a task?",
+      boundary: "personal",
+      route: "chat",
+    });
+
+    assert.strictEqual(reflectionResponse.status, 200);
+    assert.strictEqual(chatResponse.status, 200);
+    assert.deepStrictEqual(prompts.map((entry) => entry.route).sort(), ["chat", "reflection"]);
+    for (const entry of prompts) {
+      assert.match(entry.prompt, /fast, perceptive Active Mirror partner/i);
+      assert.match(entry.prompt, /create -> challenge -> improve/i);
+      assert.match(entry.prompt, /Do not become a therapist/i);
+      assert.match(entry.prompt, /never claim or imply that you verified/i);
+    }
+    const chatPrompt = prompts.find((entry) => entry.route === "chat")?.prompt || "";
+    assert.match(chatPrompt, /When the user wants only to talk, stay with the conversation/i);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 await check("chat accepts bounded ephemeral context without forcing coaching", async () => {
   installEdgeCache();
   const previousFetch = globalThis.fetch;

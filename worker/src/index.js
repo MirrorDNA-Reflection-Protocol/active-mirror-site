@@ -66,6 +66,20 @@ const DEFAULT_EVENT_WINDOW_SECONDS = 60;
 const DEFAULT_EVENT_SESSION_WINDOW_LIMIT = 90;
 const DEFAULT_EVENT_NETWORK_WINDOW_LIMIT = 240;
 
+const ACTIVE_MIRROR_PARTNER_GUIDANCE = [
+  "Provider guidance for reflection and conversation:",
+  "Be a fast, perceptive Active Mirror partner for a solo builder bringing rough work to iterate.",
+  "Start from the actual material: rough notes, half-formed ideas, drafts, decisions, or plans.",
+  "When it fits the request, work in a create -> challenge -> improve loop: make a concrete first pass, name the most material gap, tradeoff, or unsupported claim without guessing motives, then improve the work into a more usable version.",
+  "Do not name or mechanically narrate that loop.",
+  "Be observant, direct, humane, and specific. Do not become a therapist, self-help coach, generic productivity coach, cheerleader, or detached evaluator. Do not diagnose or pathologize the user.",
+  "When the user wants only to talk, stay with the conversation; do not force advice, a task, exercise, timer, framework, question, or next move.",
+  "Never claim or imply that you verified, tested, searched, browsed, checked sources, used tools, consulted agents, accessed files, made changes, or completed actions unless that result is explicitly supplied in the prompt. State the uncertainty or next check instead.",
+  "All existing privacy, safety, language, structured JSON, source-check, route, and receipt instructions still apply.",
+].join("\n");
+
+const ACTIVE_MIRROR_PROVIDER_SYSTEM_TEXT = "Follow the supplied Active Mirror prompt and its response-mode instructions. Return one compact Active Mirror turn as valid JSON only. No markdown, no preamble, no prose outside JSON.";
+
 const EVENT_NAMES = new Set([
   "home_view",
   "mirror_view",
@@ -355,14 +369,15 @@ export default {
         replyLanguage: input.reply_language,
         sessionContext: input.session_context,
         callModel: async (prompt) => {
+          const providerPrompt = withActiveMirrorPartnerGuidance(prompt, route.capability);
           lastPromptHash = await receiptHash({
             type: "active_mirror_prompt",
             boot: ACTIVE_MIRROR_BOOT_VERSION,
             capability: route.capability,
             primary: route.primary,
-            prompt,
+            prompt: providerPrompt,
           });
-          lastPromptChars = String(prompt || "").length;
+          lastPromptChars = String(providerPrompt || "").length;
           if (failsafe.active) {
             lastProvider = null;
             lastModel = "local-deterministic";
@@ -381,7 +396,7 @@ export default {
               routeText: "Active Mirror fail-safe mode is active; no model or tool route was used.",
             };
           }
-          const r = await runRoute(route, prompt, env);
+          const r = await runRoute(route, providerPrompt, env);
           lastProvider = r.provider || null;
           lastModel = r.model || null;
           lastUpstreamHost = r.upstream_host || null;
@@ -1574,6 +1589,11 @@ function modelRoute(capability, primary) {
   return { capability, primary, ...routes[primary] };
 }
 
+function withActiveMirrorPartnerGuidance(prompt, capability) {
+  if (!["reflection", "chat"].includes(capability)) return prompt;
+  return [String(prompt || ""), "", ACTIVE_MIRROR_PARTNER_GUIDANCE].join("\n");
+}
+
 // --- Provider calls. The kernel never sees any of this. Returns { fallback, fallbackReason, model, mirror }. ---
 async function runRoute(route, prompt, env, attempted = []) {
   const provider = route.primary;
@@ -2661,7 +2681,7 @@ async function callAnthropicModel(prompt, model, env) {
         model,
         max_tokens: 1000,
         temperature: 0.4,
-        system: "Return one compact Active Mirror reflection as valid JSON only. No markdown, no preamble, no prose outside JSON.",
+        system: ACTIVE_MIRROR_PROVIDER_SYSTEM_TEXT,
         messages: [{ role: "user", content: prompt }],
       }),
     },
@@ -2730,7 +2750,7 @@ async function callGemini(prompt, route, env) {
         Origin: new URL(referer).origin,
       },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: "Return a compact Active Mirror reflection as valid JSON only." }] },
+        systemInstruction: { parts: [{ text: ACTIVE_MIRROR_PROVIDER_SYSTEM_TEXT }] },
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: "application/json", responseJsonSchema: PROVIDER_MIRROR_SCHEMA },
       }),
