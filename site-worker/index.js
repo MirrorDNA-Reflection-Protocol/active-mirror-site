@@ -22,8 +22,8 @@ const APP_SHELL_HTML = `<!doctype html>
     <link rel="alternate" type="text/plain" href="https://activemirror.ai/llms.txt" title="Active Mirror AI instructions" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230b110e'/%3E%3Cpath d='M32 10 50 20.5v21L32 54 14 41.5v-21L32 10Z' fill='none' stroke='%235db8a5' stroke-width='4'/%3E%3Cpath d='M32 21 42 27v10L32 43 22 37V27L32 21Z' fill='none' stroke='%2370b7e6' stroke-width='4'/%3E%3C/svg%3E" />
     <title>Active Mirror - start with one thing</title>
-    <script type="module" crossorigin src="/app/assets/index-DYYfpVb7.js"></script>
-    <link rel="stylesheet" crossorigin href="/app/assets/index-BqBPpC74.css">
+    <script type="module" crossorigin src="/app/assets/index-CMi7Qo4P.js"></script>
+    <link rel="stylesheet" crossorigin href="/app/assets/index-CXC4OZXP.css">
   </head>
   <body>
     <div id="root"></div>
@@ -45,29 +45,6 @@ export default {
     if (url.hostname === "www.activemirror.ai") {
       url.hostname = "activemirror.ai";
       return Response.redirect(url.toString(), 308);
-    }
-
-    // First-party event beacon. Only bounded event names and URL paths reach Analytics Engine.
-    if (url.pathname === "/e" && request.method === "POST") {
-      try {
-        const body = await request.json();
-        const type = String(body?.t || "").slice(0, 24);
-        const path = String(body?.p || "").split("?")[0].slice(0, 128);
-        const allowed = ["pageview", "sample_play", "brief_view", "wa_tap"];
-        if (env.ANALYTICS_ENGINE && allowed.includes(type)) {
-          env.ANALYTICS_ENGINE.writeDataPoint({
-            blobs: [type, path],
-            indexes: [type],
-            doubles: [1],
-          });
-        }
-      } catch (_error) {
-        // Measurement must never break the visitor path.
-      }
-      return new Response(null, {
-        status: 204,
-        headers: { "Cache-Control": "no-store" },
-      });
     }
 
     if (isAppShellRoute(url.pathname)) {
