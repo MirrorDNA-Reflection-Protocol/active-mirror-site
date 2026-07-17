@@ -49,6 +49,7 @@
     "canary:mirrorprod-media:nightly": "MIRRORPROD_PLAY_ALL=1 MIRRORPROD_PLAY_TO_END=1 MIRRORPROD_BROWSERS=chromium,firefox,webkit MIRRORPROD_VIEWPORTS=mobile,desktop MIRRORPROD_PROBE_AUDIO=1 node scripts/mirrorprod-media-gate.mjs live",
     "canary:analytics-persistence": "node scripts/analytics-engine-persistence-canary.mjs",
     "monitor:gateway": "node scripts/gateway-monitor.mjs",
+    "monitor:gateway:test": "node scripts/test-gateway-monitor.mjs",
     "monitor:gateway:failover": "ACTIVE_MIRROR_REQUIRE_BRIDGE_HEALTH=0 ACTIVE_MIRROR_EXPECTED_REFLECTION_PRIMARY=openai ACTIVE_MIRROR_EXPECTED_REFLECTION_PROVIDER=openai ACTIVE_MIRROR_EXPECTED_CHAT_PRIMARY=openai ACTIVE_MIRROR_EXPECTED_CHAT_PROVIDER=openai node scripts/gateway-monitor.mjs",
     "bridge:ready": "node scripts/gateway-bridge-readiness.mjs",
     "bridge:ready:test": "node scripts/test-gateway-bridge-readiness.mjs",

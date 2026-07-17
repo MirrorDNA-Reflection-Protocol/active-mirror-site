@@ -1,17 +1,24 @@
 #!/usr/bin/env node
 
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 const GATEWAY = process.env.ACTIVE_MIRROR_GATEWAY || "https://gateway.activemirror.ai";
 const BRIDGE = process.env.ACTIVE_MIRROR_BRIDGE || "https://bridge.activemirror.ai";
 const PROXY = process.env.ACTIVE_MIRROR_PROXY || "https://proxy.activemirror.ai";
 const TIMEOUT_MS = Number(process.env.ACTIVE_MIRROR_MONITOR_TIMEOUT_MS || 30000);
 const EXPECTED_GATEWAY_VERSION =
   process.env.ACTIVE_MIRROR_EXPECTED_GATEWAY_VERSION || "2026-07-11-conversational-local-first-v1";
-const EXPECTED_REFLECTION_PRIMARY = process.env.ACTIVE_MIRROR_EXPECTED_REFLECTION_PRIMARY || "bridge";
+const WORKER_CONFIG_PATH = process.env.ACTIVE_MIRROR_WORKER_CONFIG
+  || fileURLToPath(new URL("../worker/wrangler.jsonc", import.meta.url));
+const CONFIGURED_ROUTES = readConfiguredRoutes(WORKER_CONFIG_PATH);
+const EXPECTED_REFLECTION_PRIMARY =
+  process.env.ACTIVE_MIRROR_EXPECTED_REFLECTION_PRIMARY || CONFIGURED_ROUTES.reflection;
 const EXPECTED_REFLECTION_PROVIDER = process.env.ACTIVE_MIRROR_EXPECTED_REFLECTION_PROVIDER || EXPECTED_REFLECTION_PRIMARY;
 const EXPECTED_REFLECTION_UPSTREAM_HOST =
   process.env.ACTIVE_MIRROR_EXPECTED_REFLECTION_UPSTREAM_HOST ||
   (EXPECTED_REFLECTION_PROVIDER === "bridge" ? new URL(BRIDGE).hostname : "");
-const EXPECTED_CHAT_PRIMARY = process.env.ACTIVE_MIRROR_EXPECTED_CHAT_PRIMARY || "bridge";
+const EXPECTED_CHAT_PRIMARY = process.env.ACTIVE_MIRROR_EXPECTED_CHAT_PRIMARY || CONFIGURED_ROUTES.chat;
 const EXPECTED_CHAT_PROVIDER = process.env.ACTIVE_MIRROR_EXPECTED_CHAT_PROVIDER || EXPECTED_CHAT_PRIMARY;
 const EXPECTED_CHAT_UPSTREAM_HOST =
   process.env.ACTIVE_MIRROR_EXPECTED_CHAT_UPSTREAM_HOST ||
@@ -35,6 +42,18 @@ async function main() {
     gateway: GATEWAY,
     mode: bothMode ? "both" : logsMode ? "logs" : "probe",
     run_id: RUN_ID,
+    route_expectations: {
+      reflection: {
+        source: process.env.ACTIVE_MIRROR_EXPECTED_REFLECTION_PRIMARY ? "environment" : WORKER_CONFIG_PATH,
+        primary: EXPECTED_REFLECTION_PRIMARY,
+        provider: EXPECTED_REFLECTION_PROVIDER,
+      },
+      chat: {
+        source: process.env.ACTIVE_MIRROR_EXPECTED_CHAT_PRIMARY ? "environment" : WORKER_CONFIG_PATH,
+        primary: EXPECTED_CHAT_PRIMARY,
+        provider: EXPECTED_CHAT_PROVIDER,
+      },
+    },
     checks: [],
     counts: {
       rate_limited: 0,
@@ -184,7 +203,12 @@ async function runProbeChecks(summary) {
     if (EXPECTED_CHAT_UPSTREAM_HOST) {
       assert(data.route?.upstream_host === EXPECTED_CHAT_UPSTREAM_HOST, `chat upstream host was ${data.route?.upstream_host || "missing"}`);
     }
-    assert(typeof data.mirror?.move === "string" && data.mirror.move.length > 8, "move missing");
+    assert(data.response_mode === "conversation", `chat response mode was ${data.response_mode || "missing"}`);
+    assert(typeof data.mirror?.reflection === "string" && data.mirror.reflection.length >= 20, "chat reflection missing");
+    assert(typeof data.mirror?.question === "string", "chat question slot missing");
+    assert(typeof data.mirror?.move === "string", "chat move slot missing");
+    assert(data.mirror?.receipt && typeof data.mirror.receipt === "object", "chat receipt missing");
+    assert(/^[a-f0-9]{24}$/.test(String(data.receipt_id || "")), "chat receipt id missing");
     return { receipt_id: data.receipt_id, provider: data.route?.provider };
   });
 
@@ -379,6 +403,21 @@ function increment(target, key) {
 function positiveInt(value, fallback) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : fallback;
+}
+
+function readConfiguredRoutes(configPath) {
+  const config = JSON.parse(readFileSync(configPath, "utf8"));
+  const reflection = configuredPrimary(config?.vars?.MIRROR_REFLECTION_PRIMARY, "MIRROR_REFLECTION_PRIMARY");
+  const chat = configuredPrimary(config?.vars?.MIRROR_CHAT_PRIMARY || reflection, "MIRROR_CHAT_PRIMARY");
+  return { reflection, chat };
+}
+
+function configuredPrimary(value, name) {
+  const primary = String(value || "").trim().toLowerCase();
+  if (!["bridge", "anthropic", "openai", "gemini"].includes(primary)) {
+    throw new Error(`${name} is missing or unsupported in ${WORKER_CONFIG_PATH}`);
+  }
+  return primary;
 }
 
 function assert(condition, message) {
