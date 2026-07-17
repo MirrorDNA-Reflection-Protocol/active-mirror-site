@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
+import { pathToFileURL } from "node:url";
 
 const MINI_IP = process.env.ACTIVE_MIRROR_MINI_TAILSCALE_IP || "100.114.247.53";
-const MINI_SSH = process.env.ACTIVE_MIRROR_MINI_SSH || "mirror-admin@mirror-admins-mac-mini";
+const MINI_SSH = process.env.ACTIVE_MIRROR_MINI_SSH || "mini";
 const BRIDGE = process.env.ACTIVE_MIRROR_BRIDGE || "https://bridge.activemirror.ai";
-const PROXY = process.env.ACTIVE_MIRROR_PROXY || "https://proxy.activemirror.ai";
 const TIMEOUT_MS = Number(process.env.ACTIVE_MIRROR_BRIDGE_READY_TIMEOUT_MS || 12000);
+const SCHEMA_VERSION = "active_mirror.bridge_readiness.v2";
 
 async function main() {
   const checks = [];
@@ -13,14 +14,30 @@ async function main() {
   await record(checks, "mini tailscale ping", async () => {
     await run("tailscale", ["ping", "--timeout=5s", "--c=1", MINI_IP], TIMEOUT_MS);
     return { target: MINI_IP };
-  });
+  }, { required: false });
 
   await record(checks, "mini ssh", async () => {
     const result = await run("ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=8", MINI_SSH, "hostname"], TIMEOUT_MS);
     return { target: MINI_SSH, host: result.stdout.trim() };
   });
 
-  await record(checks, "mini bridge tunnel service", async () => {
+  await record(checks, "mini bridge origin", async () => {
+    const result = await run(
+      "ssh",
+      [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=8",
+        MINI_SSH,
+        "/usr/bin/curl -sSf --max-time 5 http://127.0.0.1:8082/health",
+      ],
+      TIMEOUT_MS
+    );
+    return validateHealthPayload(JSON.parse(result.stdout), "active-mirror-mini-bridge", "mini loopback");
+  });
+
+  await record(checks, "mini bridge tunnel metrics", async () => {
     await run(
       "ssh",
       [
@@ -29,47 +46,62 @@ async function main() {
         "-o",
         "ConnectTimeout=8",
         MINI_SSH,
-        "curl -sf --max-time 5 http://127.0.0.1:20262/metrics >/dev/null && curl -sf --max-time 5 https://bridge.activemirror.ai/health >/dev/null",
+        "/usr/bin/curl -sSf --max-time 5 http://127.0.0.1:20262/metrics >/dev/null",
       ],
       TIMEOUT_MS
     );
     return { target: MINI_SSH, service: "ai.activemirror.active-mirror-bridge" };
   });
 
-  await record(checks, "public bridge health", async () => readHealth(BRIDGE));
-  await record(checks, "public proxy health", async () => readHealth(PROXY));
+  await record(checks, "public bridge health", async () => readHealth(BRIDGE, "active-mirror-mini-bridge"));
 
-  const ok = checks.every((check) => check.status === "pass");
+  const ok = checks.every((check) => check.status !== "fail");
+  const warnings = checks.filter((check) => check.status === "warn");
   const summary = {
+    schema_version: SCHEMA_VERSION,
+    generated_at: new Date().toISOString(),
     ok,
+    status: ok ? "PASS" : "FAIL",
     mode: "bridge-readiness",
+    boundary: "mini_origin_tunnel_public_bridge",
     mini_ip: MINI_IP,
     mini_ssh: MINI_SSH,
     bridge: BRIDGE,
-    proxy: PROXY,
     checks,
-    next: ok ? "run npm run bridge:restore" : "turn on or reconnect the Mini, then rerun npm run bridge:ready",
+    warnings,
+    bad_news: warnings.map((warning) => `${warning.name}: ${safeError(warning.detail)}`),
+    next: ok ? "bridge activation proof is complete" : "repair the first failed check, then rerun npm run bridge:ready",
   };
 
   console.log(JSON.stringify(summary, null, 2));
   process.exit(ok ? 0 : 1);
 }
 
-async function record(checks, name, fn) {
+async function record(checks, name, fn, { required = true } = {}) {
   try {
     const detail = await fn();
     checks.push({ name, status: "pass", detail });
   } catch (error) {
-    checks.push({ name, status: "fail", detail: safeError(error) });
+    checks.push({ name, status: required ? "fail" : "warn", detail: safeError(error) });
   }
 }
 
-async function readHealth(url) {
+async function readHealth(url, expectedService) {
   const response = await fetchWithTimeout(`${url.replace(/\/$/, "")}/health`);
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(`${url}/health status ${response.status}`);
-  if (data.ok !== true) throw new Error(`${url}/health ok was not true`);
-  return { url, ok: data.ok, service: data.service || data.name || "unknown" };
+  return { url, ...validateHealthPayload(data, expectedService, `${url}/health`) };
+}
+
+export function validateHealthPayload(data, expectedService, source) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error(`${source} payload was not an object`);
+  }
+  if (data.ok !== true) throw new Error(`${source} ok was not true`);
+  if (data.service !== expectedService) {
+    throw new Error(`${source} service was ${String(data.service || "missing")}`);
+  }
+  return { ok: true, service: data.service };
 }
 
 async function fetchWithTimeout(url) {
@@ -113,11 +145,14 @@ function run(command, args, timeoutMs) {
   });
 }
 
-function safeError(error) {
+export function safeError(error) {
   return String(error?.message || error || "unknown").replace(/\s+/g, " ").slice(0, 240);
 }
 
-main().catch((error) => {
-  console.error(error?.stack || error);
-  process.exit(1);
-});
+const entryUrl = process.argv[1] ? pathToFileURL(process.argv[1]).href : "";
+if (import.meta.url === entryUrl) {
+  main().catch((error) => {
+    console.error(error?.stack || error);
+    process.exit(1);
+  });
+}

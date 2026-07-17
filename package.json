@@ -51,6 +51,7 @@
     "monitor:gateway": "node scripts/gateway-monitor.mjs",
     "monitor:gateway:failover": "ACTIVE_MIRROR_REQUIRE_BRIDGE_HEALTH=0 ACTIVE_MIRROR_EXPECTED_REFLECTION_PRIMARY=openai ACTIVE_MIRROR_EXPECTED_REFLECTION_PROVIDER=openai ACTIVE_MIRROR_EXPECTED_CHAT_PRIMARY=openai ACTIVE_MIRROR_EXPECTED_CHAT_PROVIDER=openai node scripts/gateway-monitor.mjs",
     "bridge:ready": "node scripts/gateway-bridge-readiness.mjs",
+    "bridge:ready:test": "node scripts/test-gateway-bridge-readiness.mjs",
     "bridge:restore": "node scripts/gateway-bridge-restore.mjs",
     "smoke:browser": "node scripts/browser-smoke.mjs",
     "smoke:interaction": "node scripts/interaction-smoke.mjs",
