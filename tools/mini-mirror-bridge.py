@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
 """Tiny Active Mirror model bridge for the Mac mini.
 
-This service sits behind proxy.activemirror.ai -> 127.0.0.1:8082 and calls the
+This service sits behind bridge.activemirror.ai -> 127.0.0.1:8082 and calls the
 configured model route. Cloudflare Worker keeps the public boundary/rate/kernel
 logic; this bridge only supplies a model-shaped mirror candidate.
 """
 
 from __future__ import annotations
 
+import hmac
 import json
 import os
 import re
+import sys
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlsplit
 
 
 HOST = os.environ.get("MINI_MIRROR_BRIDGE_HOST", "127.0.0.1")
@@ -25,6 +29,12 @@ OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.4-mini")
 OPENAI_URL = os.environ.get("OPENAI_URL", "https://api.openai.com/v1/responses")
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434/api/generate")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "mirrorstudent:latest")
+EXPECTED_PROVIDER_ERRORS = (
+    TimeoutError,
+    urllib.error.URLError,
+    json.JSONDecodeError,
+    UnicodeError,
+)
 
 
 SYSTEM = """You are Active Mirror. Return valid JSON only:
@@ -83,6 +93,15 @@ OPENAI_SCHEMA = {
         },
     },
 }
+
+
+def audit_event(event: str, **fields: object) -> None:
+    record = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "event": event,
+        **fields,
+    }
+    print(json.dumps(record, sort_keys=True), file=sys.stderr, flush=True)
 
 
 def safe_text(value: object, fallback: str, limit: int) -> str:
@@ -190,10 +209,28 @@ def generate(prompt: str) -> tuple[dict, str]:
     if PROVIDER == "openai" and OPENAI_API_KEY:
         try:
             return generate_openai(prompt), "openai"
-        except Exception:
+        except urllib.error.HTTPError as exc:
+            audit_event("provider_http_error", provider="openai", status=exc.code)
+            if exc.code != 429 and not 500 <= exc.code < 600:
+                raise
+            audit_event(
+                "provider_fallback",
+                from_provider="openai",
+                to_provider="ollama",
+                error_type=type(exc).__name__,
+                status=exc.code,
+            )
+            return generate_ollama(prompt), "local-fallback"
+        except EXPECTED_PROVIDER_ERRORS as exc:
             # Keep the public route alive if the hosted route blips. The Worker
             # still owns privacy/rate/receipt gates, and the response marks the
             # private bridge route rather than exposing provider details.
+            audit_event(
+                "provider_fallback",
+                from_provider="openai",
+                to_provider="ollama",
+                error_type=type(exc).__name__,
+            )
             return generate_ollama(prompt), "local-fallback"
     return generate_ollama(prompt), "local"
 
@@ -209,6 +246,13 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(raw)))
         self.end_headers()
         self.wfile.write(raw)
+        if self.path != "/health" or status >= 400:
+            audit_event(
+                "http_response",
+                method=self.command,
+                path=urlsplit(self.path).path,
+                status=status,
+            )
 
     def do_GET(self) -> None:
         if self.path == "/health":
@@ -230,26 +274,63 @@ class Handler(BaseHTTPRequestHandler):
         if not TOKEN:
             self.send_json(503, {"ok": False, "error": "bridge_token_missing"})
             return
-        if self.headers.get("X-Active-Mirror-Bridge") != TOKEN:
+        supplied_token = self.headers.get("X-Active-Mirror-Bridge", "")
+        if not hmac.compare_digest(supplied_token.encode("utf-8"), TOKEN.encode("utf-8")):
             self.send_json(401, {"ok": False, "error": "unauthorized"})
             return
         try:
-            size = min(int(self.headers.get("Content-Length", "0")), 24000)
-            payload = json.loads(self.rfile.read(size).decode("utf-8"))
+            content_length = self.headers.get("Content-Length")
+            if content_length is None:
+                self.send_json(411, {"ok": False, "error": "content_length_required"})
+                return
+            try:
+                size = int(content_length)
+            except ValueError:
+                self.send_json(400, {"ok": False, "error": "invalid_content_length"})
+                return
+            if size <= 0:
+                self.send_json(400, {"ok": False, "error": "empty_payload"})
+                return
+            if size > 24000:
+                self.send_json(413, {"ok": False, "error": "payload_too_large"})
+                return
+            try:
+                payload = json.loads(self.rfile.read(size).decode("utf-8"))
+            except (json.JSONDecodeError, UnicodeError):
+                self.send_json(400, {"ok": False, "error": "invalid_json"})
+                return
             prompt = safe_text(payload.get("prompt"), "", 16000)
             if len(prompt) < 12:
                 self.send_json(400, {"ok": False, "error": "prompt_too_short"})
                 return
             mirror, provider = generate(prompt)
             self.send_json(200, {"ok": True, "model": provider, "mirror": mirror})
-        except (TimeoutError, urllib.error.URLError) as exc:
-            self.send_json(503, {"ok": False, "error": "ollama_unavailable", "detail": str(exc)[:120]})
+        except urllib.error.HTTPError as exc:
+            audit_event("provider_rejected", error_type=type(exc).__name__, status=exc.code)
+            self.send_json(503, {"ok": False, "error": "provider_rejected"})
+        except EXPECTED_PROVIDER_ERRORS as exc:
+            audit_event("provider_unavailable", error_type=type(exc).__name__)
+            self.send_json(503, {"ok": False, "error": "provider_unavailable"})
         except Exception as exc:
-            self.send_json(500, {"ok": False, "error": "bridge_error", "detail": str(exc)[:120]})
+            audit_event("bridge_error", error_type=type(exc).__name__)
+            self.send_json(500, {"ok": False, "error": "bridge_error"})
 
     def log_message(self, fmt: str, *args: object) -> None:
         return
 
 
+class BridgeServer(ThreadingHTTPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+    request_queue_size = 64
+
+
 if __name__ == "__main__":
-    ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
+    audit_event(
+        "bridge_start",
+        host=HOST,
+        port=PORT,
+        provider="openai" if PROVIDER == "openai" and OPENAI_API_KEY else "ollama",
+        token_configured=bool(TOKEN),
+    )
+    BridgeServer((HOST, PORT), Handler).serve_forever()

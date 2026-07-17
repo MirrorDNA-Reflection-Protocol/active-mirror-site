@@ -15,14 +15,18 @@
   <key>KeepAlive</key>
   <true/>
   <key>StandardOutPath</key>
-  <string>/tmp/mini-mirror-bridge.log</string>
+  <string>/Users/mirror-admin/.mirrordna/logs/mini-mirror-bridge.log</string>
   <key>StandardErrorPath</key>
-  <string>/tmp/mini-mirror-bridge.err</string>
+  <string>/Users/mirror-admin/.mirrordna/logs/mini-mirror-bridge-error.log</string>
   <key>WorkingDirectory</key>
   <string>/Users/mirror-admin/.activemirror/services/mini-mirror-bridge</string>
   <key>ProcessType</key>
   <string>Background</string>
   <key>Nice</key>
   <integer>5</integer>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <key>Umask</key>
+  <integer>63</integer>
 </dict>
 </plist>
