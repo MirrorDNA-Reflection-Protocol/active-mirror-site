@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 const reposRoot = process.env.ACTIVE_MIRROR_REPOS_ROOT || "/Users/mirror-pro/repos";
 const publicDomain = "activemirror.ai";
+const strict = process.env.ACTIVE_MIRROR_REPO_AUDIT_STRICT === "true";
 const expected = {
   "active-mirror-site": { domain: publicDomain, kind: "canonical-deploy", path: "public/CNAME" },
   "active-mirror-identity": { domain: "id.activemirror.ai", kind: "compatibility", path: "CNAME" },
@@ -53,13 +54,20 @@ for (const claim of claims) {
   }
 }
 
+const exitCode = failures.length > 0 ? 1 : (strict && warnings.length > 0 ? 2 : 0);
+const status = failures.length > 0
+  ? "failure"
+  : (warnings.length > 0 ? (strict ? "strict_failure" : "warning") : "pass");
+
 console.log(JSON.stringify({
-  ok: failures.length === 0,
+  ok: exitCode === 0,
+  status,
+  strict,
+  exit_code: exitCode,
   repos_root: reposRoot,
   claims,
   warnings,
   failures,
 }, null, 2));
 
-if (failures.length) process.exit(1);
-if (warnings.length && process.env.ACTIVE_MIRROR_REPO_AUDIT_STRICT === "true") process.exit(2);
+if (exitCode !== 0) process.exit(exitCode);

@@ -53,6 +53,12 @@ The local repo audit may still warn about stale CNAME files in legacy checkouts.
 Those warnings are useful cleanup markers, not evidence that the public domain
 is currently served from those repos.
 
+The audit JSON reports `status: "warning"`, `ok: true`, and exit code `0` for
+that default cleanup posture. Set `ACTIVE_MIRROR_REPO_AUDIT_STRICT=true` when
+legacy claims must block a gate; the same warnings then report
+`status: "strict_failure"`, `ok: false`, and exit code `2`. Canonical ownership
+defects report `status: "failure"` and exit code `1` in either mode.
+
 ## Checks
 
 ```bash
